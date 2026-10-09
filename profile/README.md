@@ -16,7 +16,7 @@ Issues and pull requests are welcome. For larger changes, please open an issue f
 
 ## Support
 
-If these projects are useful to you, you can support their development via [PayPal](https://paypal.me/BeneODev).
+If these projects are useful to you, you can support their development via [GitHub Sponsors](https://github.com/sponsors/BeneODev) or [PayPal](https://paypal.me/BeneODev).
 
 ## Maintainer
 
