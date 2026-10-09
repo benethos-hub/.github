@@ -20,4 +20,4 @@ If these projects are useful to you, you can support their development via [GitH
 
 ## Maintainer
 
-Maintained by Benedikt Oswald ([benethos.de](https://benethos.de)).
+Maintained by Benedikt Oswald ([www.benethos.de](https://www.benethos.de)).
