@@ -14,10 +14,8 @@ Open-source projects in AI, agents and software architecture. The tools here con
 
 Issues and pull requests are welcome. For larger changes, please open an issue first so we can agree on the approach.
 
-## Support
+---
 
-If these projects are useful to you, you can support their development via [GitHub Sponsors](https://github.com/sponsors/BeneODev) or [PayPal](https://paypal.me/BeneODev).
-
-## Maintainer
-
-Maintained by Benedikt Oswald ([www.benethos.de](https://www.benethos.de)).
+[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/BeneODev)
+[![PayPal](https://img.shields.io/badge/Support-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/BeneODev)
+[![Maintainer](https://img.shields.io/badge/Maintainer-BeneODev-181717?logo=github&logoColor=white)](https://github.com/BeneODev)
