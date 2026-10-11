@@ -22,6 +22,6 @@ Issues and pull requests are welcome. For larger changes, please open an issue f
 
 ---
 
-[![Sponsor](https://img.shields.io/badge/Sponsor-GitHub-ea4aaa?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/BeneODev)
-[![PayPal](https://img.shields.io/badge/Support-PayPal-00457C?logo=paypal&logoColor=white)](https://paypal.me/BeneODev)
-[![Maintainer](https://img.shields.io/badge/Maintainer-BeneODev-181717?logo=github&logoColor=white)](https://github.com/BeneODev)
+[![Maintainer](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/maintainer.svg)](https://github.com/BeneODev)
+[![Sponsor](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/sponsor.svg)](https://github.com/sponsors/BeneODev)
+[![PayPal](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/paypal.svg)](https://paypal.me/BeneODev)
