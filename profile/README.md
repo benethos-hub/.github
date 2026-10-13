@@ -8,11 +8,11 @@ Open-source projects in AI, agents and software architecture. The tools here con
 
 Self-hosted REST API and web UI for IMAP, JMAP, POP3, Microsoft 365 and Outlook.com mailboxes. Includes a Python client and an MCP server, so AI agents can read, sort, draft and send mail within the folders, rights and send limits you grant.
 
-### <img src="https://raw.githubusercontent.com/benethos-hub/lexware-office-mcp/main/assets/icon.svg" alt="" height="28" align="absmiddle"> [lexware-office-mcp](https://github.com/benethos-hub/lexware-office-mcp)
+### <img src="https://raw.githubusercontent.com/benethos-hub/lexware-office-mcp/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [lexware-office-mcp](https://github.com/benethos-hub/lexware-office-mcp)
 
 Unofficial MCP server for the Lexware Office accounting API. Gives AI clients access to contacts, vouchers and invoices. No tool is active until you enable it.
 
-### <img src="https://raw.githubusercontent.com/benethos-hub/yahoo-finance-mcp/main/assets/icon.svg" alt="" height="28" align="absmiddle"> [yahoo-finance-mcp](https://github.com/benethos-hub/yahoo-finance-mcp)
+### <img src="https://raw.githubusercontent.com/benethos-hub/yahoo-finance-mcp/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [yahoo-finance-mcp](https://github.com/benethos-hub/yahoo-finance-mcp)
 
 Unofficial MCP server for Yahoo Finance data via yfinance. Read-only, with prices, key figures, analyst estimates and stock screening.
 
