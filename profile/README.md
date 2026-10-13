@@ -16,6 +16,10 @@ Unofficial MCP server for the Lexware Office accounting API. Gives AI clients ac
 
 Unofficial MCP server for Yahoo Finance data via yfinance. Read-only, with prices, key figures, analyst estimates and stock screening.
 
+### <img src="https://raw.githubusercontent.com/benethos-hub/agent-skills/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [agent-skills](https://github.com/benethos-hub/agent-skills)
+
+Skills for AI agents, written to the open Agent Skills standard and ordered by category. Where a skill needs live data, it works together with an MCP server such as the ones above.
+
 ## Contributing
 
 Issues and pull requests are welcome. For larger changes, please open an issue first so we can agree on the approach.
