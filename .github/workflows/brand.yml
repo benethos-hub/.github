@@ -1,8 +1,8 @@
 name: Brand
 
 # Reusable check that every repository of the organisation carries its icon at
-# assets/brand/icon.svg and assets/brand/icon.png. Call it from a repository's
-# CI with:
+# assets/brand/icon.svg and as a 512x512 assets/brand/icon.png exported from
+# it. Call it from a repository's CI with:
 #
 #   brand:
 #     uses: benethos-hub/.github/.github/workflows/brand.yml@main
@@ -21,33 +21,54 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Full history without file contents, so git log can tell which of
+          # the two icons changed last.
+          fetch-depth: 0
+          filter: blob:none
           sparse-checkout: assets/brand
           sparse-checkout-cone-mode: false
 
-      - name: assets/brand/icon.svg and icon.png exist
+      - name: assets/brand/icon.svg and icon.png are present and current
         run: |
           failed=0
+          fail() {
+            echo "::error file=$1::$2"
+            failed=1
+          }
 
           svg=assets/brand/icon.svg
           if [ ! -s "$svg" ]; then
-            echo "::error file=$svg::Missing $svg."
-            failed=1
+            fail "$svg" "Missing $svg."
           elif ! grep -q '<svg' "$svg"; then
-            echo "::error file=$svg::$svg is not an SVG file."
-            failed=1
+            fail "$svg" "$svg is not an SVG file."
           fi
 
           png=assets/brand/icon.png
           if [ ! -s "$png" ]; then
-            echo "::error file=$png::Missing $png."
-            failed=1
+            fail "$png" "Missing $png."
           elif [ "$(head -c 8 "$png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
-            echo "::error file=$png::$png is not a PNG file."
-            failed=1
+            fail "$png" "$png is not a PNG file."
+          else
+            # Width and height are the two 4-byte big-endian numbers at offset 16.
+            size=$(od -An -tu1 -j16 -N8 "$png" | awk '{ printf "%dx%d", $1*16777216 + $2*65536 + $3*256 + $4, $5*16777216 + $6*65536 + $7*256 + $8 }')
+            if [ "$size" != "512x512" ]; then
+              fail "$png" "$png is $size pixels. It has to be 512x512."
+            fi
+          fi
+
+          # The PNG is exported from the SVG. The last commit that changed the
+          # PNG must therefore be the same as or later than the last commit
+          # that changed the SVG.
+          if [ "$failed" -eq 0 ]; then
+            svg_commit=$(git log -1 --format=%H -- "$svg")
+            png_commit=$(git log -1 --format=%H -- "$png")
+            if ! git merge-base --is-ancestor "$svg_commit" "$png_commit"; then
+              fail "$png" "$png is older than the last change to $svg. Export it again from the SVG."
+            fi
           fi
 
           if [ "$failed" -ne 0 ]; then
-            echo "Every repository of benethos-hub needs its icon as assets/brand/icon.svg and assets/brand/icon.png."
+            echo "Every repository of benethos-hub needs its icon as assets/brand/icon.svg and as a 512x512 assets/brand/icon.png exported from it."
             exit 1
           fi
-          echo "Found $svg and $png."
+          echo "$svg and $png are present and current."

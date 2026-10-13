@@ -18,11 +18,20 @@ assets/brand/icon.svg
 assets/brand/icon.png
 ```
 
-Two workflows enforce this rule.
+The SVG is the source. The PNG is exported from it and is 512 × 512 pixels. Whenever the SVG changes, export the PNG again and commit it together with the SVG or afterwards.
+
+Two workflows enforce these rules.
 
 ### Check in the repository CI
 
-`brand.yml` is a reusable workflow. It fails if one of the files is missing, if `icon.svg` is not an SVG or if `icon.png` is not a PNG. To use it, add this job to the CI workflow of the repository:
+`brand.yml` is a reusable workflow. It fails in these cases:
+
+- one of the two files is missing
+- `icon.svg` is not an SVG or `icon.png` is not a PNG
+- `icon.png` is not 512 × 512 pixels
+- `icon.png` is out of date, which means the last commit that changed it is older than the last commit that changed `icon.svg`
+
+To use it, add this job to the CI workflow of the repository:
 
 ```yaml
 jobs:
@@ -45,6 +54,6 @@ The check has to run once in the repository before it can be selected. With this
 
 ### Organisation report
 
-`brand-report.yml` runs every Monday at 06:00 UTC and can be started by hand in the Actions tab. It checks all public repositories of the organisation, except archived ones, forks and this repository. It does not depend on the check above, so it also covers repositories that have not added it yet.
+`brand-report.yml` runs every Monday at 06:00 UTC and can be started by hand in the Actions tab. It applies the same rules to all public repositories of the organisation, except archived ones, forks and this repository. It does not depend on the check above, so it also covers repositories that have not added it yet.
 
-Missing files are listed in the issue [Missing brand assets](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Missing+brand+assets%22) in this repository. The workflow updates the issue on every run and closes it once nothing is missing.
+Problems are listed in the issue [Brand assets need fixing](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Brand+assets+need+fixing%22) in this repository. The workflow updates the issue on every run and closes it once all repositories meet the rules.
