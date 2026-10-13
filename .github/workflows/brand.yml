@@ -1,8 +1,9 @@
 name: Brand
 
-# Reusable check that every repository of the organisation carries its icon at
-# assets/brand/icon.svg and as a 512x512 assets/brand/icon.png exported from
-# it. Call it from a repository's CI with:
+# Reusable check that every repository of the organisation carries its brand
+# assets in assets/brand: the icon as icon.svg, and two PNG files exported from
+# it, icon.png (512x512) and social-preview.png (1280x640). Call it from a
+# repository's CI with:
 #
 #   brand:
 #     uses: benethos-hub/.github/.github/workflows/brand.yml@main
@@ -14,21 +15,21 @@ permissions:
   contents: read
 
 jobs:
-  icon:
-    name: Icon present
+  assets:
+    name: Brand assets
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Full history without file contents, so git log can tell which of
-          # the two icons changed last.
+          # the files changed last.
           fetch-depth: 0
           filter: blob:none
           sparse-checkout: assets/brand
           sparse-checkout-cone-mode: false
 
-      - name: assets/brand/icon.svg and icon.png are present and current
+      - name: Brand assets are present and current
         run: |
           failed=0
           fail() {
@@ -43,32 +44,34 @@ jobs:
             fail "$svg" "$svg is not an SVG file."
           fi
 
-          png=assets/brand/icon.png
-          if [ ! -s "$png" ]; then
-            fail "$png" "Missing $png."
-          elif [ "$(head -c 8 "$png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
-            fail "$png" "$png is not a PNG file."
-          else
+          # A PNG exported from the SVG must exist, have the given size, and
+          # must not be older than the last change to the SVG. Its last commit
+          # is therefore the same as or later than the last commit of the SVG.
+          check_png() {
+            local png=$1 want=$2 size
+            if [ ! -s "$png" ]; then
+              fail "$png" "Missing $png."
+              return
+            fi
+            if [ "$(head -c 8 "$png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+              fail "$png" "$png is not a PNG file."
+              return
+            fi
             # Width and height are the two 4-byte big-endian numbers at offset 16.
             size=$(od -An -tu1 -j16 -N8 "$png" | awk '{ printf "%dx%d", $1*16777216 + $2*65536 + $3*256 + $4, $5*16777216 + $6*65536 + $7*256 + $8 }')
-            if [ "$size" != "512x512" ]; then
-              fail "$png" "$png is $size pixels. It has to be 512x512."
+            if [ "$size" != "$want" ]; then
+              fail "$png" "$png is $size pixels. It has to be $want."
             fi
-          fi
-
-          # The PNG is exported from the SVG. The last commit that changed the
-          # PNG must therefore be the same as or later than the last commit
-          # that changed the SVG.
-          if [ "$failed" -eq 0 ]; then
-            svg_commit=$(git log -1 --format=%H -- "$svg")
-            png_commit=$(git log -1 --format=%H -- "$png")
-            if ! git merge-base --is-ancestor "$svg_commit" "$png_commit"; then
+            if [ -s "$svg" ] && ! git merge-base --is-ancestor "$(git log -1 --format=%H -- "$svg")" "$(git log -1 --format=%H -- "$png")"; then
               fail "$png" "$png is older than the last change to $svg. Export it again from the SVG."
             fi
-          fi
+          }
+
+          check_png assets/brand/icon.png 512x512
+          check_png assets/brand/social-preview.png 1280x640
 
           if [ "$failed" -ne 0 ]; then
-            echo "Every repository of benethos-hub needs its icon as assets/brand/icon.svg and as a 512x512 assets/brand/icon.png exported from it."
+            echo "Every repository of benethos-hub needs assets/brand/icon.svg and, exported from it, a 512x512 icon.png and a 1280x640 social-preview.png."
             exit 1
           fi
-          echo "$svg and $png are present and current."
+          echo "All brand assets are present and current."

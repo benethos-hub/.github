@@ -1,10 +1,11 @@
 name: Brand report
 
 # Checks every public repository of the organisation against the brand rules:
-# an icon at assets/brand/icon.svg and a 512x512 assets/brand/icon.png that is
-# not older than the last change to the SVG. Repositories that break a rule are
-# listed in a single open issue in this repository. The issue is updated on
-# each run and closed once all repositories meet the rules.
+# an icon at assets/brand/icon.svg, and two PNG files exported from it,
+# icon.png (512x512) and social-preview.png (1280x640), neither older than the
+# last change to the SVG. Repositories that break a rule are listed in a single
+# open issue in this repository. The issue is updated on each run and closed
+# once all repositories meet the rules.
 
 on:
   schedule:
@@ -35,7 +36,6 @@ jobs:
 
           dir=assets/brand
           svg=$dir/icon.svg
-          png=$dir/icon.png
           work=$(mktemp -d)
 
           repos=$(gh api --paginate "orgs/$ORG/repos?type=public&per_page=100" \
@@ -45,40 +45,43 @@ jobs:
           for repo in $repos; do
             problems=""
             add() { problems="$problems  - $1"$'\n'; }
+            last_commit() { gh api "repos/$ORG/$repo/commits?path=$1&per_page=1" --jq '.[0].sha'; }
 
-            has_svg=0
+            svg_commit=""
             if gh api -H "Accept: application/vnd.github.raw" "repos/$ORG/$repo/contents/$svg" > "$work/icon.svg" 2>/dev/null; then
-              has_svg=1
+              svg_commit=$(last_commit "$svg")
               grep -q '<svg' "$work/icon.svg" || add "\`$svg\` is not an SVG file"
             else
               add "\`$svg\` is missing"
             fi
 
-            has_png=0
-            if gh api -H "Accept: application/vnd.github.raw" "repos/$ORG/$repo/contents/$png" > "$work/icon.png" 2>/dev/null; then
-              has_png=1
-              if [ "$(head -c 8 "$work/icon.png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
-                add "\`$png\` is not a PNG file"
-              else
-                # Width and height are the two 4-byte big-endian numbers at offset 16.
-                size=$(od -An -tu1 -j16 -N8 "$work/icon.png" | awk '{ printf "%dx%d", $1*16777216 + $2*65536 + $3*256 + $4, $5*16777216 + $6*65536 + $7*256 + $8 }')
-                [ "$size" = "512x512" ] || add "\`$png\` is $size pixels instead of 512x512"
+            # A PNG exported from the SVG must exist, have the given size, and
+            # its last commit must be the same as or later than the last commit
+            # of the SVG.
+            check_png() {
+              local png=$1 want=$2 size status
+              if ! gh api -H "Accept: application/vnd.github.raw" "repos/$ORG/$repo/contents/$png" > "$work/file.png" 2>/dev/null; then
+                add "\`$png\` is missing"
+                return
               fi
-            else
-              add "\`$png\` is missing"
-            fi
+              if [ "$(head -c 8 "$work/file.png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+                add "\`$png\` is not a PNG file"
+                return
+              fi
+              # Width and height are the two 4-byte big-endian numbers at offset 16.
+              size=$(od -An -tu1 -j16 -N8 "$work/file.png" | awk '{ printf "%dx%d", $1*16777216 + $2*65536 + $3*256 + $4, $5*16777216 + $6*65536 + $7*256 + $8 }')
+              [ "$size" = "$want" ] || add "\`$png\` is $size pixels instead of $want"
+              if [ -n "$svg_commit" ]; then
+                status=$(gh api "repos/$ORG/$repo/compare/$svg_commit...$(last_commit "$png")" --jq '.status')
+                case "$status" in
+                  identical | ahead) ;;
+                  *) add "\`$png\` is older than the last change to \`$svg\`" ;;
+                esac
+              fi
+            }
 
-            # The last commit that changed the PNG must be the same as or later
-            # than the last commit that changed the SVG.
-            if [ "$has_svg" -eq 1 ] && [ "$has_png" -eq 1 ]; then
-              svg_commit=$(gh api "repos/$ORG/$repo/commits?path=$svg&per_page=1" --jq '.[0].sha')
-              png_commit=$(gh api "repos/$ORG/$repo/commits?path=$png&per_page=1" --jq '.[0].sha')
-              status=$(gh api "repos/$ORG/$repo/compare/$svg_commit...$png_commit" --jq '.status')
-              case "$status" in
-                identical | ahead) ;;
-                *) add "\`$png\` is older than the last change to \`$svg\`" ;;
-              esac
-            fi
+            check_png "$dir/icon.png" 512x512
+            check_png "$dir/social-preview.png" 1280x640
 
             if [ -n "$problems" ]; then
               report="$report- [$repo](https://github.com/$ORG/$repo)"$'\n'"$problems"
@@ -96,7 +99,7 @@ jobs:
             exit 0
           fi
 
-          body="These repositories do not meet the brand rules:"$'\n\n'"$report"$'\n'"Every repository of the organisation needs its icon as \`$svg\` and as a 512x512 \`$png\` exported from it. The PNG must not be older than the last change to the SVG. This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once all repositories meet the rules."
+          body="These repositories do not meet the brand rules:"$'\n\n'"$report"$'\n'"Every repository of the organisation needs its icon as \`$svg\` and, exported from it, a 512x512 \`$dir/icon.png\` and a 1280x640 \`$dir/social-preview.png\`. Neither PNG may be older than the last change to the SVG. This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once all repositories meet the rules."
           printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
 
           if [ -n "$issue" ]; then

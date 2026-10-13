@@ -11,14 +11,15 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 
 ## Brand assets
 
-Every repository of the organisation carries its icon in two formats:
+Every repository of the organisation carries these brand assets:
 
-```text
-assets/brand/icon.svg
-assets/brand/icon.png
-```
+| File | Content |
+| --- | --- |
+| `assets/brand/icon.svg` | The icon. This is the source for the other files. |
+| `assets/brand/icon.png` | The icon as PNG, 512 × 512 pixels |
+| `assets/brand/social-preview.png` | The social preview image for GitHub, 1280 × 640 pixels |
 
-The SVG is the source. The PNG is exported from it and is 512 × 512 pixels. Whenever the SVG changes, export the PNG again and commit it together with the SVG or afterwards.
+Both PNG files are exported from the SVG. Whenever the SVG changes, export them again and commit them together with the SVG or afterwards. The social preview also has to be uploaded in the repository settings under Social preview, because GitHub does not read it from the repository.
 
 Two workflows enforce these rules.
 
@@ -26,10 +27,10 @@ Two workflows enforce these rules.
 
 `brand.yml` is a reusable workflow. It fails in these cases:
 
-- one of the two files is missing
-- `icon.svg` is not an SVG or `icon.png` is not a PNG
-- `icon.png` is not 512 × 512 pixels
-- `icon.png` is out of date, which means the last commit that changed it is older than the last commit that changed `icon.svg`
+- one of the three files is missing
+- `icon.svg` is not an SVG or one of the PNG files is not a PNG
+- a PNG file does not have its required size
+- a PNG file is out of date, which means the last commit that changed it is older than the last commit that changed `icon.svg`
 
 To use it, add this job to the CI workflow of the repository:
 
@@ -39,7 +40,7 @@ jobs:
     uses: benethos-hub/.github/.github/workflows/brand.yml@main
 ```
 
-The check shows up in pull requests as `brand / Icon present`. Add both files before adding the job, otherwise the CI of the repository fails right away.
+The check shows up in pull requests as `brand / Brand assets`. Add all three files before adding the job, otherwise the CI of the repository fails right away.
 
 ### Blocking merges
 
@@ -47,7 +48,7 @@ A failed check alone does not block a merge. To make it required, create a branc
 
 1. Open Settings, then Rules, then Rulesets, and choose New branch ruleset.
 2. Set the enforcement status to Active and target the default branch.
-3. Enable Require status checks to pass and add `brand / Icon present`.
+3. Enable Require status checks to pass and add `brand / Brand assets`.
 4. Enable Restrict deletions and Block force pushes as well.
 
 The check has to run once in the repository before it can be selected. With this ruleset, direct pushes to the default branch are rejected. Add the Repository admin role to the bypass list if you still want to push directly.
