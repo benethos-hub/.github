@@ -1,0 +1,53 @@
+name: Brand
+
+# Reusable check that every repository of the organisation carries its icon at
+# assets/brand/icon.svg and assets/brand/icon.png. Call it from a repository's
+# CI with:
+#
+#   brand:
+#     uses: benethos-hub/.github/.github/workflows/brand.yml@main
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  icon:
+    name: Icon present
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: assets/brand
+          sparse-checkout-cone-mode: false
+
+      - name: assets/brand/icon.svg and icon.png exist
+        run: |
+          failed=0
+
+          svg=assets/brand/icon.svg
+          if [ ! -s "$svg" ]; then
+            echo "::error file=$svg::Missing $svg."
+            failed=1
+          elif ! grep -q '<svg' "$svg"; then
+            echo "::error file=$svg::$svg is not an SVG file."
+            failed=1
+          fi
+
+          png=assets/brand/icon.png
+          if [ ! -s "$png" ]; then
+            echo "::error file=$png::Missing $png."
+            failed=1
+          elif [ "$(head -c 8 "$png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
+            echo "::error file=$png::$png is not a PNG file."
+            failed=1
+          fi
+
+          if [ "$failed" -ne 0 ]; then
+            echo "Every repository of benethos-hub needs its icon as assets/brand/icon.svg and assets/brand/icon.png."
+            exit 1
+          fi
+          echo "Found $svg and $png."
