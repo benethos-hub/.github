@@ -57,4 +57,6 @@ The check has to run once in the repository before it can be selected. With this
 
 `brand-report.yml` runs every Monday at 06:00 UTC and can be started by hand in the Actions tab. It applies the same rules to all public repositories of the organisation, except archived ones, forks and this repository. It does not depend on the check above, so it also covers repositories that have not added it yet.
 
+The report also compares the social preview uploaded in the repository settings with `assets/brand/social-preview.png`. Both have to be the same file. The CI check leaves this out on purpose: the upload is a manual step in the settings and cannot be part of a pull request, so the check would fail on every pull request that changes the image.
+
 Problems are listed in the issue [Brand assets need fixing](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Brand+assets+need+fixing%22) in this repository. The workflow updates the issue on every run and closes it once all repositories meet the rules.

@@ -3,9 +3,10 @@ name: Brand report
 # Checks every public repository of the organisation against the brand rules:
 # an icon at assets/brand/icon.svg, and two PNG files exported from it,
 # icon.png (512x512) and social-preview.png (1280x640), neither older than the
-# last change to the SVG. Repositories that break a rule are listed in a single
-# open issue in this repository. The issue is updated on each run and closed
-# once all repositories meet the rules.
+# last change to the SVG. The social preview uploaded in the repository
+# settings must match social-preview.png. Repositories that break a rule are
+# listed in a single open issue in this repository. The issue is updated on
+# each run and closed once all repositories meet the rules.
 
 on:
   schedule:
@@ -83,6 +84,22 @@ jobs:
             check_png "$dir/icon.png" 512x512
             check_png "$dir/social-preview.png" 1280x640
 
+            # GitHub does not read the social preview from the repository. It
+            # has to be uploaded in the settings, and GitHub keeps the upload
+            # byte for byte, so the two files can be compared directly.
+            preview=$dir/social-preview.png
+            if gh api -H "Accept: application/vnd.github.raw" "repos/$ORG/$repo/contents/$preview" > "$work/preview.png" 2>/dev/null; then
+              og=$(gh api graphql \
+                -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { usesCustomOpenGraphImage openGraphImageUrl } }' \
+                -f owner="$ORG" -f name="$repo" \
+                --jq '.data.repository | "\(.usesCustomOpenGraphImage) \(.openGraphImageUrl)"')
+              if [ "${og%% *}" != "true" ]; then
+                add "no social preview is uploaded in the repository settings"
+              elif ! curl -sfL "${og#* }" | cmp -s - "$work/preview.png"; then
+                add "the social preview uploaded in the repository settings differs from \`$preview\`"
+              fi
+            fi
+
             if [ -n "$problems" ]; then
               report="$report- [$repo](https://github.com/$ORG/$repo)"$'\n'"$problems"
             fi
@@ -99,7 +116,7 @@ jobs:
             exit 0
           fi
 
-          body="These repositories do not meet the brand rules:"$'\n\n'"$report"$'\n'"Every repository of the organisation needs its icon as \`$svg\` and, exported from it, a 512x512 \`$dir/icon.png\` and a 1280x640 \`$dir/social-preview.png\`. Neither PNG may be older than the last change to the SVG. This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once all repositories meet the rules."
+          body="These repositories do not meet the brand rules:"$'\n\n'"$report"$'\n'"Every repository of the organisation needs its icon as \`$svg\` and, exported from it, a 512x512 \`$dir/icon.png\` and a 1280x640 \`$dir/social-preview.png\`. Neither PNG may be older than the last change to the SVG. The social preview uploaded in the repository settings must be the same file as \`$dir/social-preview.png\`. This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once all repositories meet the rules."
           printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
 
           if [ -n "$issue" ]; then
