@@ -1,0 +1,69 @@
+name: Brand report
+
+# Checks every public repository of the organisation for assets/brand/icon.svg
+# and assets/brand/icon.png. Repositories that miss one of them are listed in
+# a single open issue in this repository. The issue is updated on each run and
+# closed once nothing is missing.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: brand-report
+
+jobs:
+  report:
+    name: Report missing brand assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ORG: ${{ github.repository_owner }}
+      TITLE: Missing brand assets
+    steps:
+      - name: Check repositories and update the issue
+        run: |
+          set -euo pipefail
+
+          repos=$(gh api --paginate "orgs/$ORG/repos?type=public&per_page=100" \
+            --jq '.[] | select(.archived | not) | select(.fork | not) | select(.name != ".github") | .name' | sort)
+
+          missing=""
+          for repo in $repos; do
+            files=""
+            for file in assets/brand/icon.svg assets/brand/icon.png; do
+              if ! gh api "repos/$ORG/$repo/contents/$file" --silent 2>/dev/null; then
+                files="$files \`$file\`"
+              fi
+            done
+            if [ -n "$files" ]; then
+              missing="$missing- [$repo](https://github.com/$ORG/$repo):$files"$'\n'
+            fi
+          done
+
+          issue=$(gh issue list --state open --limit 100 --json number,title \
+            --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n 1)
+
+          if [ -z "$missing" ]; then
+            echo "All repositories have their brand assets." | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ -n "$issue" ]; then
+              gh issue close "$issue" --comment "All repositories have their brand assets now."
+            fi
+            exit 0
+          fi
+
+          body="These repositories miss files in \`assets/brand\`:"$'\n\n'"$missing"$'\n'"Every repository of the organisation needs its icon as \`assets/brand/icon.svg\` and \`assets/brand/icon.png\`. This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once nothing is missing."
+          printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
+
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi
