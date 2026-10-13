@@ -5,9 +5,16 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | Path | Purpose |
 | --- | --- |
 | [FUNDING.yml](FUNDING.yml) | Sponsor links for every repository without its own funding file |
+| [SECURITY.md](SECURITY.md) | Security policy for every repository without its own policy |
 | [profile/](profile/) | Organisation profile shown on github.com/benethos-hub |
 | [.github/workflows/brand.yml](.github/workflows/brand.yml) | Reusable check for the brand assets of a repository |
 | [.github/workflows/brand-report.yml](.github/workflows/brand-report.yml) | Weekly report on brand assets across all repositories |
+
+## Security policy
+
+GitHub shows [SECURITY.md](SECURITY.md) on every repository of the organisation that has no `SECURITY.md` of its own. A repository only needs its own file if it has something specific to say, for example what counts as a vulnerability in that project. The file is not part of the repositories themselves, so it is missing from clones and downloads.
+
+The policy asks for private reports under Security → Report a vulnerability. That button only appears when private vulnerability reporting is enabled in the security settings of the repository. Enable it in every public repository.
 
 ## Brand assets
 
