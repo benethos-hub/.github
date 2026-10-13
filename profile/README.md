@@ -4,7 +4,7 @@ Open-source projects in AI, agents and software architecture. The tools here con
 
 ## Projects
 
-### <img src="https://raw.githubusercontent.com/benethos-hub/mailbox/main/assets/logo/icon-3d.svg" alt="" height="28" align="absmiddle"> [mailbox](https://github.com/benethos-hub/mailbox)
+### <img src="https://raw.githubusercontent.com/benethos-hub/mailbox/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [mailbox](https://github.com/benethos-hub/mailbox)
 
 Self-hosted REST API and web UI for IMAP, JMAP, POP3, Microsoft 365 and Outlook.com mailboxes. Includes a Python client and an MCP server, so AI agents can read, sort, draft and send mail within the folders, rights and send limits you grant.
 
