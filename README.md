@@ -75,6 +75,17 @@ jobs:
 
 The calling job has to grant `actions: read`, because a reusable workflow never gets more rights than its caller. With `audit: true`, the packages in `uv.lock` are checked for known vulnerabilities as well. That catches a vulnerability that became known between the merge and the release. The inputs `workflow`, `branch` and `wait-minutes` change which CI workflow and branch count and how long the gate waits.
 
+## Changing shared workflows and actions
+
+The repositories call every workflow and action here at `@main`. A change merged here reaches all of them on their next run, without a pull request in any of them.
+
+Some actions call others here at `@main` as well: `publish/ghcr`, `publish/mcpb` and `publish/mcp-registry` call `release/tag-matches-version`, `python-release-ci-passed.yml` calls `release/ci-passed` and `python-dependency-audit.yml`, and `python-dependency-audit.yml` and `python-lowest-versions.yml` call `python/pip-audit`. GitHub resolves such a call to `main` even in a pull request here. So a pull request cannot try a changed chain. Its tests in `tests/` run the scripts and check the wiring, but the actions themselves first run together after the merge.
+
+Two rules follow from that:
+
+1. A change to an action and to the action that calls it lands in one commit, so `main` never holds one without the other.
+2. After a change to a publishing action, try it in a project before its next release, through a manual run: `publish/ghcr` pushes `edge`, and `publish/pypi` has `dry-run: true`.
+
 ## Release tags
 
 A release tag is `v` followed by the version exactly as the project's version file writes it. Every action compares the two as text, so the rule holds for any language, and a tag in another spelling stops the release before anything is published.
