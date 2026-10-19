@@ -64,7 +64,7 @@ def test_the_checksum_of_the_named_bundle_is_filled_in(tmp_path):
     entry = _entry(tmp_path)
     bundle = tmp_path / BUNDLE
     bundle.write_bytes(b"the bundle")
-    digest = registry_entry.fill(entry, bundle)
+    digest = registry_entry.fill(entry, bundle, "v1.2.3")
     assert digest == hashlib.sha256(b"the bundle").hexdigest()
     raw = entry.read_bytes()
     assert b"\r\n" not in raw and raw.endswith(b"\n")
@@ -77,14 +77,14 @@ def test_another_file_is_refused(tmp_path):
     other = tmp_path / "benethos-example-1.2.2.mcpb"
     other.write_bytes(b"old")
     with pytest.raises(SystemExit, match="is not the file the entry points at"):
-        registry_entry.fill(_entry(tmp_path), other)
+        registry_entry.fill(_entry(tmp_path), other, "v1.2.3")
 
 
 def test_a_hash_is_never_written_twice(tmp_path):
     bundle = tmp_path / BUNDLE
     bundle.write_bytes(b"the bundle")
     with pytest.raises(SystemExit, match="not the placeholder"):
-        registry_entry.fill(_entry(tmp_path, sha="a" * 64), bundle)
+        registry_entry.fill(_entry(tmp_path, sha="a" * 64), bundle, "v1.2.3")
 
 
 def test_drop_keeps_every_other_package(tmp_path):
@@ -212,3 +212,11 @@ def test_without_a_bundle_nothing_is_downloaded(tmp_path):
     code, out, calls = _step(tmp_path, "Fill in the bundle's checksum", {"ENTRY": str(entry), "TAG": "v1.2.3", "REFUSE": "0"})
     assert code == 0 and calls == []
     assert "nothing to fill in" in out
+
+
+def test_an_entry_that_points_at_another_release_is_refused(tmp_path):
+    """The file name fits, but the registry would download from v1.2.2."""
+    bundle = tmp_path / BUNDLE
+    bundle.write_bytes(b"the bundle")
+    with pytest.raises(SystemExit, match="points at another release than v1.2.4"):
+        registry_entry.fill(_entry(tmp_path), bundle, "v1.2.4")

@@ -6,12 +6,13 @@ a placeholder of zeros, and the action downloads the bundle the release
 carries and fills in its hash before publishing:
 
     registry_entry.py bundle-name <server.json>
-    registry_entry.py fill <server.json> <bundle.mcpb>
+    registry_entry.py fill <server.json> <bundle.mcpb> <tag>
 
 bundle-name prints the file name the entry points at, or nothing for an
 entry without a bundle. fill refuses a bundle whose file name is not that
-one, and an entry that no longer holds the placeholder, so a hash is never
-written twice or for the wrong file.
+one, an entry that points at another release than the tag, and an entry
+that no longer holds the placeholder, so a hash is never written twice or
+for the wrong file.
 
 The registry takes an entry whole or not at all. Should it refuse the one
 with the bundle, the action drops the bundle and publishes the rest, so the
@@ -58,12 +59,16 @@ def bundle_name(server_json: Path) -> str:
     return name
 
 
-def fill(server_json: Path, bundle: Path) -> str:
+def fill(server_json: Path, bundle: Path, tag: str) -> str:
     entry = _read(server_json)
     (package,) = _bundles(entry)
     named = package["identifier"]
     if named.rsplit("/", 1)[-1] != bundle.name:
         raise SystemExit(f"{bundle.name} is not the file the entry points at: {named}")
+    # The registry downloads the bundle from this address. A file name that
+    # fits under another release's tag would only show as a refusal.
+    if not named.endswith(f"/releases/download/{tag}/{bundle.name}"):
+        raise SystemExit(f"the entry points at another release than {tag}: {named}")
     if package["fileSha256"] != PLACEHOLDER:
         raise SystemExit("the entry's fileSha256 is not the placeholder")
     digest = hashlib.sha256(bundle.read_bytes()).hexdigest()
@@ -83,7 +88,7 @@ def drop(server_json: Path) -> None:
 
 USAGE = (
     "usage: registry_entry.py bundle-name <server.json>\n"
-    "       registry_entry.py fill <server.json> <bundle.mcpb>\n"
+    "       registry_entry.py fill <server.json> <bundle.mcpb> <tag>\n"
     "       registry_entry.py drop <server.json>"
 )
 
@@ -92,8 +97,8 @@ def main(argv: list[str]) -> int:
     match argv:
         case ["bundle-name", entry]:
             print(bundle_name(Path(entry)))
-        case ["fill", entry, bundle]:
-            print(fill(Path(entry), Path(bundle)), file=sys.stderr)
+        case ["fill", entry, bundle, tag]:
+            print(fill(Path(entry), Path(bundle), tag), file=sys.stderr)
         case ["drop", entry]:
             drop(Path(entry))
         case _:

@@ -89,7 +89,7 @@ runs:
           exit 0
         fi
         gh release download "$TAG" --pattern "$bundle" --dir "$RUNNER_TEMP" --clobber
-        uv run --no-project "$script" fill "$ENTRY" "$RUNNER_TEMP/$bundle"
+        uv run --no-project "$script" fill "$ENTRY" "$RUNNER_TEMP/$bundle" "$TAG"
 
     - name: Log in with the workflow's OIDC token
       shell: bash
