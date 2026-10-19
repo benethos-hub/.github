@@ -56,7 +56,7 @@ def _problems(files: dict[str, bytes], stale: tuple[str, ...] = ()) -> list[str]
     found = brand_assets.problems(
         lambda p: files.get(p) or None, lambda p: p not in stale
     )
-    return [f"{p.path} {p.text}" for p in found]
+    return [p.describe() for p in found]
 
 
 # The rules.
@@ -174,8 +174,11 @@ class FakeGitHub:
     ):
         self.files = files
         self.uploaded = uploaded
+        self.calls: list[str] = []
+        self.status = "ahead"
 
     def json(self, url: str) -> Any:
+        self.calls.append(url)
         if "/orgs/" in url:
             if not url.endswith("page=1"):
                 return []
@@ -186,7 +189,7 @@ class FakeGitHub:
         if "/commits?" in url:
             return [{"sha": url.split("path=")[1].split("&")[0]}]
         if "/compare/" in url:
-            return {"status": "ahead"}
+            return {"status": self.status}
         raise AssertionError(url)
 
     def get(self, url: str, accept: str = "") -> bytes:
@@ -218,6 +221,27 @@ def test_the_report_lists_only_repositories_that_break_a_rule():
     assert "- [bad](https://github.com/benethos-hub/bad)\n" in body
     assert "  - `assets/brand/icon.png` is missing\n" in body
     assert "[good]" not in body and "[old]" not in body and "[copy]" not in body
+
+
+def test_a_stale_png_is_reported_with_both_paths_as_code():
+    github = FakeGitHub(
+        {"stale": GOOD}, {"stale": GOOD["assets/brand/social-preview.png"]}
+    )
+    github.status = "behind"
+    body = brand_assets.report(github, "benethos-hub")
+    assert (
+        "  - `assets/brand/icon.png` is older than the last change to "
+        "`assets/brand/icon.svg`\n" in body
+    )
+
+
+def test_the_last_change_to_the_svg_is_asked_for_once_per_repository():
+    github = FakeGitHub(
+        {"good": GOOD}, {"good": GOOD["assets/brand/social-preview.png"]}
+    )
+    brand_assets.report(github, "benethos-hub")
+    svg = [url for url in github.calls if "commits?path=assets/brand/icon.svg" in url]
+    assert len(svg) == 1
 
 
 def test_a_missing_or_different_upload_is_reported():

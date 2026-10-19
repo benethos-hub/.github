@@ -51,8 +51,19 @@ Current = Callable[[str], bool]
 
 @dataclass(frozen=True)
 class Problem:
+    """A rule ``path`` breaks. ``other`` is a second path the text ends with."""
+
     path: str
     text: str
+    other: str = ""
+
+    def describe(self, name: Callable[[str], str] = str) -> str:
+        """The problem in words, each path passed through ``name``, which the
+        report uses to set paths as code."""
+        words = [name(self.path), self.text]
+        if self.other:
+            words.append(name(self.other))
+        return " ".join(words)
 
 
 def png_size(data: bytes) -> tuple[int, int] | None:
@@ -89,7 +100,7 @@ def problems(read: Read, current: Current) -> list[Problem]:
                 )
             )
         if svg is not None and not current(path):
-            found.append(Problem(path, f"is older than the last change to {SVG}"))
+            found.append(Problem(path, "is older than the last change to", SVG))
     return found
 
 
@@ -131,7 +142,7 @@ def _current_local(path: str) -> bool:
 def check_local() -> int:
     found = problems(_read_local, _current_local)
     for problem in found:
-        print(f"::error file={problem.path}::{problem.path} {problem.text}.")
+        print(f"::error file={problem.path}::{problem.describe()}.")
     if found:
         print(
             "Every repository of benethos-hub needs assets/brand/icon.svg and, "
@@ -216,9 +227,13 @@ def remote_problems(github: GitHub, org: str, repo: str) -> list[str]:
             files[path] = data or None
         return files[path]
 
+    commits: dict[str, str] = {}
+
     def last_commit(path: str) -> str:
-        sha: str = github.json(f"{base}/commits?path={path}&per_page=1")[0]["sha"]
-        return sha
+        if path not in commits:
+            url = f"{base}/commits?path={path}&per_page=1"
+            commits[path] = github.json(url)[0]["sha"]
+        return commits[path]
 
     def current(path: str) -> bool:
         compare = github.json(
@@ -226,8 +241,7 @@ def remote_problems(github: GitHub, org: str, repo: str) -> list[str]:
         )
         return compare["status"] in ("identical", "ahead")
 
-    lines = [f"`{p.path}` {p.text}" for p in problems(read, current)]
-    lines = [line.replace(f"change to {SVG}", f"change to `{SVG}`") for line in lines]
+    lines = [p.describe(lambda path: f"`{path}`") for p in problems(read, current)]
 
     # GitHub does not read the social preview from the repository. It has to
     # be uploaded in the settings, and GitHub keeps the upload byte for byte.
