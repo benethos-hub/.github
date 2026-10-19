@@ -14,7 +14,7 @@ The repositories call the workflows and actions here at `main`. A project needs 
 | Path | What it holds |
 | --- | --- |
 | [.github/workflows/](.github/workflows/) | The reusable workflows, the two weekly reports and the CI of this repository |
-| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/` and `publish/` |
+| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/`, `publish/`, and `coverage-badge/` for every language |
 | [.github/actions/](.github/actions/) | Actions the workflows of this repository use themselves |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
 | [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for every pinned action and every lockfile here |
@@ -67,7 +67,7 @@ jobs:
   coverage-badge:
     if: github.event_name == 'push'
     needs: test
-    uses: benethos-hub/.github/.github/workflows/python-coverage-badge.yml@main
+    uses: benethos-hub/.github/.github/workflows/coverage-badge.yml@main
     permissions:
       contents: write
 ```
@@ -79,7 +79,7 @@ jobs:
 | [python-tests.yml](.github/workflows/python-tests.yml) | pytest on every supported Python against `uv.lock`. The newest version also measures the coverage and enforces its floor, 80 % by default. | `python-versions`, `coverage-python`, `sync-args`, `cov`, `cov-fail-under`, `badge`, `timeout-minutes` |
 | [python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | The tests against the lowest versions `pyproject.toml` allows, on the oldest supported Python, without the lockfile. With `audit: true`, those versions are audited too. | `python-version`, `editable`, `requirements`, `pytest-args`, `audit`, `ignore-vulns`, `timeout-minutes` |
 | [python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | Every version pinned in `uv.lock`, for every platform and Python, against PyPI and OSV. A vulnerability without a fix is waived by ID. | `ignore-vulns` |
-| [python-coverage-badge.yml](.github/workflows/python-coverage-badge.yml) | Nothing. It publishes the badge, see [Coverage badge](#coverage-badge). | `artifact`, `branch` |
+| [coverage-badge.yml](.github/workflows/coverage-badge.yml) | Nothing. It publishes the coverage badge, of any language, see [Coverage badge](#coverage-badge). | `artifact`, `branch` |
 
 The checks are named after the calling job and the job inside the workflow: `lint / lint`, `test / Python 3.15`, `lowest-versions / Python 3.11`, `audit / Dependency audit` and `brand / Brand assets`. These are the names a branch ruleset requires. A project names its Python versions in `with:` even where they equal the defaults, so that a changed default here never moves its tests without a word.
 
@@ -113,9 +113,9 @@ This repository has no licence file and publishes nothing. Its first row at the 
 
 #### Coverage badge
 
-With `badge: true`, `python-tests.yml` writes the measured coverage as the JSON of a [shields.io endpoint badge](https://shields.io/badges/endpoint-badge) and uploads it as the artifact `coverage-badge`. `python-coverage-badge.yml` then commits that file as `coverage.json` on the `badges` branch of the repository, which it creates on the first run. The branch carries nothing else, and the job needs `contents: write` for the push. Call it on a push to the default branch only, so the badge shows the coverage of that branch, and never make it a required check, since a pull request does not run it.
+With `badge: true`, `python-tests.yml` reads the measured percentage and hands it to the action `coverage-badge`, which writes the JSON of a [shields.io endpoint badge](https://shields.io/badges/endpoint-badge), uploaded as the artifact `coverage-badge`. `coverage-badge.yml` then commits that file as `coverage.json` on the `badges` branch of the repository, which it creates on the first run. The branch carries nothing else, and the job needs `contents: write` for the push. Call it on a push to the default branch only, so the badge shows the coverage of that branch, and never make it a required check, since a pull request does not run it.
 
-The percentage is rounded down, so a badge at the floor means the floor holds. After the first push to the default branch, the badge can show "resource not found" for a few minutes: the README is online before the job has created the branch, and GitHub and shields.io cache that first answer. It corrects itself.
+Only the measuring step knows the language. The action takes a percentage, and the workflow takes a file, so a project in another language brings a test workflow of its own that reads its coverage and calls the same two. The percentage is rounded down, so a badge at the floor means the floor holds. After the first push to the default branch, the badge can show "resource not found" for a few minutes: the README is online before the job has created the branch, and GitHub and shields.io cache that first answer. It corrects itself.
 
 ## Publishing a release
 
@@ -284,7 +284,7 @@ Problems are listed in the issue [Brand assets need fixing](https://github.com/b
 
 The repositories call every workflow and action here at `main`. A change merged here reaches all of them on their next run, without a pull request in any of them.
 
-Some actions call others here at `main` as well: the three publishing actions call `release/tag-matches-version`, `python-release-ci-passed.yml` calls `release/ci-passed` and `python-dependency-audit.yml`, the audits call `python/pip-audit`, `python-tests.yml` calls `python/coverage-badge`, and `brand.yml` calls `brand/assets`. GitHub resolves such a call to `main` even in a pull request here, so a pull request cannot try a changed chain. The tests in `tests/` run the scripts and check the wiring, but the actions first run together after the merge. Only the workflows that `ci.yml` calls by local path are tried in a pull request, and the actions they call still come from `main`.
+Some actions call others here at `main` as well: the three publishing actions call `release/tag-matches-version`, `python-release-ci-passed.yml` calls `release/ci-passed` and `python-dependency-audit.yml`, the audits call `python/pip-audit`, `python-tests.yml` calls `coverage-badge`, and `brand.yml` calls `brand/assets`. GitHub resolves such a call to `main` even in a pull request here, so a pull request cannot try a changed chain. The tests in `tests/` run the scripts and check the wiring, but the actions first run together after the merge. Only the workflows that `ci.yml` calls by local path are tried in a pull request, and the actions they call still come from `main`.
 
 Two rules follow from that:
 
@@ -293,7 +293,7 @@ Two rules follow from that:
 
 ### Checks of this repository
 
-`ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `python-coverage-badge.yml`, called by local path, the way a project calls them. A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
+`ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `coverage-badge.yml`, called by local path, the way a project calls them. A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
 
 A branch ruleset for `main` of this repository requires these checks:
 

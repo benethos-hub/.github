@@ -1,5 +1,6 @@
 """The coverage badge: its script, and how python-tests.yml,
-python-coverage-badge.yml and ci.yml wire it.
+coverage-badge.yml and ci.yml wire it. The action and the workflow are the
+same for every language, only python-tests.yml knows coverage.py.
 """
 
 from __future__ import annotations
@@ -12,13 +13,13 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-ACTION_DIR = ROOT / "actions" / "python" / "coverage-badge"
+ACTION_DIR = ROOT / "actions" / "coverage-badge"
 ACTION = yaml.safe_load((ACTION_DIR / "action.yml").read_text("utf-8"))
 TESTS = yaml.safe_load(
     (ROOT / ".github" / "workflows" / "python-tests.yml").read_text("utf-8")
 )
 BADGE = yaml.safe_load(
-    (ROOT / ".github" / "workflows" / "python-coverage-badge.yml").read_text("utf-8")
+    (ROOT / ".github" / "workflows" / "coverage-badge.yml").read_text("utf-8")
 )
 CI = yaml.safe_load((ROOT / ".github" / "workflows" / "ci.yml").read_text("utf-8"))
 
@@ -54,42 +55,46 @@ def test_the_badge_rounds_down_and_colours_by_the_usual_scale(percent, message, 
     }
 
 
-def test_main_reads_the_totals_and_writes_the_badge(tmp_path, capsys):
-    report = tmp_path / "coverage.json"
-    report.write_text(json.dumps({"totals": {"percent_covered": 91.3}}), "utf-8")
+def test_main_takes_a_percentage_and_writes_the_badge(tmp_path, capsys):
     target = tmp_path / "badge" / "coverage.json"
-    assert badge.main([str(report), str(target)]) == 0
+    assert badge.main(["91.3", str(target)]) == 0
     assert json.loads(target.read_text("utf-8"))["message"] == "91%"
     assert target.read_text("utf-8").endswith("\n")
     assert "coverage 91.3%, badge 91% brightgreen" in capsys.readouterr().out
 
 
-def test_a_report_without_totals_is_an_error(tmp_path, capsys):
-    report = tmp_path / "coverage.json"
-    report.write_text("{}", "utf-8")
-    assert badge.main([str(report), str(tmp_path / "out.json")]) == 1
+@pytest.mark.parametrize("value", ["", "abc", "nan", "-1", "100.5"])
+def test_anything_but_a_percentage_is_an_error(tmp_path, capsys, value):
+    assert badge.main([value, str(tmp_path / "out.json")]) == 1
     assert "::error::" in capsys.readouterr().out
+    assert not (tmp_path / "out.json").exists()
+
+
+def test_a_wrong_call_prints_the_usage(capsys):
     assert badge.main([]) == 2
+    assert "badge.py <percent> <badge.json>" in capsys.readouterr().err
 
 
 # The wiring.
 
 
-def test_the_tests_write_and_upload_the_badge_on_the_coverage_version_only():
+def test_the_tests_read_the_percentage_and_upload_it_on_the_coverage_version():
     assert TESTS[True]["workflow_call"]["inputs"]["badge"]["default"] is False
     steps = {s.get("name"): s for s in TESTS["jobs"]["test"]["steps"]}
-    report = steps["Report the coverage as JSON"]
+    read = steps["Read the measured coverage"]
     write = steps["Write the coverage badge"]
-    upload = steps["Upload it for python-coverage-badge.yml"]
-    for step in (report, write, upload):
+    upload = steps["Upload it for coverage-badge.yml"]
+    for step in (read, write, upload):
         assert step["if"] == (
             "inputs.badge && matrix.python-version == inputs.coverage-python"
         )
+    assert read["id"] == "coverage"
     assert (
-        report["run"] == 'uv run --frozen coverage json -o "$RUNNER_TEMP/coverage.json"'
+        'uv run --frozen coverage json -o "$RUNNER_TEMP/coverage.json"' in read["run"]
     )
-    assert write["uses"] == "benethos-hub/.github/actions/python/coverage-badge@main"
-    assert write["with"]["coverage-json"] == "${{ runner.temp }}/coverage.json"
+    assert "jq -r .totals.percent_covered" in read["run"]
+    assert write["uses"] == "benethos-hub/.github/actions/coverage-badge@main"
+    assert write["with"]["percent"] == "${{ steps.coverage.outputs.percent }}"
     assert write["with"]["badge-json"] == upload["with"]["path"]
     assert (
         upload["with"]["name"]
@@ -97,10 +102,19 @@ def test_the_tests_write_and_upload_the_badge_on_the_coverage_version_only():
     )
 
 
+def test_the_action_knows_no_language():
+    """It takes a percentage, so a test workflow of any language can use it."""
+    assert set(ACTION["inputs"]) == {"percent", "badge-json"}
+    uv, step = ACTION["runs"]["steps"]
+    assert uv["uses"].startswith("astral-sh/setup-uv@")
+    assert '"$GITHUB_ACTION_PATH/badge.py" "$PERCENT" "$BADGE_JSON"' in step["run"]
+
+
 def test_the_badge_workflow_may_push_the_branch():
     assert BADGE["permissions"] == {"contents": "write"}
     assert BADGE[True]["workflow_call"]["inputs"]["branch"]["default"] == "badges"
     (job,) = BADGE["jobs"].values()
+    assert job["name"] == "Coverage badge"
     download, publish = job["steps"][1], job["steps"][2]
     assert download["uses"].startswith("actions/download-artifact@")
     assert download["with"]["name"] == "${{ inputs.artifact }}"
@@ -113,13 +127,5 @@ def test_this_repository_publishes_its_own_badge_on_a_push():
     job = CI["jobs"]["coverage-badge"]
     assert job["if"] == "github.event_name == 'push'"
     assert job["needs"] == "test"
-    assert job["uses"] == "./.github/workflows/python-coverage-badge.yml"
+    assert job["uses"] == "./.github/workflows/coverage-badge.yml"
     assert job["permissions"] == {"contents": "write"}
-
-
-def test_the_action_runs_the_script_from_its_own_folder():
-    uv, step = ACTION["runs"]["steps"]
-    assert uv["uses"].startswith("astral-sh/setup-uv@")
-    assert (
-        '"$GITHUB_ACTION_PATH/badge.py" "$COVERAGE_JSON" "$BADGE_JSON"' in step["run"]
-    )

@@ -1,13 +1,14 @@
-"""Write the JSON of a coverage badge from a coverage.py JSON report.
+"""Write the JSON of a coverage badge from a percentage.
 
-python-tests.yml measures the coverage on one Python version and, with
-badge: true, turns the result into the JSON that shields.io renders as a
-badge. python-coverage-badge.yml then publishes that file on the badges
-branch of the repository, and the README embeds it:
+A test workflow measures the coverage in whatever way its language has,
+python-tests.yml with coverage.py, and hands the percentage to this script
+through the action next to it. The JSON is what shields.io renders as a
+badge, and coverage-badge.yml publishes it on the badges branch of the
+repository, where the README embeds it:
 
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json
 
-    badge.py <coverage.json> <badge.json>
+    badge.py <percent> <badge.json>
 
 The percentage is rounded down, so the badge never shows more than was
 measured, and a badge at the floor means the floor holds. The colour goes
@@ -53,13 +54,15 @@ def main(argv: list[str]) -> int:
     if len(argv) != 2:
         print(__doc__, file=sys.stderr)
         return 2
-    report, target = Path(argv[0]), Path(argv[1])
-    totals = json.loads(report.read_text("utf-8")).get("totals") or {}
-    percent = totals.get("percent_covered")
-    if not isinstance(percent, (int, float)):
-        print(f"::error::{report} has no totals.percent_covered.")
+    try:
+        percent = float(argv[0])
+    except ValueError:
+        percent = math.nan
+    if not 0 <= percent <= 100:
+        print(f"::error::{argv[0]!r} is not a percentage between 0 and 100.")
         return 1
-    result = badge(float(percent))
+    result = badge(percent)
+    target = Path(argv[1])
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(result) + "\n", "utf-8")
     print(f"coverage {percent:.1f}%, badge {result['message']} {result['color']}")

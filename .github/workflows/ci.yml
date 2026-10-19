@@ -38,7 +38,7 @@ jobs:
   coverage-badge:
     if: github.event_name == 'push'
     needs: test
-    uses: ./.github/workflows/python-coverage-badge.yml
+    uses: ./.github/workflows/coverage-badge.yml
     permissions:
       contents: write
 

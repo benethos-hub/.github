@@ -1,20 +1,21 @@
-name: Python coverage badge
+name: Coverage badge
 
-# Publishes the coverage badge that python-tests.yml wrote with badge: true,
-# as coverage.json on the badges branch of the repository. shields.io reads
-# it from there, so the README shows the coverage of the last push to the
-# default branch:
+# Publishes the coverage badge a test workflow wrote through the action
+# coverage-badge, python-tests.yml with badge: true, as coverage.json on
+# the badges branch of the repository. shields.io reads it from there, so
+# the README shows the coverage of the last push to the default branch:
 #
 #   [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
 #
-# Call it after the tests, on a push to the default branch only, and grant
-# contents: write for the push to the badges branch. A reusable workflow
-# never gets more rights than its caller:
+# The same for every language: whatever uploads the artifact decides what
+# was measured. Call it after the tests, on a push to the default branch
+# only, and grant contents: write for the push to the badges branch. A
+# reusable workflow never gets more rights than its caller:
 #
 #   coverage-badge:
 #     if: github.event_name == 'push'
 #     needs: test
-#     uses: benethos-hub/.github/.github/workflows/python-coverage-badge.yml@main
+#     uses: benethos-hub/.github/.github/workflows/coverage-badge.yml@main
 #     permissions:
 #       contents: write
 #
@@ -26,7 +27,7 @@ on:
   workflow_call:
     inputs:
       artifact:
-        description: Name of the artifact with the badge, as python-tests.yml uploads it.
+        description: Name of the artifact with the badge, as the test workflow uploads it.
         type: string
         default: coverage-badge
       branch:

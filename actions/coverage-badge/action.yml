@@ -1,0 +1,35 @@
+name: Coverage badge
+description: Writes the JSON of a coverage badge, as shields.io renders it, from a percentage.
+
+# The same for every language. A test workflow measures the coverage its
+# own way and passes the percentage, python-tests.yml does so with
+# badge: true. coverage-badge.yml publishes the file on the badges branch,
+# and a README embeds it through
+# https://img.shields.io/endpoint?url=<raw URL of the file>. The logic is in
+# badge.py next to this file.
+#
+#   - uses: benethos-hub/.github/actions/coverage-badge@main
+#     with:
+#       percent: ${{ steps.coverage.outputs.percent }}
+#       badge-json: ${{ runner.temp }}/badge/coverage.json
+
+inputs:
+  percent:
+    description: The measured coverage in percent, 0 to 100, decimals allowed.
+    required: true
+  badge-json:
+    description: Where to write the badge JSON. The folder is created.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    - name: Write the badge
+      shell: bash
+      env:
+        PERCENT: ${{ inputs.percent }}
+        BADGE_JSON: ${{ inputs.badge-json }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/badge.py" "$PERCENT" "$BADGE_JSON"

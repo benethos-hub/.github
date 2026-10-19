@@ -3,7 +3,7 @@ name: Python tests
 # Reusable test run for a Python project managed with uv. The tests run on
 # every supported Python version against uv.lock, and the newest version also
 # measures the coverage and enforces its floor. With badge: true, that
-# version also writes the coverage as a badge for python-coverage-badge.yml.
+# version also writes the coverage as a badge for coverage-badge.yml.
 # Call it from a repository's CI with:
 #
 #   test:
@@ -45,7 +45,7 @@ on:
         type: number
         default: 15
       badge:
-        description: Also write the coverage as a badge and upload it as the artifact coverage-badge, for python-coverage-badge.yml.
+        description: Also write the coverage as a badge and upload it as the artifact coverage-badge, for coverage-badge.yml.
         type: boolean
         default: false
 
@@ -95,19 +95,25 @@ jobs:
           uv run --frozen pytest -q "${cov[@]}" "--cov-fail-under=$COV_FAIL_UNDER"
 
       # The badge takes the coverage the run above measured, from its data
-      # file, so pytest runs the same way with and without the badge.
-      - name: Report the coverage as JSON
+      # file, so pytest runs the same way with and without the badge. Only
+      # the percentage goes to the shared action, which is the same for
+      # every language.
+      - name: Read the measured coverage
+        id: coverage
         if: inputs.badge && matrix.python-version == inputs.coverage-python
-        run: uv run --frozen coverage json -o "$RUNNER_TEMP/coverage.json"
+        run: |
+          set -euo pipefail
+          uv run --frozen coverage json -o "$RUNNER_TEMP/coverage.json"
+          echo "percent=$(jq -r .totals.percent_covered "$RUNNER_TEMP/coverage.json")" >> "$GITHUB_OUTPUT"
 
       - name: Write the coverage badge
         if: inputs.badge && matrix.python-version == inputs.coverage-python
-        uses: benethos-hub/.github/actions/python/coverage-badge@main
+        uses: benethos-hub/.github/actions/coverage-badge@main
         with:
-          coverage-json: ${{ runner.temp }}/coverage.json
+          percent: ${{ steps.coverage.outputs.percent }}
           badge-json: ${{ runner.temp }}/badge/coverage.json
 
-      - name: Upload it for python-coverage-badge.yml
+      - name: Upload it for coverage-badge.yml
         if: inputs.badge && matrix.python-version == inputs.coverage-python
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

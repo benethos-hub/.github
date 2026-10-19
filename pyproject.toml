@@ -33,7 +33,7 @@ files = [
     "actions/publish/mcp-registry/registry_entry.py",
     "actions/publish/mcpb/check_packed.py",
     "actions/publish/pypi/check_dist.py",
-    "actions/python/coverage-badge/badge.py",
+    "actions/coverage-badge/badge.py",
     "actions/publish/pypi/on_pypi.py",
     ".github/scripts/download_pins.py",
 ]
