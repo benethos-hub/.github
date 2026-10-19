@@ -41,8 +41,22 @@ class Pin:
 
 
 def load(config: Path) -> list[Pin]:
+    """The entries of ``config``, or ValueError naming what is wrong with one."""
     entries = yaml.safe_load(config.read_text("utf-8")) or []
-    return [Pin(**entry) for entry in entries]
+    if not isinstance(entries, list):
+        raise ValueError(f"{config} is not a list of entries")
+    fields = set(Pin.__dataclass_fields__)
+    pins = []
+    for number, entry in enumerate(entries, 1):
+        keys = set(entry) if isinstance(entry, dict) else set()
+        if keys != fields or not all(isinstance(entry[k], str) and entry[k] for k in keys):
+            raise ValueError(
+                f"entry {number} of {config} needs exactly these keys, each with a text: "
+                f"{', '.join(sorted(fields))}. Missing: {', '.join(sorted(fields - keys)) or 'none'}. "
+                f"Unknown: {', '.join(sorted(keys - fields)) or 'none'}."
+            )
+        pins.append(Pin(**entry))
+    return pins
 
 
 def fetch_url(url: str) -> bytes:
@@ -140,7 +154,7 @@ def main() -> int:
     base = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}"
     try:
         print(report(load(config), root, fetch_url, base), end="")
-    except (urllib.error.URLError, LookupError) as error:
+    except (urllib.error.URLError, LookupError, ValueError) as error:
         print(f"::error::Could not check the pinned downloads: {error}", file=sys.stderr)
         return 1
     return 0

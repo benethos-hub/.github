@@ -206,3 +206,26 @@ def test_the_issue_follows_the_report(tmp_path, report, open_issue, expected):
     done = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, check=False)
     assert done.returncode == 0, done.stderr
     assert log.read_text().startswith(expected)
+
+
+@pytest.mark.parametrize(
+    ("entry", "named"),
+    [
+        ("- name: tool\n  file: action.yml\n", "Missing: asset, checksums, repository, sha256, version"),
+        (
+            "- name: tool\n  file: action.yml\n  version: V\n  sha256: S\n  repository: r/t\n"
+            "  asset: a\n  checksums: c\n  checksum: typo\n",
+            "Unknown: checksum.",
+        ),
+        ("- just a text\n", "Missing: asset, checksums, file, name"),
+    ],
+)
+def test_a_broken_entry_is_named_without_a_traceback(tmp_path, monkeypatch, capsys, entry, named):
+    (tmp_path / ".github").mkdir()
+    (tmp_path / ".github" / "download-pins.yml").write_text(entry, "utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("CONFIG", raising=False)
+    assert download_pins.main() == 1
+    err = capsys.readouterr().err
+    assert err.startswith("::error::Could not check the pinned downloads: entry 1 of ")
+    assert named in err
