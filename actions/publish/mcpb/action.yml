@@ -23,6 +23,7 @@ description: Validates and packs a staged Claude Desktop bundle, checks the resu
 #       - uses: actions/checkout@<sha> # vX
 #         with:
 #           persist-credentials: false # the write token is for the upload
+#       - uses: astral-sh/setup-uv@<sha> # vX, for staging
 #       - run: uv run --no-project .github/publish/mcpb/build.py "$RUNNER_TEMP/bundle"
 #       - uses: benethos-hub/.github/actions/publish/mcpb@main
 #         with:
