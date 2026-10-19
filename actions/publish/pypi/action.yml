@@ -79,7 +79,7 @@ runs:
         WHEEL_CONTAINS: ${{ inputs.wheel-contains }}
         TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
         DRY_RUN: ${{ inputs.dry-run }}
-      run: uv run --no-project "$GITHUB_ACTION_PATH/check_dist.py"
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/check_dist.py"
 
     - name: Publish to PyPI (Trusted Publishing)
       if: inputs.dry-run != 'true'

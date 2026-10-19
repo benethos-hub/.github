@@ -46,4 +46,4 @@ runs:
         CI_WORKFLOW: ${{ inputs.workflow }}
         CI_BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
         CI_WAIT_MINUTES: ${{ inputs.wait-minutes }}
-      run: uv run --no-project "$GITHUB_ACTION_PATH/ci_passed.py"
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/ci_passed.py"

@@ -22,4 +22,4 @@ runs:
 
     - name: Brand assets are present and current
       shell: bash
-      run: uv run --no-project "$GITHUB_ACTION_PATH/brand_assets.py" check
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/brand_assets.py" check

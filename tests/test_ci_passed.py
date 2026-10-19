@@ -171,7 +171,10 @@ def test_the_action_runs_the_script_from_its_own_folder():
     """The repository that releases has no copy of the script."""
     uv, step = ACTION["runs"]["steps"]
     assert uv["uses"].startswith("astral-sh/setup-uv@")
-    assert step["run"] == 'uv run --no-project "$GITHUB_ACTION_PATH/ci_passed.py"'
+    assert (
+        step["run"]
+        == 'uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/ci_passed.py"'
+    )
     assert step["env"]["CI_BRANCH"] == (
         "${{ inputs.branch || github.event.repository.default_branch }}"
     )

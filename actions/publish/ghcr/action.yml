@@ -184,4 +184,4 @@ runs:
           fi
           echo "same index: ${tag}"
         done
-        uv run --no-project "$GITHUB_ACTION_PATH/check_index.py" "$INDEX"
+        uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/check_index.py" "$INDEX"

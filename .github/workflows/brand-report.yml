@@ -38,7 +38,7 @@ jobs:
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
       - name: Check every repository
-        run: uv run --no-project actions/brand/assets/brand_assets.py report > "$RUNNER_TEMP/report.md"
+        run: uv run --no-project --python ">=3.11" actions/brand/assets/brand_assets.py report > "$RUNNER_TEMP/report.md"
 
       - name: Update the issue
         run: |

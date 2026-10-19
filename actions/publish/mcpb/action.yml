@@ -97,7 +97,7 @@ runs:
       env:
         STAGED: ${{ inputs.staged }}
         BUNDLE: ${{ steps.pack.outputs.bundle }}
-      run: uv run --no-project "$GITHUB_ACTION_PATH/check_packed.py" "$STAGED" "$BUNDLE"
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/check_packed.py" "$STAGED" "$BUNDLE"
 
     - name: Attach it to the release
       shell: bash

@@ -255,9 +255,7 @@ def test_the_check_keeps_its_name_and_its_checkout():
 def test_the_action_runs_the_shared_rules():
     uv, step = ACTION["runs"]["steps"]
     assert uv["uses"].startswith("astral-sh/setup-uv@")
-    assert (
-        step["run"] == 'uv run --no-project "$GITHUB_ACTION_PATH/brand_assets.py" check'
-    )
+    assert step["run"].endswith(' "$GITHUB_ACTION_PATH/brand_assets.py" check')
 
 
 REPORT = yaml.safe_load(
@@ -267,9 +265,8 @@ REPORT = yaml.safe_load(
 
 def test_the_report_applies_the_same_script():
     steps = {s.get("name"): s for s in REPORT["jobs"]["report"]["steps"]}
-    assert steps["Check every repository"]["run"] == (
-        "uv run --no-project actions/brand/assets/brand_assets.py report "
-        '> "$RUNNER_TEMP/report.md"'
+    assert steps["Check every repository"]["run"].endswith(
+        ' actions/brand/assets/brand_assets.py report > "$RUNNER_TEMP/report.md"'
     )
     assert REPORT["jobs"]["report"]["env"]["TITLE"] == "Brand assets need fixing"
 

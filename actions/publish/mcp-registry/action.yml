@@ -83,13 +83,13 @@ runs:
       run: |
         set -euo pipefail
         script="$GITHUB_ACTION_PATH/registry_entry.py"
-        bundle=$(uv run --no-project "$script" bundle-name "$ENTRY")
+        bundle=$(uv run --no-project --python ">=3.11" "$script" bundle-name "$ENTRY")
         if [ -z "$bundle" ]; then
           echo "The entry lists no Claude Desktop bundle, nothing to fill in."
           exit 0
         fi
         gh release download "$TAG" --pattern "$bundle" --dir "$RUNNER_TEMP" --clobber
-        uv run --no-project "$script" fill "$ENTRY" "$RUNNER_TEMP/$bundle" "$TAG"
+        uv run --no-project --python ">=3.11" "$script" fill "$ENTRY" "$RUNNER_TEMP/$bundle" "$TAG"
 
     - name: Log in with the workflow's OIDC token
       shell: bash
@@ -122,12 +122,12 @@ runs:
             sleep "$WAIT_SECONDS"
           fi
         done
-        if [ -z "$(uv run --no-project "$script" bundle-name "$ENTRY")" ]; then
+        if [ -z "$(uv run --no-project --python ">=3.11" "$script" bundle-name "$ENTRY")" ]; then
           echo "::error::The registry refused the entry ${ATTEMPTS} times. The refusals above say why."
           exit 1
         fi
         echo "::warning::The registry refused the entry with the bundle, publishing it without"
-        uv run --no-project "$script" drop "$ENTRY"
+        uv run --no-project --python ">=3.11" "$script" drop "$ENTRY"
         "$PUBLISHER" publish "$ENTRY"
         echo "::error::Listed without the bundle. The refusals above say why."
         exit 1
