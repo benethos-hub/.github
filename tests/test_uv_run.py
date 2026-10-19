@@ -91,3 +91,16 @@ def test_every_workflow_caches_under_a_key_of_its_own():
             f"{name} shares its key with {seen[(suffix, python)]}"
         )
         seen[(suffix, python)] = name
+
+
+def test_each_call_of_lowest_versions_caches_under_its_own_key():
+    """A repository with several packages calls the workflow once per package,
+    and those calls run side by side."""
+    path = ROOT / ".github" / "workflows" / "python-lowest-versions.yml"
+    steps = yaml.safe_load(path.read_text("utf-8"))["jobs"]["lowest-versions"]["steps"]
+    by_id = {s.get("id"): s for s in steps}
+    installs = by_id["cache"]["env"]["INSTALLS"]
+    for name in ("python-version", "editable", "requirements"):
+        assert f"inputs.{name}" in installs
+    (setup_uv,) = [s for s in steps if s.get("name") == "Install uv"]
+    assert setup_uv["with"]["cache-suffix"] == "${{ steps.cache.outputs.suffix }}"
