@@ -85,17 +85,37 @@ The checks are named after the calling job and the job inside the workflow: `lin
 
 Coverage is measured on one version only, because it slows the older ones down noticeably. A required check on `test / Python 3.15` is what makes the floor block a merge.
 
-### Coverage badge
+### Badges
+
+The README of every repository opens with its badges, right after the title, in two rows. The first row says whether the project is in order:
+
+1. CI, the status badge of `ci.yml`
+2. Coverage, from the `badges` branch, see below
+3. License, read by shields.io from the `LICENSE` file of the repository
+
+The second row says where to get it: one PyPI badge per package, one container badge per image, then the Python versions. A blank line between the rows keeps them apart. A repository that publishes nothing has the first row only.
+
+None of the badges carries a value written by hand, and all of them use the default style of shields.io. The colours are the same in every repository. The two status badges carry status colours: the CI badge green or red, as GitHub draws it, and the coverage badge the usual scale, green from 80, bright green from 90 and red below 50. Every other badge is blue, the `blue` of shields.io. Where shields.io would choose another colour on its own, green for a permissive licence or orange for a version below 1.0, `color=blue` sets it.
+
+```markdown
+[![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/<owner>/<repo>?color=blue)](https://github.com/<owner>/<repo>/blob/main/LICENSE)
+
+[![PyPI <package>](https://img.shields.io/pypi/v/<package>?label=PyPI%20<package>&color=blue)](https://pypi.org/project/<package>/)
+[![Container <image>](https://img.shields.io/badge/ghcr.io-<image>-blue?logo=docker&logoColor=white)](https://github.com/<owner>/<repo>/pkgs/container/<image>)
+[![Python](https://img.shields.io/pypi/pyversions/<package>)](https://pypi.org/project/<package>/)
+```
+
+In the container badge, a dash in the image name is written as `--`, since shields.io reads a single dash as the separator.
+
+This repository has no licence file and publishes nothing. Its first row at the top of this page goes on with the two weekly reports instead, which are status badges as well.
+
+#### Coverage badge
 
 With `badge: true`, `python-tests.yml` writes the measured coverage as the JSON of a [shields.io endpoint badge](https://shields.io/badges/endpoint-badge) and uploads it as the artifact `coverage-badge`. `python-coverage-badge.yml` then commits that file as `coverage.json` on the `badges` branch of the repository, which it creates on the first run. The branch carries nothing else, and the job needs `contents: write` for the push. Call it on a push to the default branch only, so the badge shows the coverage of that branch, and never make it a required check, since a pull request does not run it.
 
-The README of the project embeds the badge with:
-
-```markdown
-[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
-```
-
-The percentage is rounded down, so a badge at the floor means the floor holds. The badge of this repository at the top of this page is made the same way.
+The percentage is rounded down, so a badge at the floor means the floor holds. After the first push to the default branch, the badge can show "resource not found" for a few minutes: the README is online before the job has created the branch, and GitHub and shields.io cache that first answer. It corrects itself.
 
 ## Publishing a release
 
