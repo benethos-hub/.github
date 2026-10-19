@@ -113,8 +113,10 @@ def test_latest_stays_on_the_last_full_release():
 
 def test_each_image_has_its_own_build_cache():
     build = STEPS["Build and push"]["with"]
-    assert build["cache-from"] == "type=gha,scope=${{ inputs.image }}"
-    assert build["cache-to"] == "type=gha,mode=max,scope=${{ inputs.image }}"
+    scope = "${{ inputs.cache-scope || inputs.image }}"
+    assert build["cache-from"] == f"type=gha,scope={scope}"
+    assert build["cache-to"] == f"type=gha,mode=max,scope={scope}"
+    assert ACTION["inputs"]["cache-scope"]["default"] == ""
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="the step runs in bash")

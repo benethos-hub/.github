@@ -58,6 +58,10 @@ inputs:
     description: The file whose version a release tag must match, a pyproject.toml or a JSON file.
     required: false
     default: pyproject.toml
+  cache-scope:
+    description: Scope of the build cache in the GitHub Actions cache. Empty uses the image name. Give the scope a CI build of the same image writes to, so the release reuses its layers. buildx uses buildkit when no scope is given. Two images must not share a scope.
+    required: false
+    default: ""
   token:
     description: Token that may push to ghcr.io (packages write).
     required: false
@@ -159,8 +163,8 @@ runs:
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
         annotations: ${{ steps.meta.outputs.annotations }}
-        cache-from: type=gha,scope=${{ inputs.image }}
-        cache-to: type=gha,mode=max,scope=${{ inputs.image }}
+        cache-from: type=gha,scope=${{ inputs.cache-scope || inputs.image }}
+        cache-to: type=gha,mode=max,scope=${{ inputs.cache-scope || inputs.image }}
 
     # Every tag is read, not only the first: each must be the very same
     # index, byte for byte, or one tag would serve another build.
