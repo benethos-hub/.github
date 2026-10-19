@@ -7,6 +7,7 @@ here in the shape uv writes them.
 from __future__ import annotations
 
 import importlib.util
+import urllib.error
 import zipfile
 from pathlib import Path
 
@@ -24,6 +25,11 @@ _spec = importlib.util.spec_from_file_location(
 assert _spec and _spec.loader
 check_dist = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_dist)
+
+_spec = importlib.util.spec_from_file_location("on_pypi", ACTION_DIR / "on_pypi.py")
+assert _spec and _spec.loader
+on_pypi = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(on_pypi)
 
 FILES = [
     "benethos_example/__init__.py",
@@ -144,3 +150,42 @@ def test_a_trial_run_uploads_nothing_and_needs_no_token():
     assert trial["if"] == "inputs.dry-run == 'true'"
     assert trial["run"] == 'uv publish --dry-run --trusted-publishing never "$DIST"/*'
     assert ACTION["inputs"]["dry-run"]["default"] == "false"
+
+
+def test_a_trial_run_of_a_released_version_only_warns(tmp_path, capsys):
+    asked = []
+
+    def fetch(url: str) -> int:
+        asked.append(url)
+        return 200
+
+    on_pypi.warn(_dist(tmp_path), fetch)
+    assert asked == ["https://pypi.org/pypi/benethos_example/1.2.3/json"]
+    assert capsys.readouterr().out.startswith(
+        "::warning title=Version 1.2.3 is on PyPI already::"
+    )
+
+
+@pytest.mark.parametrize(
+    ("answer", "printed"),
+    [
+        (404, "Version 1.2.3 is not on PyPI yet."),
+        (503, "::warning::PyPI answered 503 for version 1.2.3."),
+        (urllib.error.URLError("offline"), "::warning::Could not ask PyPI"),
+    ],
+)
+def test_the_question_to_pypi_never_fails_the_trial(tmp_path, capsys, answer, printed):
+    def fetch(url: str) -> int:
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    on_pypi.warn(_dist(tmp_path), fetch)
+    assert capsys.readouterr().out.startswith(printed)
+
+
+def test_the_question_to_pypi_runs_only_in_a_trial():
+    step = STEPS["Is this version on PyPI already? (trial run)"]
+    assert step["if"] == "inputs.dry-run == 'true'"
+    assert step["run"].endswith('"$GITHUB_ACTION_PATH/on_pypi.py"')
+    assert step["env"]["DIST"] == STEPS["Build sdist and wheel"]["env"]["DIST"]

@@ -29,7 +29,9 @@ description: Builds a Python package with uv, checks what was built, and uploads
 # dry-run: true is a trial run, for example on workflow_dispatch before the
 # first release through this action. It builds and checks everything but the
 # version, which needs a release tag, and asks PyPI whether it would take the
-# files without uploading them. No credentials are needed for that.
+# files without uploading them. No credentials are needed for that. If the
+# version is on PyPI already, it warns without failing (on_pypi.py), since a
+# trial usually runs before the version is raised.
 
 inputs:
   dry-run:
@@ -100,3 +102,12 @@ runs:
       env:
         DIST: ${{ runner.temp }}/pypi-dist
       run: uv publish --dry-run --trusted-publishing never "$DIST"/*
+
+    # Only a warning: a trial run usually builds the version of the last
+    # release, because the version is raised in the release commit.
+    - name: Is this version on PyPI already? (trial run)
+      if: inputs.dry-run == 'true'
+      shell: bash
+      env:
+        DIST: ${{ runner.temp }}/pypi-dist
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/on_pypi.py"
