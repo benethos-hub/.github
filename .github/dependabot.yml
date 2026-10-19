@@ -17,6 +17,7 @@ updates:
       - "/actions/publish/mcp-registry"
       - "/actions/publish/mcpb"
       - "/actions/publish/pypi"
+      - "/actions/python/coverage-badge"
       - "/actions/python/pip-audit"
       - "/actions/release/ci-passed"
       - "/actions/release/tag-matches-version"

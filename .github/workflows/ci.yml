@@ -27,9 +27,20 @@ jobs:
 
   test:
     uses: ./.github/workflows/python-tests.yml
+    with:
+      badge: true
 
   audit:
     uses: ./.github/workflows/python-dependency-audit.yml
+
+  # The badge in the README shows the coverage of main, so it is written on
+  # a push only. ci.yml runs on pushes to main alone.
+  coverage-badge:
+    if: github.event_name == 'push'
+    needs: test
+    uses: ./.github/workflows/python-coverage-badge.yml
+    permissions:
+      contents: write
 
   # python-lint.yml checks uv.lock in the root. The actions keep lockfiles of
   # their own, for what they run in the other repositories.

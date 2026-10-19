@@ -2,8 +2,9 @@ name: Python tests
 
 # Reusable test run for a Python project managed with uv. The tests run on
 # every supported Python version against uv.lock, and the newest version also
-# measures the coverage and enforces its floor. Call it from a repository's CI
-# with:
+# measures the coverage and enforces its floor. With badge: true, that
+# version also writes the coverage as a badge for python-coverage-badge.yml.
+# Call it from a repository's CI with:
 #
 #   test:
 #     uses: benethos-hub/.github/.github/workflows/python-tests.yml@main
@@ -43,6 +44,10 @@ on:
         description: Time limit per job.
         type: number
         default: 15
+      badge:
+        description: Also write the coverage as a badge and upload it as the artifact coverage-badge, for python-coverage-badge.yml.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -88,3 +93,24 @@ jobs:
             done
           fi
           uv run --frozen pytest -q "${cov[@]}" "--cov-fail-under=$COV_FAIL_UNDER"
+
+      # The badge takes the coverage the run above measured, from its data
+      # file, so pytest runs the same way with and without the badge.
+      - name: Report the coverage as JSON
+        if: inputs.badge && matrix.python-version == inputs.coverage-python
+        run: uv run --frozen coverage json -o "$RUNNER_TEMP/coverage.json"
+
+      - name: Write the coverage badge
+        if: inputs.badge && matrix.python-version == inputs.coverage-python
+        uses: benethos-hub/.github/actions/python/coverage-badge@main
+        with:
+          coverage-json: ${{ runner.temp }}/coverage.json
+          badge-json: ${{ runner.temp }}/badge/coverage.json
+
+      - name: Upload it for python-coverage-badge.yml
+        if: inputs.badge && matrix.python-version == inputs.coverage-python
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage-badge
+          path: ${{ runner.temp }}/badge/coverage.json
+          retention-days: 7

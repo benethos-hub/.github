@@ -1,0 +1,33 @@
+name: Coverage badge
+description: Writes the JSON of a coverage badge, as shields.io renders it, from a coverage.py JSON report.
+
+# Used by python-tests.yml with badge: true. python-coverage-badge.yml
+# publishes the file on the badges branch, and a README embeds it through
+# https://img.shields.io/endpoint?url=<raw URL of the file>. The logic is in
+# badge.py next to this file.
+#
+#   - uses: benethos-hub/.github/actions/python/coverage-badge@main
+#     with:
+#       coverage-json: ${{ runner.temp }}/coverage.json
+#       badge-json: ${{ runner.temp }}/badge/coverage.json
+
+inputs:
+  coverage-json:
+    description: The JSON report of coverage.py, as coverage json writes it.
+    required: true
+  badge-json:
+    description: Where to write the badge JSON. The folder is created.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    - name: Write the badge
+      shell: bash
+      env:
+        COVERAGE_JSON: ${{ inputs.coverage-json }}
+        BADGE_JSON: ${{ inputs.badge-json }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/badge.py" "$COVERAGE_JSON" "$BADGE_JSON"

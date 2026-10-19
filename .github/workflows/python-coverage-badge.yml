@@ -1,0 +1,77 @@
+name: Python coverage badge
+
+# Publishes the coverage badge that python-tests.yml wrote with badge: true,
+# as coverage.json on the badges branch of the repository. shields.io reads
+# it from there, so the README shows the coverage of the last push to the
+# default branch:
+#
+#   [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
+#
+# Call it after the tests, on a push to the default branch only, and grant
+# contents: write for the push to the badges branch. A reusable workflow
+# never gets more rights than its caller:
+#
+#   coverage-badge:
+#     if: github.event_name == 'push'
+#     needs: test
+#     uses: benethos-hub/.github/.github/workflows/python-coverage-badge.yml@main
+#     permissions:
+#       contents: write
+#
+# The branch is created on the first run and carries nothing but the badge.
+# A ruleset for the default branch does not cover it. The job is not a
+# required check, since a pull request never runs it.
+
+on:
+  workflow_call:
+    inputs:
+      artifact:
+        description: Name of the artifact with the badge, as python-tests.yml uploads it.
+        type: string
+        default: coverage-badge
+      branch:
+        description: Branch that carries the badge.
+        type: string
+        default: badges
+
+permissions:
+  contents: write
+
+jobs:
+  badge:
+    name: Coverage badge
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ inputs.artifact }}
+          path: ${{ runner.temp }}/badge
+
+      # The branch holds the badge alone. The first run starts it without a
+      # parent, every later run adds a commit only when the badge changed.
+      - name: Publish coverage.json on the ${{ inputs.branch }} branch
+        env:
+          BRANCH: ${{ inputs.branch }}
+          BADGE: ${{ runner.temp }}/badge/coverage.json
+        run: |
+          set -euo pipefail
+          if git fetch --depth 1 origin "$BRANCH" 2> /dev/null; then
+            git checkout --quiet -b "$BRANCH" FETCH_HEAD
+          else
+            git checkout --quiet --orphan "$BRANCH"
+            git rm -rf --quiet .
+          fi
+          cp "$BADGE" coverage.json
+          git add coverage.json
+          if git diff --cached --quiet; then
+            echo "The badge is unchanged: $(cat coverage.json)"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit --quiet -m "Coverage badge for ${GITHUB_SHA::7}"
+          git push --quiet origin "HEAD:$BRANCH"
+          echo "Published: $(cat coverage.json)"
