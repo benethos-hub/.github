@@ -155,6 +155,19 @@ jobs:
         with:
           wheel-contains: benethos_example/py.typed
 
+  pypi-trial:
+    if: github.event_name == 'workflow_dispatch'
+    needs: ci-passed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@<sha> # vX
+      - uses: benethos-hub/.github/actions/publish/pypi@main
+        with:
+          dry-run: true
+          wheel-contains: benethos_example/py.typed
+
   ghcr-publish:
     if: github.event_name == 'release' || github.ref == 'refs/heads/main'
     needs: ci-passed
@@ -222,6 +235,8 @@ A Python project writes its versions as PEP 440 does and tags `v1.2.3`, `v1.0.0r
 ### Trial runs
 
 A manual run of `publish.yml` tries the image half: `publish/ghcr` builds and pushes `edge`, from the default branch only, since `edge` is public. `publish/pypi` with `dry-run: true` builds and checks everything but the version and asks PyPI whether it would take the files, without uploading and without credentials. If the version is on PyPI already, it warns without failing, since a trial usually runs before the version is raised.
+
+The PyPI trial runs in a job of its own, `pypi-trial` in the example, without the environment and without `id-token: write`. Run in the upload job instead, every manual run would show up as a deployment of the PyPI environment and get an OIDC token it does not need. The upload job keeps `if: github.event_name == 'release'`, so it never runs by hand.
 
 ### One-time setup
 

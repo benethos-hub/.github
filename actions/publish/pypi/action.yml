@@ -21,6 +21,18 @@ description: Builds a Python package with uv, checks what was built, and uploads
 #         with:
 #           wheel-contains: benethos_example/py.typed
 #
+#   pypi-trial:
+#     if: github.event_name == 'workflow_dispatch'
+#     needs: ci-passed
+#     permissions:
+#       contents: read
+#     steps:
+#       - uses: actions/checkout@<sha> # vX
+#       - uses: benethos-hub/.github/actions/publish/pypi@main
+#         with:
+#           dry-run: true
+#           wheel-contains: benethos_example/py.typed
+#
 # In a uv workspace, package names the member to build, one job per member.
 # Nothing is uploaded unless the wheel carries the version of the release
 # tag and every path in wheel-contains. The logic of that check is in
@@ -29,7 +41,10 @@ description: Builds a Python package with uv, checks what was built, and uploads
 # dry-run: true is a trial run, for example on workflow_dispatch before the
 # first release through this action. It builds and checks everything but the
 # version, which needs a release tag, and asks PyPI whether it would take the
-# files without uploading them. No credentials are needed for that. If the
+# files without uploading them. No credentials are needed for that, so the
+# trial runs in a job of its own, without the environment and without
+# id-token: write. A manual run then leaves no deployment in the
+# environment, and the job that uploads only ever runs on a release. If the
 # version is on PyPI already, it warns without failing (on_pypi.py), since a
 # trial usually runs before the version is raised.
 
