@@ -1,0 +1,90 @@
+name: Python tests
+
+# Reusable test run for a Python project managed with uv. The tests run on
+# every supported Python version against uv.lock, and the newest version also
+# measures the coverage and enforces its floor. Call it from a repository's CI
+# with:
+#
+#   test:
+#     uses: benethos-hub/.github/.github/workflows/python-tests.yml@main
+#     with:
+#       sync-args: --extra dev
+#       cov: benethos_example
+#
+# The checks are named after the calling job, test / Python 3.11 and so on.
+# Coverage is measured on one version only because it slows the older ones
+# down noticeably, and a required check on that version is what makes the
+# floor block a merge.
+
+on:
+  workflow_call:
+    inputs:
+      python-versions:
+        description: Python versions to test on, as a JSON list.
+        type: string
+        default: '["3.11", "3.12", "3.13", "3.14", "3.15"]'
+      coverage-python:
+        description: The version that measures the coverage, usually the newest.
+        type: string
+        default: "3.15"
+      sync-args:
+        description: Extra arguments for uv sync, for example --extra dev.
+        type: string
+        default: ""
+      cov:
+        description: Packages to measure, separated by spaces. Empty uses the coverage configuration of the project.
+        type: string
+        default: ""
+      cov-fail-under:
+        description: The coverage floor in percent.
+        type: number
+        default: 80
+      timeout-minutes:
+        description: Time limit per job.
+        type: number
+        default: 15
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies (locked)
+        env:
+          SYNC_ARGS: ${{ inputs.sync-args }}
+        run: uv sync --frozen $SYNC_ARGS
+
+      - name: Run tests
+        if: matrix.python-version != inputs.coverage-python
+        run: uv run pytest -q
+
+      - name: Run tests with coverage
+        if: matrix.python-version == inputs.coverage-python
+        env:
+          COV: ${{ inputs.cov }}
+          COV_FAIL_UNDER: ${{ inputs.cov-fail-under }}
+        run: |
+          cov=(--cov)
+          if [ -n "$COV" ]; then
+            cov=()
+            for package in $COV; do
+              cov+=("--cov=$package")
+            done
+          fi
+          uv run pytest -q "${cov[@]}" "--cov-fail-under=$COV_FAIL_UNDER"

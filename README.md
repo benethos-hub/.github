@@ -6,9 +6,16 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | --- | --- |
 | [FUNDING.yml](FUNDING.yml) | Sponsor links for every repository without its own funding file |
 | [SECURITY.md](SECURITY.md) | Security policy for every repository without its own policy |
+| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows of this repository |
 | [profile/](profile/) | Organisation profile shown on github.com/benethos-hub |
 | [.github/workflows/brand.yml](.github/workflows/brand.yml) | Reusable check for the brand assets of a repository |
 | [.github/workflows/brand-report.yml](.github/workflows/brand-report.yml) | Weekly report on brand assets across all repositories |
+| [.github/workflows/python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | Reusable check of the packages in `uv.lock` for known vulnerabilities |
+| [.github/workflows/python-lint.yml](.github/workflows/python-lint.yml) | Reusable lint run: lockfile in step, Ruff and Mypy |
+| [.github/workflows/python-tests.yml](.github/workflows/python-tests.yml) | Reusable test run on every supported Python version, with coverage on the newest |
+| [.github/workflows/python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | Reusable test run against the lowest dependency versions that `pyproject.toml` allows |
+
+Workflows have to live directly in `.github/workflows`, because GitHub ignores subfolders there. Workflows for Python projects therefore start with `python-`.
 
 ## Security policy
 

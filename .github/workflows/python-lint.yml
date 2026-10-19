@@ -1,0 +1,62 @@
+name: Python lint
+
+# Reusable lint run for a Python project managed with uv: the lockfile is in
+# step with pyproject.toml, Ruff finds nothing and the formatting holds, and
+# Mypy passes. Ruff and Mypy read their settings from the project. Call it
+# from a repository's CI with:
+#
+#   lint:
+#     uses: benethos-hub/.github/.github/workflows/python-lint.yml@main
+#     with:
+#       sync-args: --extra dev
+#
+# The check is named after the calling job, lint / lint.
+
+on:
+  workflow_call:
+    inputs:
+      sync-args:
+        description: Extra arguments for uv sync, for example --extra dev.
+        type: string
+        default: ""
+      timeout-minutes:
+        description: Time limit for the job.
+        type: number
+        default: 10
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (locked)
+        env:
+          SYNC_ARGS: ${{ inputs.sync-args }}
+        run: uv sync --frozen $SYNC_ARGS
+
+      # Every job installs with --frozen, so all of CI runs against uv.lock. A
+      # pyproject.toml that has drifted away from it would therefore never be
+      # exercised, and the mismatch would surface on the first install that
+      # resolves fresh.
+      - name: Lockfile is in step with pyproject.toml
+        run: uv lock --check
+
+      - name: Ruff (lint)
+        run: uv run ruff check .
+
+      - name: Ruff (format check)
+        run: uv run ruff format --check .
+
+      - name: Mypy (type check)
+        run: uv run mypy

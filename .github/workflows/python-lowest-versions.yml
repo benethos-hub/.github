@@ -1,0 +1,100 @@
+name: Python lowest versions
+
+# Reusable check that a Python project still works with the oldest versions
+# its pyproject.toml allows. The tests otherwise run against uv.lock, which
+# hides a lower bound that no longer holds. This job installs every direct
+# dependency at its declared lower bound, on the oldest supported Python and
+# without the lockfile, and runs the tests against it. Call it from a
+# repository's CI with:
+#
+#   lowest-versions:
+#     uses: benethos-hub/.github/.github/workflows/python-lowest-versions.yml@main
+#     with:
+#       requirements: pytest>=9.1.1
+#
+# The test tools in requirements need a lower bound as well. Without one, the
+# lowest resolution picks their very first release.
+#
+# The check is named after the calling job, lowest-versions / Python 3.11. A
+# repository with several packages can call it once per package, each with its
+# own editable and pytest-args.
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: The oldest supported Python version.
+        type: string
+        default: "3.11"
+      editable:
+        description: Paths to install in editable mode, one per line, extras allowed.
+        type: string
+        default: "."
+      requirements:
+        description: Further requirements such as the test tools, one per line, each with a lower bound.
+        type: string
+        required: true
+      pytest-args:
+        description: Arguments for pytest, for example the test paths.
+        type: string
+        default: ""
+      audit:
+        description: Also check the installed versions for known vulnerabilities.
+        type: boolean
+        default: false
+      timeout-minutes:
+        description: Time limit for the job.
+        type: number
+        default: 15
+
+permissions:
+  contents: read
+
+jobs:
+  lowest-versions:
+    name: Python ${{ inputs.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    env:
+      # Downloaded at run time, so Dependabot cannot see it. Compare with the
+      # newest release of pypa/pip-audit now and then.
+      PIP_AUDIT_VERSION: 2.10.1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Install the lowest allowed versions (no lockfile)
+        env:
+          PYTHON: ${{ inputs.python-version }}
+          EDITABLE: ${{ inputs.editable }}
+          REQUIREMENTS: ${{ inputs.requirements }}
+        run: |
+          set -euo pipefail
+          args=()
+          while read -r line; do
+            if [ -n "$line" ]; then args+=(-e "$line"); fi
+          done <<< "$EDITABLE"
+          while read -r line; do
+            if [ -n "$line" ]; then args+=("$line"); fi
+          done <<< "$REQUIREMENTS"
+          uv venv -p "$PYTHON" /tmp/lowest
+          uv pip install --python /tmp/lowest/bin/python --resolution lowest-direct "${args[@]}"
+          echo "--- resolved dependency versions ---"
+          uv pip list --python /tmp/lowest/bin/python
+
+      - name: Run the tests against them
+        env:
+          PYTEST_ARGS: ${{ inputs.pytest-args }}
+        run: |
+          set -euo pipefail
+          /tmp/lowest/bin/python -m pytest -q -p no:cacheprovider $PYTEST_ARGS
+
+      - name: No known vulnerability in these versions
+        if: inputs.audit
+        run: |
+          set -euo pipefail
+          uv pip freeze --python /tmp/lowest/bin/python --exclude-editable > /tmp/lowest.txt
+          uvx "pip-audit==$PIP_AUDIT_VERSION" --strict --disable-pip --no-deps \
+            --vulnerability-service osv -r /tmp/lowest.txt
