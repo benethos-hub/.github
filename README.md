@@ -1,7 +1,7 @@
 # .github
 
 [![CI](https://github.com/benethos-hub/.github/actions/workflows/ci.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/benethos-hub/.github/badges/coverage.json)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/benethos-hub/.github/badges/coverage.json&logo=pytest&logoColor=white)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
 [![Brand report](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml)
 [![Download pins report](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml)
 
@@ -103,15 +103,17 @@ The second row says where to get it: one badge per package on its registry and o
 
 The third row holds the sponsor links, GitHub Sponsors and PayPal. The badges are served from [profile/badges](profile/badges/) in this repository, the same files the organisation profile shows, so every repository carries the same two and a change here reaches all of them.
 
-None of the badges carries a value written by hand, and all of them use the default style of shields.io. The colours are the same in every repository, and each one means something. The CI badge is green or red, as GitHub draws it. The coverage badge follows the usual scale, green from 80, bright green from 90 and red below 50. The licence badge keeps the colour shields.io gives the licence, green for a permissive one such as MIT and orange for copyleft. A version badge keeps the colour shields.io gives the version, orange below 1.0 and blue from 1.0 on, so a package before its first stable release is visible as such. The badge of the supported language versions is blue, with `color=blue` where shields.io would choose otherwise. The container badge carries the Docker blue `2496ED` and the Docker logo. The sponsor badges keep the colours of their files.
+None of the badges carries a value written by hand, and all of them use the default style of shields.io. The colours are the same in every repository, and each one means something. The CI badge is green or red, as GitHub draws it. The coverage badge follows the usual scale, green from 80, bright green from 90 and red below 50. The licence badge keeps the colour shields.io gives the licence, green for a permissive one such as MIT and orange for copyleft. A version badge keeps the colour shields.io gives the version, orange below 1.0 and blue from 1.0 on, so a package before its first stable release is visible as such. The badge of the supported language versions is blue, with `color=blue` where shields.io would choose otherwise. The container badge carries the Docker blue `2496ED`. The sponsor badges keep the colours of their files.
+
+Every badge of the first two rows carries a white logo from [simple-icons](https://simpleicons.org/), through `logo=<name>&logoColor=white`: the licence the Open Source Initiative, the language versions the language, the package its registry, the container Docker, and the coverage the tool that measures it, pytest for Python. The CI badge brings its GitHub mark itself, and the sponsor badges have theirs in their files.
 
 ```markdown
 [![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/<owner>/<repo>)](https://github.com/<owner>/<repo>/blob/main/LICENSE)
-[![Python](https://img.shields.io/pypi/pyversions/<package>)](https://pypi.org/project/<package>/)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json&logo=pytest&logoColor=white)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/<owner>/<repo>?logo=opensourceinitiative&logoColor=white)](https://github.com/<owner>/<repo>/blob/main/LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/<package>?logo=python&logoColor=white)](https://pypi.org/project/<package>/)
 
-[![PyPI <package>](https://img.shields.io/pypi/v/<package>?label=PyPI%20<package>)](https://pypi.org/project/<package>/)
+[![PyPI <package>](https://img.shields.io/pypi/v/<package>?label=PyPI%20<package>&logo=pypi&logoColor=white)](https://pypi.org/project/<package>/)
 [![Container <image>](https://img.shields.io/badge/ghcr.io-<image>-2496ED?logo=docker&logoColor=white)](https://github.com/<owner>/<repo>/pkgs/container/<image>)
 
 [![Sponsor](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/sponsor.svg)](https://github.com/sponsors/BeneODev)
@@ -120,15 +122,15 @@ None of the badges carries a value written by hand, and all of them use the defa
 
 In the container badge, a dash in the image name is written as `--`, since shields.io reads a single dash as the separator. A repository with several packages or images repeats the line per package and per image.
 
-The example is a Python project. The rule is the same for every language, only the two badges that read a package differ:
+The example is a Python project. The rule is the same for every language, only the two badges that read a package and the logo of the coverage badge differ:
 
-| Language | Versions, first row | Package, second row |
-| --- | --- | --- |
-| Python | `pypi/pyversions/<package>` | `pypi/v/<package>?label=PyPI%20<package>` |
-| Go | `github/go-mod/go-version/<owner>/<repo>` | `github/v/release/<owner>/<repo>?label=Release`, since a module is fetched from the repository |
-| Node | `node/v/<package>?color=blue` | `npm/v/<package>?label=npm%20<package>` |
+| Language | Versions, first row | Package, second row | Coverage logo |
+| --- | --- | --- | --- |
+| Python | `pypi/pyversions/<package>?logo=python` | `pypi/v/<package>?label=PyPI%20<package>&logo=pypi` | `pytest` |
+| Go | `github/go-mod/go-version/<owner>/<repo>?logo=go` | `github/v/release/<owner>/<repo>?label=Release&logo=github`, since a module is fetched from the repository | `go` |
+| Node | `node/v/<package>?logo=nodedotjs&color=blue` | `npm/v/<package>?label=npm%20<package>&logo=npm` | `nodedotjs` |
 
-Each is a path under `https://img.shields.io/`. The version badges keep the colour of shields.io, the Node versions badge would be green without `color=blue`.
+Each is a path under `https://img.shields.io/`, with `&logoColor=white` added. The version badges keep the colour of shields.io, the Node versions badge would be green without `color=blue`.
 
 This repository has no licence file and publishes nothing. Its first row at the top of this page goes on with the two weekly reports instead, which are status badges as well, and its second row is missing.
 
