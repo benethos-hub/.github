@@ -101,7 +101,7 @@ The first row says whether the project is in order and what it runs on:
 
 The second row says where to get it: one badge per package on its registry and one container badge per image. A repository that publishes nothing has no second row.
 
-A repository with several packages, such as a uv workspace, gives each package a row of its own instead, in the order of their dependencies. Each row holds the badge of the package and, where the package has an image, its container badge beside it. A blank line separates these rows as well, since GitHub shows lines without one in a single row. The sponsor row follows after the last package.
+A repository with several packages, such as a uv workspace, gives each package a row of its own instead. The packages people run come first and the libraries they build on last, in mailbox for example service, mcp, client and common. Each row holds the badge of the package on its registry first and, where the package has an image, its container badge after it. A blank line separates these rows as well, since GitHub shows lines without one in a single row. The sponsor row follows after the last package.
 
 The third row holds the sponsor links, GitHub Sponsors and PayPal. The badges are served from [profile/badges](profile/badges/) in this repository, the same files the organisation profile shows, so every repository carries the same two and a change here reaches all of them.
 
