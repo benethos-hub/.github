@@ -81,12 +81,16 @@ runs:
         DRY_RUN: ${{ inputs.dry-run }}
       run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/check_dist.py"
 
+    # PyPI never takes a file name twice. --check-url skips a file that is on
+    # PyPI already with the same content, so a job that failed after the
+    # first file can be run again: the build is reproducible, and only the
+    # missing files are uploaded. A file with other content stops the job.
     - name: Publish to PyPI (Trusted Publishing)
       if: inputs.dry-run != 'true'
       shell: bash
       env:
         DIST: ${{ runner.temp }}/pypi-dist
-      run: uv publish --trusted-publishing always "$DIST"/*
+      run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ "$DIST"/*
 
     # A trial run asks PyPI about the files without an OIDC token, which only
     # an upload needs.

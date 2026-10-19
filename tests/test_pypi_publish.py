@@ -104,7 +104,10 @@ def test_the_action_builds_checks_and_uploads_from_one_folder():
     assert build["env"]["DIST"] == check["env"]["DIST"] == upload["env"]["DIST"]
     assert 'rm -rf "$DIST"' in build["run"] and '--package "$PACKAGE"' in build["run"]
     assert '"$GITHUB_ACTION_PATH/check_dist.py"' in check["run"]
-    assert upload["run"] == 'uv publish --trusted-publishing always "$DIST"/*'
+    assert upload["run"] == (
+        "uv publish --trusted-publishing always "
+        '--check-url https://pypi.org/simple/ "$DIST"/*'
+    )
     assert (
         check["env"]["TAG"]
         == "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
