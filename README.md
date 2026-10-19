@@ -103,16 +103,16 @@ The second row says where to get it: one badge per package on its registry and o
 
 The third row holds the sponsor links, GitHub Sponsors and PayPal. The badges are served from [profile/badges](profile/badges/) in this repository, the same files the organisation profile shows, so every repository carries the same two and a change here reaches all of them.
 
-None of the badges carries a value written by hand, and all of them use the default style of shields.io. The colours are the same in every repository. The two status badges carry status colours: the CI badge green or red, as GitHub draws it, and the coverage badge the usual scale, green from 80, bright green from 90 and red below 50. Every other badge of the first two rows is blue, the `blue` of shields.io. Where shields.io would choose another colour on its own, green for a permissive licence or orange for a version below 1.0, `color=blue` sets it. The sponsor badges keep the colours of their files.
+None of the badges carries a value written by hand, and all of them use the default style of shields.io. The colours are the same in every repository, and each one means something. The CI badge is green or red, as GitHub draws it. The coverage badge follows the usual scale, green from 80, bright green from 90 and red below 50. The licence badge keeps the colour shields.io gives the licence, green for a permissive one such as MIT and orange for copyleft. A version badge keeps the colour shields.io gives the version, orange below 1.0 and blue from 1.0 on, so a package before its first stable release is visible as such. The badge of the supported language versions is blue, with `color=blue` where shields.io would choose otherwise. The container badge carries the Docker blue `2496ED` and the Docker logo. The sponsor badges keep the colours of their files.
 
 ```markdown
 [![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/<owner>/<repo>?color=blue)](https://github.com/<owner>/<repo>/blob/main/LICENSE)
+[![License](https://img.shields.io/github/license/<owner>/<repo>)](https://github.com/<owner>/<repo>/blob/main/LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/<package>)](https://pypi.org/project/<package>/)
 
-[![PyPI <package>](https://img.shields.io/pypi/v/<package>?label=PyPI%20<package>&color=blue)](https://pypi.org/project/<package>/)
-[![Container <image>](https://img.shields.io/badge/ghcr.io-<image>-blue?logo=docker&logoColor=white)](https://github.com/<owner>/<repo>/pkgs/container/<image>)
+[![PyPI <package>](https://img.shields.io/pypi/v/<package>?label=PyPI%20<package>)](https://pypi.org/project/<package>/)
+[![Container <image>](https://img.shields.io/badge/ghcr.io-<image>-2496ED?logo=docker&logoColor=white)](https://github.com/<owner>/<repo>/pkgs/container/<image>)
 
 [![Sponsor](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/sponsor.svg)](https://github.com/sponsors/BeneODev)
 [![PayPal](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/paypal.svg)](https://paypal.me/BeneODev)
@@ -124,11 +124,11 @@ The example is a Python project. The rule is the same for every language, only t
 
 | Language | Versions, first row | Package, second row |
 | --- | --- | --- |
-| Python | `pypi/pyversions/<package>` | `pypi/v/<package>?label=PyPI%20<package>&color=blue` |
-| Go | `github/go-mod/go-version/<owner>/<repo>` | `github/v/release/<owner>/<repo>?label=Release&color=blue`, since a module is fetched from the repository |
-| Node | `node/v/<package>?color=blue` | `npm/v/<package>?label=npm%20<package>&color=blue` |
+| Python | `pypi/pyversions/<package>` | `pypi/v/<package>?label=PyPI%20<package>` |
+| Go | `github/go-mod/go-version/<owner>/<repo>` | `github/v/release/<owner>/<repo>?label=Release`, since a module is fetched from the repository |
+| Node | `node/v/<package>?color=blue` | `npm/v/<package>?label=npm%20<package>` |
 
-Each is a path under `https://img.shields.io/`. The `color=blue` is there where shields.io chooses on its own.
+Each is a path under `https://img.shields.io/`. The version badges keep the colour of shields.io, the Node versions badge would be green without `color=blue`.
 
 This repository has no licence file and publishes nothing. Its first row at the top of this page goes on with the two weekly reports instead, which are status badges as well, and its second row is missing.
 
