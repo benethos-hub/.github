@@ -1,9 +1,16 @@
 name: CI
 
-# Tests for the scripts of the actions in this repository. The repositories of
-# the organisation call these actions at main, so a mistake here reaches all of
-# them on their next run. Ruff, pytest, PyYAML and Mypy come from uv.lock, and
-# their settings from pyproject.toml.
+# Checks this repository with its own shared workflows, the way every project
+# calls them. The repositories of the organisation call the workflows and
+# actions here at main, so a mistake reaches all of them on their next run.
+#
+# The calls below go by a local path. GitHub loads such a workflow from the
+# very commit under test, also in a pull request, so a change to
+# python-lint.yml or python-tests.yml is tried here before it reaches main.
+# The actions those workflows call at main are not, see the README.
+#
+# Ruff, pytest, PyYAML and Mypy come from uv.lock, and their settings from
+# pyproject.toml. Coverage covers the scripts the actions and workflows run.
 
 on:
   push:
@@ -15,38 +22,30 @@ permissions:
   contents: read
 
 jobs:
-  tests:
-    name: tests
+  lint:
+    uses: ./.github/workflows/python-lint.yml
+
+  test:
+    uses: ./.github/workflows/python-tests.yml
+
+  audit:
+    uses: ./.github/workflows/python-dependency-audit.yml
+
+  # python-lint.yml checks uv.lock in the root. The actions keep lockfiles of
+  # their own, for what they run in the other repositories.
+  lockfiles:
+    name: Lockfiles of the actions
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          enable-cache: true
-
-      - name: Install the tools (locked)
-        run: uv sync --frozen
 
       # npm ci refuses a package-lock.json that does not match its
       # package.json, so a dry run is the check.
-      - name: Lockfiles are in step with their pyproject.toml or package.json
+      - name: Every lockfile is in step with its pyproject.toml or package.json
         run: |
-          uv lock --check
           uv lock --check --project actions/python/pip-audit
           npm ci --prefix actions/publish/mcpb --ignore-scripts --no-audit --no-fund --dry-run
-
-      # The same rules python-lint.yml asks of every project.
-      - name: Ruff (lint)
-        run: uv run --frozen ruff check .
-
-      - name: Ruff (format check)
-        run: uv run --frozen ruff format --check .
-
-      - name: Pytest
-        run: uv run --frozen pytest -q
-
-      - name: Mypy (strict) on the action scripts
-        run: uv run --frozen mypy

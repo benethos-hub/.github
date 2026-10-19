@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 dev = [
     "mypy>=2.4.0",
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
     "ruff>=0.17.1",
     "pyyaml>=6.0.3",
     "types-pyyaml>=6.0.12.20260906",
@@ -48,3 +49,8 @@ select = [
     "B",    # flake8-bugbear
     "W",    # pycodestyle warnings
 ]
+
+# What python-tests.yml measures: the scripts the actions and workflows run.
+[tool.coverage.run]
+source = ["actions", ".github/scripts"]
+branch = true

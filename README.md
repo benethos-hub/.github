@@ -15,7 +15,7 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see. One entry per download. |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
 | [tests/](tests/) | Tests for the scripts of the actions and for how the workflows wire them |
-| [pyproject.toml](pyproject.toml), [uv.lock](uv.lock) | The tools for the checks of this repository (Ruff, pytest, PyYAML, Mypy), locked, with their settings |
+| [pyproject.toml](pyproject.toml), [uv.lock](uv.lock) | The tools for the checks of this repository (Ruff, pytest, pytest-cov, PyYAML, Mypy), locked, with their settings |
 
 ### Workflows
 
@@ -31,7 +31,7 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 | [python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | reusable | Tests against the lowest dependency versions that `pyproject.toml` allows |
 | [python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | reusable | Known vulnerabilities in the packages pinned in `uv.lock` |
 | [python-release-ci-passed.yml](.github/workflows/python-release-ci-passed.yml) | reusable | Release gate: nothing is published before the CI run of the release commit on the default branch has passed |
-| [ci.yml](.github/workflows/ci.yml) | push and pull request | Ruff, tests and a strict Mypy run for the scripts of the actions in this repository |
+| [ci.yml](.github/workflows/ci.yml) | push and pull request | Checks this repository with its own `python-lint.yml`, `python-tests.yml` and `python-dependency-audit.yml`, called by local path, so a pull request tries a change to them before it reaches the projects |
 
 ### Actions
 
@@ -79,7 +79,7 @@ The calling job has to grant `actions: read`, because a reusable workflow never 
 
 The repositories call every workflow and action here at `@main`. A change merged here reaches all of them on their next run, without a pull request in any of them.
 
-Some actions call others here at `@main` as well: `publish/ghcr`, `publish/mcpb` and `publish/mcp-registry` call `release/tag-matches-version`, `python-release-ci-passed.yml` calls `release/ci-passed` and `python-dependency-audit.yml`, and `python-dependency-audit.yml` and `python-lowest-versions.yml` call `python/pip-audit`. GitHub resolves such a call to `main` even in a pull request here. So a pull request cannot try a changed chain. Its tests in `tests/` run the scripts and check the wiring, but the actions themselves first run together after the merge.
+Some actions call others here at `@main` as well: `publish/ghcr`, `publish/mcpb` and `publish/mcp-registry` call `release/tag-matches-version`, `python-release-ci-passed.yml` calls `release/ci-passed` and `python-dependency-audit.yml`, and `python-dependency-audit.yml` and `python-lowest-versions.yml` call `python/pip-audit`. GitHub resolves such a call to `main` even in a pull request here. So a pull request cannot try a changed chain. Its tests in `tests/` run the scripts and check the wiring, but the actions themselves first run together after the merge. Only `python-lint.yml`, `python-tests.yml` and `python-dependency-audit.yml` are tried in a pull request, because `ci.yml` calls them by local path. The actions they call still come from `main`.
 
 Two rules follow from that:
 
