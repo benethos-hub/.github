@@ -90,7 +90,7 @@ Coverage is measured on one version only, because it slows the older ones down n
 
 ### Badges
 
-The README of every repository opens with its badges, right after the title, in three rows. A blank line between the rows keeps them apart.
+The README of every repository opens with its badges, right after the title, in three rows, or more for a repository with several packages. A blank line between the rows keeps them apart.
 
 The first row says whether the project is in order and what it runs on:
 
@@ -100,6 +100,8 @@ The first row says whether the project is in order and what it runs on:
 4. The language versions the project supports, read from where the project declares them.
 
 The second row says where to get it: one badge per package on its registry and one container badge per image. A repository that publishes nothing has no second row.
+
+A repository with several packages, such as a uv workspace, gives each package a row of its own instead, in the order of their dependencies. Each row holds the badge of the package and, where the package has an image, its container badge beside it. A blank line separates these rows as well, since GitHub shows lines without one in a single row. The sponsor row follows after the last package.
 
 The third row holds the sponsor links, GitHub Sponsors and PayPal. The badges are served from [profile/badges](profile/badges/) in this repository, the same files the organisation profile shows, so every repository carries the same two and a change here reaches all of them.
 
@@ -120,7 +122,7 @@ Every badge of the first two rows carries a white logo from [simple-icons](https
 [![PayPal](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/paypal.svg)](https://paypal.me/BeneODev)
 ```
 
-In the container badge, a dash in the image name is written as `--`, since shields.io reads a single dash as the separator. A repository with several packages or images repeats the line per package and per image.
+In the container badge, a dash in the image name is written as `--`, since shields.io reads a single dash as the separator.
 
 The example is a Python project. The rule is the same for every language, only the two badges that read a package differ:
 
