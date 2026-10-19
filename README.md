@@ -35,7 +35,7 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 
 ### Actions
 
-Actions may live in subfolders. Those for Python projects are in `actions/python/`, those that guard a release in `actions/release/`, and those that publish somewhere in `actions/publish/`.
+Actions may live in subfolders. Those for Python projects are in `actions/python/`, those that guard a release in `actions/release/`, and those that publish somewhere in `actions/publish/`. Every action that needs uv installs it itself, so a caller never has to. A second install in the same job comes from the cache.
 
 | Action | Purpose |
 | --- | --- |

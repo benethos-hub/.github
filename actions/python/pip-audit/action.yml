@@ -5,7 +5,7 @@ description: Checks pinned Python packages for known vulnerabilities, against Py
 # python-dependency-audit passes the versions locked in uv.lock, and
 # python-lowest-versions the versions it has just tested. Both get the same
 # rules and the same waivers. The pip-audit version is locked in uv.lock next
-# to this file. Use it after astral-sh/setup-uv:
+# to this file.
 #
 #   - uses: benethos-hub/.github/actions/python/pip-audit@main
 #     with:
@@ -24,6 +24,9 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
     - name: Audit against PyPI and OSV
       shell: bash
       env:
@@ -31,10 +34,6 @@ runs:
         IGNORE_VULNS: ${{ inputs.ignore-vulns }}
       run: |
         set -euo pipefail
-        if ! command -v uv > /dev/null; then
-          echo "::error::The pip-audit action needs uv. Run astral-sh/setup-uv before it."
-          exit 1
-        fi
         if [ ! -s "$REQUIREMENTS" ]; then
           echo "::error::$REQUIREMENTS is missing or empty, there is nothing to audit."
           exit 1

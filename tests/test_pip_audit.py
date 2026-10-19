@@ -7,7 +7,6 @@ need no network and no real vulnerability.
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -20,7 +19,7 @@ pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the action runs
 ROOT = Path(__file__).resolve().parent.parent
 ACTION_DIR = ROOT / "actions" / "python" / "pip-audit"
 ACTION = yaml.safe_load((ACTION_DIR / "action.yml").read_text("utf-8"))
-(STEP,) = ACTION["runs"]["steps"]
+UV_STEP, STEP = ACTION["runs"]["steps"]
 
 FAKE_UV = r"""#!/bin/bash
 echo "CALL $* ENV $UV_PROJECT_ENVIRONMENT" >> "$UV_LOG"
@@ -32,16 +31,15 @@ exit 0
 
 
 def _audit(
-    tmp_path: Path, requirements: str, ignore: str = "", with_uv: bool = True
+    tmp_path: Path, requirements: str, ignore: str = ""
 ) -> tuple[int, str, list[list[str]]]:
     """Run the action's script. Returns the exit code, the output, and for
     every pip-audit call its arguments followed by the pins it got."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    if with_uv:
-        uv = bin_dir / "uv"
-        uv.write_text(FAKE_UV)
-        uv.chmod(0o755)
+    uv = bin_dir / "uv"
+    uv.write_text(FAKE_UV)
+    uv.chmod(0o755)
     script = tmp_path / "audit.sh"
     script.write_text(STEP["run"])
     req = tmp_path / "versions.txt"
@@ -140,9 +138,6 @@ def test_nothing_to_audit_is_an_error(tmp_path, requirements):
     assert "::error::" in out
 
 
-def test_without_uv_the_action_says_so(tmp_path):
-    if os.path.exists("/usr/bin/uv") or os.path.exists("/bin/uv"):
-        pytest.skip("uv is installed system-wide here")
-    code, out, _ = _audit(tmp_path, "idna==3.15\n", with_uv=False)
-    assert code == 1
-    assert "needs uv" in out
+def test_the_action_installs_uv_itself():
+    """Like every action here that needs uv, so no caller has to know."""
+    assert UV_STEP["uses"].startswith("astral-sh/setup-uv@")
