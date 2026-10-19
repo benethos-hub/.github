@@ -42,6 +42,10 @@ on:
         description: Also check the installed versions for known vulnerabilities.
         type: boolean
         default: false
+      ignore-vulns:
+        description: Vulnerability IDs to waive in the audit, separated by spaces. Use the same list as for python-dependency-audit.
+        type: string
+        default: ""
       timeout-minutes:
         description: Time limit for the job.
         type: number
@@ -55,10 +59,6 @@ jobs:
     name: Python ${{ inputs.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
-    env:
-      # Downloaded at run time, so Dependabot cannot see it. Compare with the
-      # newest release of pypa/pip-audit now and then.
-      PIP_AUDIT_VERSION: 2.10.1
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -91,10 +91,15 @@ jobs:
           set -euo pipefail
           /tmp/lowest/bin/python -m pytest -q -p no:cacheprovider $PYTEST_ARGS
 
+      # The audit covers exactly the environment the tests ran in. Resolving
+      # the lowest versions again could pick other transitive versions.
+      - name: List the tested versions
+        if: inputs.audit
+        run: uv pip freeze --python /tmp/lowest/bin/python --exclude-editable > "$RUNNER_TEMP/lowest.txt"
+
       - name: No known vulnerability in these versions
         if: inputs.audit
-        run: |
-          set -euo pipefail
-          uv pip freeze --python /tmp/lowest/bin/python --exclude-editable > /tmp/lowest.txt
-          uvx "pip-audit==$PIP_AUDIT_VERSION" --strict --disable-pip --no-deps \
-            --vulnerability-service osv -r /tmp/lowest.txt
+        uses: benethos-hub/.github/actions/python/pip-audit@main
+        with:
+          requirements: ${{ runner.temp }}/lowest.txt
+          ignore-vulns: ${{ inputs.ignore-vulns }}

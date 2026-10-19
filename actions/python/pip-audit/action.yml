@@ -1,0 +1,84 @@
+name: pip-audit
+description: Checks pinned Python packages for known vulnerabilities, against PyPI and OSV.
+
+# The one place that decides how the organisation audits Python packages.
+# python-dependency-audit passes the versions locked in uv.lock, and
+# python-lowest-versions the versions it has just tested. Both get the same
+# rules and the same waivers. Use it after astral-sh/setup-uv:
+#
+#   - uses: benethos-hub/.github/actions/python/pip-audit@main
+#     with:
+#       requirements: ${{ runner.temp }}/versions.txt
+#       ignore-vulns: GHSA-xxxx-xxxx-xxxx
+
+inputs:
+  requirements:
+    description: File with one pinned package per line, as name==version. Markers after a semicolon are dropped, and a name may appear in several versions.
+    required: true
+  ignore-vulns:
+    description: Vulnerability IDs to waive, separated by spaces. Meant for a vulnerability without a fixed version yet.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Audit against PyPI and OSV
+      shell: bash
+      env:
+        REQUIREMENTS: ${{ inputs.requirements }}
+        IGNORE_VULNS: ${{ inputs.ignore-vulns }}
+        # Downloaded at run time, so Dependabot cannot see it. Compare with
+        # the newest release of pypa/pip-audit now and then.
+        PIP_AUDIT_VERSION: 2.10.1
+      run: |
+        set -euo pipefail
+        if ! command -v uvx > /dev/null; then
+          echo "::error::The pip-audit action needs uv. Run astral-sh/setup-uv before it."
+          exit 1
+        fi
+        if [ ! -s "$REQUIREMENTS" ]; then
+          echo "::error::$REQUIREMENTS is missing or empty, there is nothing to audit."
+          exit 1
+        fi
+
+        # A package from a Git repository or a URL has no version to look up.
+        # It is named here instead of being left out without a word.
+        grep -vE '^[[:space:]]*(#|$)' "$REQUIREMENTS" \
+          | grep -vE '^[A-Za-z0-9._-]+==' \
+          | while read -r line; do
+              echo "::warning::Not audited, no pinned version: $line"
+            done || true
+
+        # A package pinned in two versions (one for older Pythons, say) would
+        # be a duplicate requirement, so each further version of a name goes
+        # into the next file.
+        work=$(mktemp -d)
+        sed -n 's/^\([A-Za-z0-9._-]*==[^ ;]*\).*/\1/p' "$REQUIREMENTS" \
+          | sort -u \
+          | awk -F'==' -v dir="$work" '{ n[tolower($1)]++; print > (dir "/part" n[tolower($1)] ".txt") }'
+        if ! ls "$work"/part*.txt > /dev/null 2>&1; then
+          echo "::error::$REQUIREMENTS names no pinned version."
+          exit 1
+        fi
+        echo "$(cat "$work"/part*.txt | wc -l) pinned versions"
+
+        ignore=()
+        for id in $IGNORE_VULNS; do
+          ignore+=(--ignore-vuln "$id")
+        done
+
+        # --no-deps with --disable-pip audits exactly the listed versions
+        # instead of resolving them anew. --strict fails when a package cannot
+        # be audited at all, so a gap never passes as "no vulnerabilities".
+        failed=0
+        for service in pypi osv; do
+          for part in "$work"/part*.txt; do
+            echo "::group::$service, $(basename "$part")"
+            uvx "pip-audit==$PIP_AUDIT_VERSION" --strict --no-deps --disable-pip \
+              --desc on --vulnerability-service "$service" ${ignore[@]+"${ignore[@]}"} \
+              -r "$part" || failed=1
+            echo "::endgroup::"
+          done
+        done
+        exit "$failed"

@@ -14,8 +14,9 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | [.github/workflows/python-lint.yml](.github/workflows/python-lint.yml) | Reusable lint run: lockfile in step, Ruff and Mypy |
 | [.github/workflows/python-tests.yml](.github/workflows/python-tests.yml) | Reusable test run on every supported Python version, with coverage on the newest |
 | [.github/workflows/python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | Reusable test run against the lowest dependency versions that `pyproject.toml` allows |
+| [actions/python/pip-audit/](actions/python/pip-audit/action.yml) | Shared action that checks pinned Python packages for known vulnerabilities, used by both audits above |
 
-Workflows have to live directly in `.github/workflows`, because GitHub ignores subfolders there. Workflows for Python projects therefore start with `python-`.
+Workflows have to live directly in `.github/workflows`, because GitHub ignores subfolders there. Workflows for Python projects therefore start with `python-`. Actions may live in subfolders, so those for Python projects are in `actions/python/`.
 
 ## Security policy
 
