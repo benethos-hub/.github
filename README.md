@@ -1,67 +1,115 @@
 # .github
 
-Organisation defaults for benethos-hub. The organisation profile lives in [profile/README.md](profile/README.md).
+[![CI](https://github.com/benethos-hub/.github/actions/workflows/ci.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/benethos-hub/.github/badges/coverage.json)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
+[![Brand report](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml)
+[![Download pins report](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml)
+
+Organisation defaults for benethos-hub, and the CI and release process its repositories share. The organisation profile lives in [profile/README.md](profile/README.md).
+
+The repositories call the workflows and actions here at `main`. A project needs no copy of any of it, and a rule changed here applies everywhere on the next run.
 
 ## Contents
 
-### Organisation files
-
-| Path | Purpose |
+| Path | What it holds |
 | --- | --- |
-| [FUNDING.yml](FUNDING.yml) | Sponsor links for every repository without its own funding file |
-| [SECURITY.md](SECURITY.md) | Security policy for every repository without its own policy |
-| [profile/](profile/) | Organisation profile shown on github.com/benethos-hub |
-| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows and actions of this repository |
-| [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see. One entry per download. |
+| [.github/workflows/](.github/workflows/) | The reusable workflows, the two weekly reports and the CI of this repository |
+| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/` and `publish/` |
+| [.github/actions/](.github/actions/) | Actions the workflows of this repository use themselves |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
-| [.github/actions/](.github/actions/) | Actions the workflows of this repository use themselves, such as `report-issue`, which keeps the one issue of each weekly report |
+| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for every pinned action and every lockfile here |
+| [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see |
 | [tests/](tests/) | Tests for the scripts of the actions and for how the workflows wire them |
-| [pyproject.toml](pyproject.toml), [uv.lock](uv.lock) | The tools for the checks of this repository (Ruff, pytest, pytest-cov, PyYAML, Mypy), locked, with their settings |
+| [pyproject.toml](pyproject.toml), [uv.lock](uv.lock) | The tools for the checks of this repository, locked, with their settings |
+| [FUNDING.yml](FUNDING.yml), [SECURITY.md](SECURITY.md), [profile/](profile/) | The organisation files, see the end of this page |
 
-### Workflows
+Workflows have to live directly in `.github/workflows`, because GitHub ignores subfolders there, so the ones for Python projects start with `python-`. Actions may live in subfolders. Each workflow and action names its call in its header comment, and each one that runs a script keeps that script next to it, tested in `tests/`.
 
-Workflows have to live directly in `.github/workflows`, because GitHub ignores subfolders there. Workflows for Python projects therefore start with `python-`. Each reusable workflow names the call for a repository's CI in its header comment.
+## CI of a Python project
 
-| Workflow | Kind | Purpose |
-| --- | --- | --- |
-| [brand.yml](.github/workflows/brand.yml) | reusable | Check of the brand assets of a repository |
-| [brand-report.yml](.github/workflows/brand-report.yml) | scheduled | Weekly report on the brand assets of all repositories |
-| [download-pins-report.yml](.github/workflows/download-pins-report.yml) | scheduled | Weekly report on pinned downloads with a newer release or a checksum that is not the official one |
-| [python-lint.yml](.github/workflows/python-lint.yml) | reusable | Lockfile in step with `pyproject.toml`, Ruff and Mypy |
-| [python-tests.yml](.github/workflows/python-tests.yml) | reusable | Tests on every supported Python version, with coverage on the newest |
-| [python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | reusable | Tests against the lowest dependency versions that `pyproject.toml` allows |
-| [python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | reusable | Known vulnerabilities in the packages pinned in `uv.lock` |
-| [python-release-ci-passed.yml](.github/workflows/python-release-ci-passed.yml) | reusable | Release gate: nothing is published before the CI run of the release commit on the default branch has passed |
-| [ci.yml](.github/workflows/ci.yml) | push and pull request | Checks this repository with its own `python-lint.yml`, `python-tests.yml` and `python-dependency-audit.yml`, called by local path, so a pull request tries a change to them before it reaches the projects |
-
-### Actions
-
-Actions may live in subfolders. Those for Python projects are in `actions/python/`, those that guard a release in `actions/release/`, those that publish somewhere in `actions/publish/`, and the brand rules in `actions/brand/`. Every action that needs uv installs it itself, so a caller never has to. A second install in the same job comes from the cache. The scripts of the actions run with `uv run --no-project --python ">=3.11"`, so they get the lowest Python this repository is checked against, whichever Python the runner brings. A test in `tests/` fails for a call without it.
-
-| Action | Purpose |
-| --- | --- |
-| [brand/assets](actions/brand/assets/action.yml) | Checks the brand assets of the checked-out repository. The rules are written once, in `brand_assets.py` next to it, which the CI check `brand.yml` and the weekly brand report both apply. |
-| [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
-| [publish/pypi](actions/publish/pypi/action.yml) | Builds a Python package with uv, checks that the wheel carries the version of the release tag and every file the repository names, and uploads it through Trusted Publishing. A file already on PyPI with the same content is skipped, so a failed upload can be run again. A composite action, because Trusted Publishing identifies the workflow of the uploading job, so that job stays in the repository. In a uv workspace, `package` names the member. `dry-run: true` builds and checks everything but the version and asks PyPI about the files without uploading, for a trial before the first release. If the version is on PyPI already, it warns without failing, since a trial usually runs before the version is raised. |
-| [publish/ghcr](actions/publish/ghcr/action.yml) | Builds a multi-arch container image and pushes it to ghcr.io, tagged from the release (`1.2.3`, `1.2`, `latest` for a full release, `edge` for a manual run). Then reads the published index back: every tag must be the same index, with the description, source, version and every platform built. One image per call, so a repository with several images calls it from a matrix. |
-| [publish/mcpb](actions/publish/mcpb/action.yml) | Takes over once the repository has staged its Claude Desktop bundle: checks its version against the release tag, validates and packs it, holds the packed file to the staged tree byte for byte, and attaches it to the release with and without its version. The packer and everything beneath it are locked in a `package-lock.json` next to the action. |
-| [publish/mcp-registry](actions/publish/mcp-registry/action.yml) | Publishes a `server.json` to the MCP Registry. Checks its version against the release tag, fills in the checksum of the release's Claude Desktop bundle, logs in with the workflow's OIDC token and retries a refusal, with a fallback without the bundle. The version of `mcp-publisher` is pinned here for all repositories. |
-| [release/tag-matches-version](actions/release/tag-matches-version/action.yml) | Fails unless the release tag is the version in a `pyproject.toml` or in a JSON file such as `manifest.json` or `server.json`. Meant as the first step of every job that publishes. |
-| [release/ci-passed](actions/release/ci-passed/action.yml) | Waits for the CI run of the pushed commit on the default branch and fails unless it succeeded. The logic is in `ci_passed.py` next to it. Used by `python-release-ci-passed.yml`. |
-
-Every Python tool has its version in a `uv.lock` and every Node tool in a `package-lock.json`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked in a `uv.lock` next to the action, so the lockfile decides in every repository that uses it. Dependabot keeps both lockfiles current.
-
-An action that uses another action itself needs its folder in `.github/dependabot.yml`, and so does every folder with a `uv.lock`. A test in `tests/` fails otherwise.
-
-A tool downloaded directly, pinned by version and checksum like the `mcp-publisher` of `publish/mcp-registry`, is invisible to Dependabot. It gets an entry in [.github/download-pins.yml](.github/download-pins.yml) instead. The Download pins report checks every entry each week against the releases of its upstream and lists a newer release, with the version and checksum to paste, in the issue [Pinned downloads need an update](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Pinned+downloads+need+an+update%22).
-
-## Release gate
-
-A version on PyPI cannot be replaced. `python-release-ci-passed.yml` therefore lets a release through only when the push of the release commit to the default branch ran `ci.yml` and that run succeeded. It waits up to 30 minutes for a run still in progress. A commit that never reached the default branch has no such run, and the gate stops the release after five minutes.
-
-Call it first in the publish workflow of a repository and let every upload need it:
+A Python project managed with uv calls these workflows from its `ci.yml`:
 
 ```yaml
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  brand:
+    uses: benethos-hub/.github/.github/workflows/brand.yml@main
+
+  lint:
+    uses: benethos-hub/.github/.github/workflows/python-lint.yml@main
+    with:
+      sync-args: --extra dev
+
+  test:
+    uses: benethos-hub/.github/.github/workflows/python-tests.yml@main
+    with:
+      sync-args: --extra dev
+      cov: benethos_example
+      badge: true
+
+  lowest-versions:
+    uses: benethos-hub/.github/.github/workflows/python-lowest-versions.yml@main
+    with:
+      requirements: pytest>=9.1.1
+      audit: true
+
+  audit:
+    uses: benethos-hub/.github/.github/workflows/python-dependency-audit.yml@main
+
+  coverage-badge:
+    if: github.event_name == 'push'
+    needs: test
+    uses: benethos-hub/.github/.github/workflows/python-coverage-badge.yml@main
+    permissions:
+      contents: write
+```
+
+| Workflow | What it checks | Inputs |
+| --- | --- | --- |
+| [brand.yml](.github/workflows/brand.yml) | The brand assets, see [Brand assets](#brand-assets) | none |
+| [python-lint.yml](.github/workflows/python-lint.yml) | `uv.lock` in step with `pyproject.toml`, Ruff lint and format, Mypy. The tools and their settings come from the project. | `sync-args`, `timeout-minutes` |
+| [python-tests.yml](.github/workflows/python-tests.yml) | pytest on every supported Python against `uv.lock`. The newest version also measures the coverage and enforces its floor, 80 % by default. | `python-versions`, `coverage-python`, `sync-args`, `cov`, `cov-fail-under`, `badge`, `timeout-minutes` |
+| [python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | The tests against the lowest versions `pyproject.toml` allows, on the oldest supported Python, without the lockfile. With `audit: true`, those versions are audited too. | `python-version`, `editable`, `requirements`, `pytest-args`, `audit`, `ignore-vulns`, `timeout-minutes` |
+| [python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | Every version pinned in `uv.lock`, for every platform and Python, against PyPI and OSV. A vulnerability without a fix is waived by ID. | `ignore-vulns` |
+| [python-coverage-badge.yml](.github/workflows/python-coverage-badge.yml) | Nothing. It publishes the badge, see [Coverage badge](#coverage-badge). | `artifact`, `branch` |
+
+The checks are named after the calling job and the job inside the workflow: `lint / lint`, `test / Python 3.15`, `lowest-versions / Python 3.11`, `audit / Dependency audit` and `brand / Brand assets`. These are the names a branch ruleset requires. A project names its Python versions in `with:` even where they equal the defaults, so that a changed default here never moves its tests without a word.
+
+Coverage is measured on one version only, because it slows the older ones down noticeably. A required check on `test / Python 3.15` is what makes the floor block a merge.
+
+### Coverage badge
+
+With `badge: true`, `python-tests.yml` writes the measured coverage as the JSON of a [shields.io endpoint badge](https://shields.io/badges/endpoint-badge) and uploads it as the artifact `coverage-badge`. `python-coverage-badge.yml` then commits that file as `coverage.json` on the `badges` branch of the repository, which it creates on the first run. The branch carries nothing else, and the job needs `contents: write` for the push. Call it on a push to the default branch only, so the badge shows the coverage of that branch, and never make it a required check, since a pull request does not run it.
+
+The README of the project embeds the badge with:
+
+```markdown
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
+```
+
+The percentage is rounded down, so a badge at the floor means the floor holds. The badge of this repository at the top of this page is made the same way.
+
+## Publishing a release
+
+A release is published from the `publish.yml` of a project on the event `release`. Every upload is done by an action here. They are composite actions and not reusable workflows on purpose: PyPI's Trusted Publishing and the MCP Registry identify the workflow of the job that uploads, so that job has to stay in the project.
+
+```yaml
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   ci-passed:
     uses: benethos-hub/.github/.github/workflows/python-release-ci-passed.yml@main
@@ -72,95 +120,173 @@ jobs:
       audit: true
 
   pypi-publish:
+    if: github.event_name == 'release'
     needs: ci-passed
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi-benethos-example
+      url: https://pypi.org/p/benethos-example
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@<sha> # vX
+      - uses: benethos-hub/.github/actions/publish/pypi@main
+        with:
+          wheel-contains: benethos_example/py.typed
+
+  ghcr-publish:
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+    needs: ci-passed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@<sha> # vX
+      - uses: benethos-hub/.github/actions/publish/ghcr@main
+        with:
+          image: benethos-example
+          dockerfile: containers/images/example/Dockerfile
+
+  mcpb-bundle:
+    if: github.event_name == 'release'
+    needs: ci-passed
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@<sha> # vX
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@<sha> # vX
+      - run: uv run --no-project .github/publish/mcpb/build.py "$RUNNER_TEMP/bundle"
+      - uses: benethos-hub/.github/actions/publish/mcpb@main
+        with:
+          staged: ${{ runner.temp }}/bundle
+          name: benethos-example
+
+  mcp-registry:
+    if: github.event_name == 'release' && !github.event.release.prerelease
+    needs: [pypi-publish, ghcr-publish, mcpb-bundle]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@<sha> # vX
+      - uses: benethos-hub/.github/actions/publish/mcp-registry@main
 ```
 
-The calling job has to grant `actions: read`, because a reusable workflow never gets more rights than its caller. With `audit: true`, the packages in `uv.lock` are checked for known vulnerabilities as well. That catches a vulnerability that became known between the merge and the release. The inputs `workflow`, `branch` and `wait-minutes` change which CI workflow and branch count and how long the gate waits.
+| Action | What it does | Inputs |
+| --- | --- | --- |
+| [release/ci-passed](actions/release/ci-passed/action.yml) | Waits for the CI run of the released commit on the default branch and fails unless it succeeded. Used through `python-release-ci-passed.yml`. | `workflow`, `branch`, `wait-minutes`, `token` |
+| [release/tag-matches-version](actions/release/tag-matches-version/action.yml) | Fails unless the release tag is the version in a `pyproject.toml` or a JSON file such as `manifest.json` or `server.json`. The publishing actions run it first. | `file`, `tag` |
+| [publish/pypi](actions/publish/pypi/action.yml) | Builds sdist and wheel with uv, checks that the wheel is the package asked for, carries the version of the tag and every path in `wheel-contains`, and uploads through Trusted Publishing. A file already on PyPI with the same content is skipped, so a failed upload can be run again. In a uv workspace, `package` names the member, one job per member. | `package`, `wheel-contains`, `tag`, `dry-run` |
+| [publish/ghcr](actions/publish/ghcr/action.yml) | Builds a multi-arch image and pushes it to ghcr.io as `1.2.3`, `1.2` and `latest`, or `edge` from a manual run. Then reads the published index back: every tag the same index, with description, source, version and every platform. One image per call, a repository with several images uses a matrix. | `image`, `dockerfile`, `context`, `platforms`, `description`, `version-scheme`, `version-file`, `token` |
+| [publish/mcpb](actions/publish/mcpb/action.yml) | Takes a staged Claude Desktop bundle, checks its version, validates and packs it, holds the packed file to the staged tree byte for byte, and attaches it to the release as `<name>-1.2.3.mcpb` and `<name>.mcpb`. The packer is locked in `package-lock.json` next to the action. | `staged`, `name`, `tag`, `token` |
+| [publish/mcp-registry](actions/publish/mcp-registry/action.yml) | Publishes a `server.json` to the MCP Registry: checks its version, fills in the checksum of the bundle on the release, logs in with the workflow's OIDC token, retries a refusal and falls back to the entry without the bundle. `mcp-publisher` is pinned here for all repositories. | `entry`, `tag`, `attempts`, `wait-seconds`, `token` |
 
-## Changing shared workflows and actions
+### The release gate
 
-The repositories call every workflow and action here at `@main`. A change merged here reaches all of them on their next run, without a pull request in any of them.
+A version on PyPI cannot be replaced. `python-release-ci-passed.yml` therefore lets a release through only when the push of the release commit to the default branch ran `ci.yml` and that run succeeded. It waits up to 30 minutes for a run still in progress. A commit that never reached the default branch has no such run, and the gate stops the release after five minutes. The calling job grants `actions: read`, because a reusable workflow never gets more rights than its caller.
 
-Some actions call others here at `@main` as well: `publish/ghcr`, `publish/mcpb` and `publish/mcp-registry` call `release/tag-matches-version`, `python-release-ci-passed.yml` calls `release/ci-passed` and `python-dependency-audit.yml`, and `python-dependency-audit.yml` and `python-lowest-versions.yml` call `python/pip-audit`. GitHub resolves such a call to `main` even in a pull request here. So a pull request cannot try a changed chain. Its tests in `tests/` run the scripts and check the wiring, but the actions themselves first run together after the merge. Only `python-lint.yml`, `python-tests.yml` and `python-dependency-audit.yml` are tried in a pull request, because `ci.yml` calls them by local path. The actions they call still come from `main`.
+With `audit: true`, the packages in `uv.lock` are audited once more, for a vulnerability that became known between the merge and the release. The inputs `workflow`, `branch` and `wait-minutes` change which CI workflow and branch count and how long the gate waits.
+
+### Release tags
+
+A release tag is `v` followed by the version exactly as the version file of the project writes it. Every action compares the two as text, so the rule holds for any language, and a tag in another spelling stops the release before anything is published.
+
+A Python project writes its versions as PEP 440 does and tags `v1.2.3`, `v1.0.0rc1` or `v1.2.3.post1`, never `v1.0.0-rc.1`. A project in another language tags in its own format, for example `v1.0.0-rc.1` for semver. Only `publish/ghcr` reads the version itself, to derive the image tags. Its input `version-scheme` is `pep440` by default and `semver` for other projects. A pre-release gets its exact version as image tag, no `1.2` and no `latest`.
+
+### Trial runs
+
+A manual run of `publish.yml` tries the image half: `publish/ghcr` builds and pushes `edge`, from the default branch only, since `edge` is public. `publish/pypi` with `dry-run: true` builds and checks everything but the version and asks PyPI whether it would take the files, without uploading and without credentials. If the version is on PyPI already, it warns without failing, since a trial usually runs before the version is raised.
+
+### One-time setup
+
+- PyPI: a pending publisher per project, with the owner, the repository, the workflow file name `publish.yml` and the environment named in the job. PyPI takes a pending publisher for one project only, hence one environment per package.
+- GitHub: that environment under Settings, Environments.
+- ghcr.io: a new package is private even in a public repository. After the first push, switch it to public under the organisation's Packages.
+- MCP Registry: nothing. The registry grants `io.github.benethos-hub/*` to the OIDC token of the workflow.
+
+## Brand assets
+
+Every repository of the organisation carries these files:
+
+| File | Content |
+| --- | --- |
+| `assets/brand/icon.svg` | The icon. This is the source of the other two. |
+| `assets/brand/icon.png` | The icon as PNG, 512 × 512 pixels |
+| `assets/brand/social-preview.png` | The social preview image for GitHub, 1280 × 640 pixels |
+
+Both PNG files are exported from the SVG. Whenever the SVG changes, export them again and commit them with the SVG or afterwards. The social preview also has to be uploaded in the repository settings under Social preview, because GitHub does not read it from the repository.
+
+The rules are written once, in [actions/brand/assets](actions/brand/assets/action.yml), and applied twice.
+
+### The check in the CI
+
+`brand.yml` fails when a file is missing, is not an SVG or a PNG, does not have its size, or is older than the last change to `icon.svg`, which means its last commit comes before the last commit of the SVG. The check shows up in pull requests as `brand / Brand assets`. Add all three files before adding the job, otherwise the CI of the repository fails right away.
+
+A failed check alone does not block a merge. To make it required, create a branch ruleset in the repository:
+
+1. Open Settings, then Rules, then Rulesets, and choose New branch ruleset.
+2. Set the enforcement status to Active and target the default branch.
+3. Enable Require status checks to pass and add `brand / Brand assets` and the other checks of the CI.
+4. Enable Restrict deletions and Block force pushes as well.
+
+A check has to run once in the repository before it can be selected. With this ruleset, direct pushes to the default branch are rejected. Add the Repository admin role to the bypass list if you still want to push directly.
+
+### The weekly report
+
+`brand-report.yml` runs every Monday at 06:00 UTC and can be started by hand. It applies the same rules to all public repositories of the organisation, except archived ones, forks and this one, so it also covers repositories that have not added the check yet. It also compares the social preview uploaded in the repository settings with `social-preview.png`. The CI check leaves that out on purpose: the upload is a manual step in the settings and cannot be part of a pull request.
+
+Problems are listed in the issue [Brand assets need fixing](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Brand+assets+need+fixing%22) in this repository. The report updates the issue on every run and closes it once all repositories meet the rules.
+
+## Maintaining this repository
+
+### How a change reaches the projects
+
+The repositories call every workflow and action here at `main`. A change merged here reaches all of them on their next run, without a pull request in any of them.
+
+Some actions call others here at `main` as well: the three publishing actions call `release/tag-matches-version`, `python-release-ci-passed.yml` calls `release/ci-passed` and `python-dependency-audit.yml`, the audits call `python/pip-audit`, `python-tests.yml` calls `python/coverage-badge`, and `brand.yml` calls `brand/assets`. GitHub resolves such a call to `main` even in a pull request here, so a pull request cannot try a changed chain. The tests in `tests/` run the scripts and check the wiring, but the actions first run together after the merge. Only the workflows that `ci.yml` calls by local path are tried in a pull request, and the actions they call still come from `main`.
 
 Two rules follow from that:
 
 1. A change to an action and to the action that calls it lands in one commit, so `main` never holds one without the other.
-2. After a change to a publishing action, try it in a project before its next release, through a manual run: `publish/ghcr` pushes `edge`, and `publish/pypi` has `dry-run: true`.
+2. After a change to a publishing action, try it in a project before its next release, through a manual run of its `publish.yml`.
 
-### Required checks
+### Checks of this repository
 
-`ci.yml` reports these checks. A branch ruleset for `main` of this repository should require all of them:
+`ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `python-coverage-badge.yml`, called by local path, the way a project calls them. A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
+
+A branch ruleset for `main` of this repository requires these checks:
 
 - `lint / lint`
 - `test / Python 3.11`, `test / Python 3.12`, `test / Python 3.13`, `test / Python 3.14` and `test / Python 3.15`
 - `audit / Dependency audit`
 - `Lockfiles of the actions`
 
-The names come from the calling job and the job name in the called workflow. A change to either, or to the Python versions of `python-tests.yml`, changes the names, and the ruleset has to follow in the same step. Otherwise it waits for a check that never comes.
+The names come from the calling job and the job name in the called workflow. A change to either, or to the Python versions of `python-tests.yml`, changes the names, and the ruleset has to follow in the same step. Otherwise it waits for a check that never comes. `coverage-badge / Coverage badge` runs on a push only and is not required.
 
-## Release tags
+The scripts of the actions run with `uv run --no-project --python ">=3.11"`, so they get the lowest Python this repository is checked against, whichever Python the runner brings. Every action that needs uv installs it itself, so a caller never has to. A second install in the same job comes from the cache. A test in `tests/` fails for a script call without that version, for an action that uses another action without its folder in `dependabot.yml`, and for a lockfile without its folder there.
 
-A release tag is `v` followed by the version exactly as the project's version file writes it. Every action compares the two as text, so the rule holds for any language, and a tag in another spelling stops the release before anything is published.
+### Dependencies
 
-A Python project writes its versions as PEP 440 does and tags `v1.2.3`, `v1.0.0rc1` or `v1.2.3.post1`, never `v1.0.0-rc.1`. A project in another language tags in its own format, for example `v1.0.0-rc.1` for semver.
+Every action in a workflow or action here is pinned to a commit, with its version in a comment beside it. Dependabot raises commit and comment together. Every Python tool has its version in a `uv.lock` and every Node tool in a `package-lock.json`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked next to the action, so the lockfile decides in every repository that uses it, and so is the packer of `publish/mcpb`. Dependabot keeps every lockfile current.
 
-Only `publish/ghcr` reads the version itself, to derive the image tags. Its input `version-scheme` is `pep440` by default and `semver` for other projects. A pre-release gets its exact version as image tag, no `1.2` and no `latest`.
+A tool downloaded directly, pinned by version and checksum like the `mcp-publisher` of `publish/mcp-registry`, is invisible to Dependabot. It gets an entry in [.github/download-pins.yml](.github/download-pins.yml) instead. `download-pins-report.yml` checks every entry each Monday against the releases of its upstream and lists a newer release, with the version and checksum to paste, in the issue [Pinned downloads need an update](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Pinned+downloads+need+an+update%22).
 
-## Security policy
+Both weekly reports keep their issue through [.github/actions/report-issue](.github/actions/report-issue/action.yml): one open issue per report, updated on every run and closed once nothing is left to report.
 
-GitHub shows [SECURITY.md](SECURITY.md) on every repository of the organisation that has no `SECURITY.md` of its own. A repository only needs its own file if it has something specific to say, for example what counts as a vulnerability in that project. The file is not part of the repositories themselves, so it is missing from clones and downloads.
+## Organisation files
 
-The policy asks for private reports under Security → Report a vulnerability. That button only appears when private vulnerability reporting is enabled in the security settings of the repository. Enable it in every public repository.
+GitHub applies these files to every repository of the organisation that has no file of its own. They are not part of the repositories themselves, so they are missing from clones and downloads.
 
-## Brand assets
-
-Every repository of the organisation carries these brand assets:
-
-| File | Content |
+| File | Purpose |
 | --- | --- |
-| `assets/brand/icon.svg` | The icon. This is the source for the other files. |
-| `assets/brand/icon.png` | The icon as PNG, 512 × 512 pixels |
-| `assets/brand/social-preview.png` | The social preview image for GitHub, 1280 × 640 pixels |
+| [FUNDING.yml](FUNDING.yml) | Sponsor links shown on every repository |
+| [SECURITY.md](SECURITY.md) | The security policy. A repository only needs its own if it has something specific to say, for example what counts as a vulnerability in that project. |
+| [profile/README.md](profile/README.md) | The organisation profile shown on github.com/benethos-hub |
 
-Both PNG files are exported from the SVG. Whenever the SVG changes, export them again and commit them together with the SVG or afterwards. The social preview also has to be uploaded in the repository settings under Social preview, because GitHub does not read it from the repository.
-
-Two workflows enforce these rules.
-
-### Check in the repository CI
-
-`brand.yml` is a reusable workflow. It fails in these cases:
-
-- one of the three files is missing
-- `icon.svg` is not an SVG or one of the PNG files is not a PNG
-- a PNG file does not have its required size
-- a PNG file is out of date, which means the last commit that changed it is older than the last commit that changed `icon.svg`
-
-To use it, add this job to the CI workflow of the repository:
-
-```yaml
-jobs:
-  brand:
-    uses: benethos-hub/.github/.github/workflows/brand.yml@main
-```
-
-The check shows up in pull requests as `brand / Brand assets`. Add all three files before adding the job, otherwise the CI of the repository fails right away.
-
-### Blocking merges
-
-A failed check alone does not block a merge. To make it required, create a branch ruleset in the repository:
-
-1. Open Settings, then Rules, then Rulesets, and choose New branch ruleset.
-2. Set the enforcement status to Active and target the default branch.
-3. Enable Require status checks to pass and add `brand / Brand assets`.
-4. Enable Restrict deletions and Block force pushes as well.
-
-The check has to run once in the repository before it can be selected. With this ruleset, direct pushes to the default branch are rejected. Add the Repository admin role to the bypass list if you still want to push directly.
-
-### Organisation report
-
-`brand-report.yml` runs every Monday at 06:00 UTC and can be started by hand in the Actions tab. It applies the same rules to all public repositories of the organisation, except archived ones, forks and this repository. It does not depend on the check above, so it also covers repositories that have not added it yet.
-
-The report also compares the social preview uploaded in the repository settings with `assets/brand/social-preview.png`. Both have to be the same file. The CI check leaves this out on purpose: the upload is a manual step in the settings and cannot be part of a pull request, so the check would fail on every pull request that changes the image.
-
-Problems are listed in the issue [Brand assets need fixing](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Brand+assets+need+fixing%22) in this repository. The workflow updates the issue on every run and closes it once all repositories meet the rules.
+The security policy asks for private reports under Security, Report a vulnerability. That button only appears when private vulnerability reporting is enabled in the security settings of the repository. Enable it in every public repository.
