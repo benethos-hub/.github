@@ -88,6 +88,17 @@ Two rules follow from that:
 1. A change to an action and to the action that calls it lands in one commit, so `main` never holds one without the other.
 2. After a change to a publishing action, try it in a project before its next release, through a manual run: `publish/ghcr` pushes `edge`, and `publish/pypi` has `dry-run: true`.
 
+### Required checks
+
+`ci.yml` reports these checks. A branch ruleset for `main` of this repository should require all of them:
+
+- `lint / lint`
+- `test / Python 3.11`, `test / Python 3.12`, `test / Python 3.13`, `test / Python 3.14` and `test / Python 3.15`
+- `audit / Dependency audit`
+- `Lockfiles of the actions`
+
+The names come from the calling job and the job name in the called workflow. A change to either, or to the Python versions of `python-tests.yml`, changes the names, and the ruleset has to follow in the same step. Otherwise it waits for a check that never comes.
+
 ## Release tags
 
 A release tag is `v` followed by the version exactly as the project's version file writes it. Every action compares the two as text, so the rule holds for any language, and a tag in another spelling stops the release before anything is published.
