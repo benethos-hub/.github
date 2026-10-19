@@ -20,3 +20,19 @@ updates:
       minor-and-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+
+  # The Python tools, each locked in a uv.lock. "/" holds the test tools of
+  # this repository, actions/python/pip-audit the pip-audit that action runs
+  # in every repository. Every folder with a uv.lock needs to be listed here.
+  # A test in tests/ fails otherwise.
+  - package-ecosystem: "uv"
+    directories:
+      - "/"
+      - "/actions/python/pip-audit"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

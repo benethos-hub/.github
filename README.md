@@ -13,6 +13,7 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | [profile/](profile/) | Organisation profile shown on github.com/benethos-hub |
 | [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows and actions of this repository |
 | [tests/](tests/) | Tests for the scripts of the actions and for how the workflows wire them |
+| [pyproject.toml](pyproject.toml), [uv.lock](uv.lock) | The tools for the tests (pytest, PyYAML, Mypy), locked, with their settings |
 
 ### Workflows
 
@@ -38,7 +39,9 @@ Actions may live in subfolders. Those for Python projects are in `actions/python
 | [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
 | [release/ci-passed](actions/release/ci-passed/action.yml) | Waits for the CI run of the pushed commit on the default branch and fails unless it succeeded. The logic is in `ci_passed.py` next to it. Used by `python-release-ci-passed.yml`. |
 
-An action that uses another action itself needs its folder in `.github/dependabot.yml`. A test in `tests/` fails otherwise.
+Every Python tool has its version in a `uv.lock`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked in a `uv.lock` next to the action, so the lockfile decides in every repository that uses it. Dependabot keeps both lockfiles current.
+
+An action that uses another action itself needs its folder in `.github/dependabot.yml`, and so does every folder with a `uv.lock`. A test in `tests/` fails otherwise.
 
 ## Release gate
 

@@ -4,7 +4,8 @@ description: Checks pinned Python packages for known vulnerabilities, against Py
 # The one place that decides how the organisation audits Python packages.
 # python-dependency-audit passes the versions locked in uv.lock, and
 # python-lowest-versions the versions it has just tested. Both get the same
-# rules and the same waivers. Use it after astral-sh/setup-uv:
+# rules and the same waivers. The pip-audit version is locked in uv.lock next
+# to this file. Use it after astral-sh/setup-uv:
 #
 #   - uses: benethos-hub/.github/actions/python/pip-audit@main
 #     with:
@@ -28,12 +29,9 @@ runs:
       env:
         REQUIREMENTS: ${{ inputs.requirements }}
         IGNORE_VULNS: ${{ inputs.ignore-vulns }}
-        # Downloaded at run time, so Dependabot cannot see it. Compare with
-        # the newest release of pypa/pip-audit now and then.
-        PIP_AUDIT_VERSION: 2.10.1
       run: |
         set -euo pipefail
-        if ! command -v uvx > /dev/null; then
+        if ! command -v uv > /dev/null; then
           echo "::error::The pip-audit action needs uv. Run astral-sh/setup-uv before it."
           exit 1
         fi
@@ -68,6 +66,11 @@ runs:
           ignore+=(--ignore-vuln "$id")
         done
 
+        # pip-audit comes from uv.lock next to this file. Its environment goes
+        # into the runner's temporary folder, not into the action's folder.
+        export UV_PROJECT_ENVIRONMENT="${RUNNER_TEMP:-$work}/pip-audit-env"
+        audit=(uv run --quiet --frozen --project "$GITHUB_ACTION_PATH" pip-audit)
+
         # --no-deps with --disable-pip audits exactly the listed versions
         # instead of resolving them anew. --strict fails when a package cannot
         # be audited at all, so a gap never passes as "no vulnerabilities".
@@ -75,7 +78,7 @@ runs:
         for service in pypi osv; do
           for part in "$work"/part*.txt; do
             echo "::group::$service, $(basename "$part")"
-            uvx "pip-audit==$PIP_AUDIT_VERSION" --strict --no-deps --disable-pip \
+            "${audit[@]}" --strict --no-deps --disable-pip \
               --desc on --vulnerability-service "$service" ${ignore[@]+"${ignore[@]}"} \
               -r "$part" || failed=1
             echo "::endgroup::"

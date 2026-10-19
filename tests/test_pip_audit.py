@@ -1,4 +1,4 @@
-"""The shared pip-audit action, run with a stand-in for uvx.
+"""The shared pip-audit action, run with a stand-in for uv.
 
 The stand-in records how pip-audit would be called and which versions each
 call gets. It fails a call whose file pins a package named bad, so the tests
@@ -18,43 +18,43 @@ import yaml
 pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the action runs in bash")
 
 ROOT = Path(__file__).resolve().parent.parent
-ACTION = yaml.safe_load(
-    (ROOT / "actions" / "python" / "pip-audit" / "action.yml").read_text("utf-8")
-)
+ACTION_DIR = ROOT / "actions" / "python" / "pip-audit"
+ACTION = yaml.safe_load((ACTION_DIR / "action.yml").read_text("utf-8"))
 (STEP,) = ACTION["runs"]["steps"]
 
-FAKE_UVX = r"""#!/bin/bash
-echo "CALL $*" >> "$UVX_LOG"
+FAKE_UV = r"""#!/bin/bash
+echo "CALL $* ENV $UV_PROJECT_ENVIRONMENT" >> "$UV_LOG"
 file="${@: -1}"
-sed 's/^/PIN /' "$file" >> "$UVX_LOG"
+sed 's/^/PIN /' "$file" >> "$UV_LOG"
 if grep -q '^bad==' "$file"; then exit 1; fi
 exit 0
 """
 
 
 def _audit(
-    tmp_path: Path, requirements: str, ignore: str = "", with_uvx: bool = True
+    tmp_path: Path, requirements: str, ignore: str = "", with_uv: bool = True
 ) -> tuple[int, str, list[list[str]]]:
     """Run the action's script. Returns the exit code, the output, and for
     every pip-audit call its arguments followed by the pins it got."""
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
-    if with_uvx:
-        uvx = bin_dir / "uvx"
-        uvx.write_text(FAKE_UVX)
-        uvx.chmod(0o755)
+    if with_uv:
+        uv = bin_dir / "uv"
+        uv.write_text(FAKE_UV)
+        uv.chmod(0o755)
     script = tmp_path / "audit.sh"
     script.write_text(STEP["run"])
     req = tmp_path / "versions.txt"
     req.write_text(requirements)
-    log = tmp_path / "uvx.log"
+    log = tmp_path / "uv.log"
     log.touch()
     env = {
         "PATH": f"{bin_dir}:/usr/bin:/bin",
-        "UVX_LOG": str(log),
+        "UV_LOG": str(log),
         "REQUIREMENTS": str(req),
         "IGNORE_VULNS": ignore,
-        "PIP_AUDIT_VERSION": STEP["env"]["PIP_AUDIT_VERSION"],
+        "GITHUB_ACTION_PATH": str(ACTION_DIR),
+        "RUNNER_TEMP": str(tmp_path),
     }
     done = subprocess.run(
         ["bash", str(script)], env=env, capture_output=True, text=True, check=False
@@ -76,9 +76,24 @@ def test_every_pin_is_audited_against_pypi_and_osv(tmp_path):
         "osv",
     ]
     for call in calls:
-        assert f"pip-audit=={STEP['env']['PIP_AUDIT_VERSION']}" in call[0]
         assert "--strict --no-deps --disable-pip" in call[0]
         assert call[1:] == ["idna==3.15", "requests==2.33.1"]
+
+
+def test_pip_audit_comes_from_the_lockfile_of_the_action(tmp_path):
+    """The version is in uv.lock next to the action, and its environment goes
+    into the runner's temporary folder."""
+    _, _, calls = _audit(tmp_path, "idna==3.15\n")
+    for call in calls:
+        assert call[0].startswith(f"run --quiet --frozen --project {ACTION_DIR} pip-audit ")
+        assert call[0].endswith(f" ENV {tmp_path}/pip-audit-env")
+    lock = (ACTION_DIR / "uv.lock").read_text("utf-8")
+    assert '\nname = "pip-audit"\n' in lock
+
+
+def test_the_project_of_the_action_is_no_package():
+    project = (ACTION_DIR / "pyproject.toml").read_text("utf-8")
+    assert '"pip-audit>=' in project and "package = false" in project
 
 
 def test_markers_are_dropped_and_a_second_version_goes_into_its_own_call(tmp_path):
@@ -126,8 +141,8 @@ def test_nothing_to_audit_is_an_error(tmp_path, requirements):
 
 
 def test_without_uv_the_action_says_so(tmp_path):
-    if os.path.exists("/usr/bin/uvx") or os.path.exists("/bin/uvx"):
-        pytest.skip("uvx is installed system-wide here")
-    code, out, _ = _audit(tmp_path, "idna==3.15\n", with_uvx=False)
+    if os.path.exists("/usr/bin/uv") or os.path.exists("/bin/uv"):
+        pytest.skip("uv is installed system-wide here")
+    code, out, _ = _audit(tmp_path, "idna==3.15\n", with_uv=False)
     assert code == 1
     assert "needs uv" in out

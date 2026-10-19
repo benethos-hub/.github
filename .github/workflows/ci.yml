@@ -2,7 +2,8 @@ name: CI
 
 # Tests for the scripts of the actions in this repository. The repositories of
 # the organisation call these actions at main, so a mistake here reaches all of
-# them on their next run.
+# them on their next run. pytest, PyYAML and Mypy come from uv.lock, and their
+# settings from pyproject.toml.
 
 on:
   push:
@@ -12,13 +13,6 @@ on:
 
 permissions:
   contents: read
-
-env:
-  # Run through uvx, so Dependabot cannot see them. Compare with the newest
-  # releases now and then.
-  PYTEST_VERSION: 9.1.1
-  PYYAML_VERSION: 6.0.3
-  MYPY_VERSION: 2.4.0
 
 jobs:
   tests:
@@ -30,9 +24,19 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Install the tools (locked)
+        run: uv sync --frozen
+
+      - name: Lockfiles are in step with their pyproject.toml
+        run: |
+          uv lock --check
+          uv lock --check --project actions/python/pip-audit
 
       - name: Pytest
-        run: uvx --with "pyyaml==$PYYAML_VERSION" "pytest==$PYTEST_VERSION" -q tests
+        run: uv run --frozen pytest -q
 
       - name: Mypy (strict) on the action scripts
-        run: uvx "mypy==$MYPY_VERSION" --strict actions/release/ci-passed/ci_passed.py
+        run: uv run --frozen mypy
