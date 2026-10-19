@@ -97,9 +97,9 @@ The first row says whether the project is in order and what it runs on:
 1. CI, the status badge of `ci.yml`
 2. Coverage, from the `badges` branch, see below. Only where the tests measure it.
 3. License, read by shields.io from the `LICENSE` file. Only where the repository has one.
-4. The language versions the project supports, for a Python package from PyPI.
+4. The language versions the project supports, read from where the project declares them.
 
-The second row says where to get it: one PyPI badge per package and one container badge per image. A repository that publishes nothing has no second row.
+The second row says where to get it: one badge per package on its registry and one container badge per image. A repository that publishes nothing has no second row.
 
 The third row holds the sponsor links, GitHub Sponsors and PayPal. The badges are served from [profile/badges](profile/badges/) in this repository, the same files the organisation profile shows, so every repository carries the same two and a change here reaches all of them.
 
@@ -119,6 +119,16 @@ None of the badges carries a value written by hand, and all of them use the defa
 ```
 
 In the container badge, a dash in the image name is written as `--`, since shields.io reads a single dash as the separator. A repository with several packages or images repeats the line per package and per image.
+
+The example is a Python project. The rule is the same for every language, only the two badges that read a package differ:
+
+| Language | Versions, first row | Package, second row |
+| --- | --- | --- |
+| Python | `pypi/pyversions/<package>` | `pypi/v/<package>?label=PyPI%20<package>&color=blue` |
+| Go | `github/go-mod/go-version/<owner>/<repo>` | `github/v/release/<owner>/<repo>?label=Release&color=blue`, since a module is fetched from the repository |
+| Node | `node/v/<package>?color=blue` | `npm/v/<package>?label=npm%20<package>&color=blue` |
+
+Each is a path under `https://img.shields.io/`. The `color=blue` is there where shields.io chooses on its own.
 
 This repository has no licence file and publishes nothing. Its first row at the top of this page goes on with the two weekly reports instead, which are status badges as well, and its second row is missing.
 
