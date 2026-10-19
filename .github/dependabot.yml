@@ -14,6 +14,7 @@ updates:
       - "/"
       - "/actions/release/ci-passed"
       - "/actions/publish/mcp-registry"
+      - "/actions/publish/pypi"
       - "/actions/release/tag-matches-version"
     schedule:
       interval: "weekly"

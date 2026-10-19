@@ -1,0 +1,78 @@
+name: Publish to PyPI
+description: Builds a Python package with uv, checks what was built, and uploads it to PyPI through Trusted Publishing.
+
+# A composite action and not a reusable workflow, because PyPI's Trusted
+# Publishing identifies the workflow of the job that uploads. The job stays
+# in the repository's own publish workflow, names its environment and grants
+# id-token: write, and the PyPI project trusts that workflow as before:
+#
+#   pypi-publish:
+#     if: github.event_name == 'release'
+#     needs: ci-passed
+#     environment:
+#       name: pypi-benethos-example
+#       url: https://pypi.org/p/benethos-example
+#     permissions:
+#       contents: read
+#       id-token: write # required for Trusted Publishing (OIDC)
+#     steps:
+#       - uses: actions/checkout@<sha> # vX
+#       - uses: benethos-hub/.github/actions/publish/pypi@main
+#         with:
+#           wheel-contains: benethos_example/py.typed
+#
+# In a uv workspace, package names the member to build, one job per member.
+# Nothing is uploaded unless the wheel carries the version of the release
+# tag and every path in wheel-contains. The logic of that check is in
+# check_dist.py next to this file.
+
+inputs:
+  package:
+    description: The distribution to build in a uv workspace. Empty builds the project in the root.
+    required: false
+    default: ""
+  wheel-contains:
+    description: Paths the wheel must contain, one per line. {version} stands for the version, as in benethos_example-{version}.dist-info/licenses/LICENSE.
+    required: false
+    default: ""
+  tag:
+    description: The release tag. Empty means the tag of the release that started the workflow.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    # Into the runner's temporary folder, so nothing in the checkout is
+    # uploaded by accident and a second package in the same job starts empty.
+    - name: Build sdist and wheel
+      shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+        DIST: ${{ runner.temp }}/pypi-dist
+      run: |
+        set -euo pipefail
+        rm -rf "$DIST"
+        args=(--out-dir "$DIST")
+        if [ -n "$PACKAGE" ]; then
+          args+=(--package "$PACKAGE")
+        fi
+        uv build "${args[@]}"
+
+    - name: The wheel is the release and carries what it should
+      shell: bash
+      env:
+        DIST: ${{ runner.temp }}/pypi-dist
+        PACKAGE: ${{ inputs.package }}
+        WHEEL_CONTAINS: ${{ inputs.wheel-contains }}
+        TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+      run: uv run --no-project "$GITHUB_ACTION_PATH/check_dist.py"
+
+    - name: Publish to PyPI (Trusted Publishing)
+      shell: bash
+      env:
+        DIST: ${{ runner.temp }}/pypi-dist
+      run: uv publish --trusted-publishing always "$DIST"/*
