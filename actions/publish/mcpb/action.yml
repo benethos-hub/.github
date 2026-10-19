@@ -1,0 +1,113 @@
+name: Publish the Claude Desktop bundle
+description: Validates and packs a staged Claude Desktop bundle, checks the result against the staged tree, and attaches it to the release.
+
+# What stays in the repository is staging the bundle, since every project
+# builds its tree differently. This takes over from there: the bundle's
+# version against the release tag, validate, pack, hold the packed file to
+# the staged tree byte for byte, and attach it to the release twice, once
+# under its version and once without. The unversioned one gives a README a
+# link that always reaches the newest release:
+#
+#   https://github.com/<owner>/<repo>/releases/latest/download/<name>.mcpb
+#
+# The packer and everything beneath it come from package-lock.json next to
+# this file, so a release resolves nothing afresh. The job that uses it may
+# write to the release:
+#
+#   mcpb-bundle:
+#     if: github.event_name == 'release'
+#     needs: ci-passed
+#     permissions:
+#       contents: write # attach the bundle to the release
+#     steps:
+#       - uses: actions/checkout@<sha> # vX
+#         with:
+#           persist-credentials: false # the write token is for the upload
+#       - run: uv run --no-project .github/publish/mcpb/build.py "$RUNNER_TEMP/bundle"
+#       - uses: benethos-hub/.github/actions/publish/mcpb@main
+#         with:
+#           staged: ${{ runner.temp }}/bundle
+#           name: benethos-example
+
+inputs:
+  staged:
+    description: The folder with the staged bundle, its manifest.json at the top.
+    required: true
+  name:
+    description: File name of the bundle without version and extension, as in <name>-1.2.3.mcpb and <name>.mcpb.
+    required: true
+  tag:
+    description: The release tag. Empty means the tag of the release that started the workflow.
+    required: false
+    default: ""
+  token:
+    description: Token that may upload release assets (contents write).
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  bundle:
+    description: Path of the versioned bundle.
+    value: ${{ steps.pack.outputs.bundle }}
+
+runs:
+  using: composite
+  steps:
+    - name: The release tag is the bundle's version
+      uses: benethos-hub/.github/actions/release/tag-matches-version@main
+      with:
+        file: ${{ inputs.staged }}/manifest.json
+        tag: ${{ inputs.tag }}
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    # Into the runner's temporary folder, not into the action's folder.
+    # --ignore-scripts, because packing a folder needs no install hook.
+    - name: Install the packer (locked)
+      shell: bash
+      env:
+        TOOL: ${{ runner.temp }}/mcpb-tool
+      run: |
+        set -euo pipefail
+        mkdir -p "$TOOL"
+        cp "$GITHUB_ACTION_PATH/package.json" "$GITHUB_ACTION_PATH/package-lock.json" "$TOOL/"
+        npm ci --prefix "$TOOL" --ignore-scripts --no-audit --no-fund
+
+    - name: Validate and pack
+      id: pack
+      shell: bash
+      env:
+        STAGED: ${{ inputs.staged }}
+        NAME: ${{ inputs.name }}
+        TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+        TOOL: ${{ runner.temp }}/mcpb-tool
+        OUT: ${{ runner.temp }}/mcpb-out
+      run: |
+        set -euo pipefail
+        mkdir -p "$OUT"
+        bundle="$OUT/$NAME-${TAG#v}.mcpb"
+        "$TOOL/node_modules/.bin/mcpb" validate "$STAGED/manifest.json"
+        "$TOOL/node_modules/.bin/mcpb" pack "$STAGED" "$bundle"
+        echo "bundle=$bundle" >> "$GITHUB_OUTPUT"
+
+    - name: The bundle is the staged tree
+      shell: bash
+      env:
+        STAGED: ${{ inputs.staged }}
+        BUNDLE: ${{ steps.pack.outputs.bundle }}
+      run: uv run --no-project "$GITHUB_ACTION_PATH/check_packed.py" "$STAGED" "$BUNDLE"
+
+    - name: Attach it to the release
+      shell: bash
+      env:
+        BUNDLE: ${{ steps.pack.outputs.bundle }}
+        NAME: ${{ inputs.name }}
+        TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+        GH_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        latest="$(dirname "$BUNDLE")/$NAME.mcpb"
+        cp "$BUNDLE" "$latest"
+        gh release upload "$TAG" "$BUNDLE" "$latest"

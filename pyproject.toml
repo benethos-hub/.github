@@ -27,6 +27,7 @@ files = [
     "actions/release/ci-passed/ci_passed.py",
     "actions/release/tag-matches-version/tag_matches_version.py",
     "actions/publish/mcp-registry/registry_entry.py",
+    "actions/publish/mcpb/check_packed.py",
     "actions/publish/pypi/check_dist.py",
     ".github/scripts/download_pins.py",
 ]

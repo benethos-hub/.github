@@ -12,9 +12,10 @@ updates:
   - package-ecosystem: "github-actions"
     directories:
       - "/"
-      - "/actions/release/ci-passed"
       - "/actions/publish/mcp-registry"
+      - "/actions/publish/mcpb"
       - "/actions/publish/pypi"
+      - "/actions/release/ci-passed"
       - "/actions/release/tag-matches-version"
     schedule:
       interval: "weekly"
@@ -32,6 +33,21 @@ updates:
     directories:
       - "/"
       - "/actions/python/pip-audit"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # The Node tools, each locked in a package-lock.json. actions/publish/mcpb
+  # holds the Claude Desktop bundle packer and everything beneath it. Every
+  # folder with a package-lock.json needs to be listed here. A test in
+  # tests/ fails otherwise.
+  - package-ecosystem: "npm"
+    directories:
+      - "/actions/publish/mcpb"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

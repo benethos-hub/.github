@@ -41,11 +41,12 @@ Actions may live in subfolders. Those for Python projects are in `actions/python
 | --- | --- |
 | [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
 | [publish/pypi](actions/publish/pypi/action.yml) | Builds a Python package with uv, checks that the wheel carries the version of the release tag and every file the repository names, and uploads it through Trusted Publishing. A composite action, because Trusted Publishing identifies the workflow of the uploading job, so that job stays in the repository. In a uv workspace, `package` names the member. |
+| [publish/mcpb](actions/publish/mcpb/action.yml) | Takes over once the repository has staged its Claude Desktop bundle: checks its version against the release tag, validates and packs it, holds the packed file to the staged tree byte for byte, and attaches it to the release with and without its version. The packer and everything beneath it are locked in a `package-lock.json` next to the action. |
 | [publish/mcp-registry](actions/publish/mcp-registry/action.yml) | Publishes a `server.json` to the MCP Registry. Checks its version against the release tag, fills in the checksum of the release's Claude Desktop bundle, logs in with the workflow's OIDC token and retries a refusal, with a fallback without the bundle. The version of `mcp-publisher` is pinned here for all repositories. |
 | [release/tag-matches-version](actions/release/tag-matches-version/action.yml) | Fails unless the release tag is the version in a `pyproject.toml` or in a JSON file such as `manifest.json` or `server.json`. Meant as the first step of every job that publishes. |
 | [release/ci-passed](actions/release/ci-passed/action.yml) | Waits for the CI run of the pushed commit on the default branch and fails unless it succeeded. The logic is in `ci_passed.py` next to it. Used by `python-release-ci-passed.yml`. |
 
-Every Python tool has its version in a `uv.lock`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked in a `uv.lock` next to the action, so the lockfile decides in every repository that uses it. Dependabot keeps both lockfiles current.
+Every Python tool has its version in a `uv.lock` and every Node tool in a `package-lock.json`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked in a `uv.lock` next to the action, so the lockfile decides in every repository that uses it. Dependabot keeps both lockfiles current.
 
 An action that uses another action itself needs its folder in `.github/dependabot.yml`, and so does every folder with a `uv.lock`. A test in `tests/` fails otherwise.
 

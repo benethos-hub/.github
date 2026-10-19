@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -35,11 +36,12 @@ def test_every_action_that_uses_another_is_watched():
     assert needed <= watched, f"add to dependabot.yml: {sorted(needed - watched)}"
 
 
-def test_every_lockfile_is_watched():
-    watched = _watched("uv")
+@pytest.mark.parametrize(("ecosystem", "lockfile"), [("uv", "uv.lock"), ("npm", "package-lock.json")])
+def test_every_lockfile_is_watched(ecosystem, lockfile):
+    watched = _watched(ecosystem)
     needed = {
         _folder(path)
-        for path in ROOT.rglob("uv.lock")
-        if ".git" not in path.parts and ".venv" not in path.parts
+        for path in ROOT.rglob(lockfile)
+        if not {".git", ".venv", "node_modules"} & set(path.parts)
     }
     assert needed == watched, f"dependabot.yml lists {sorted(watched)}, the lockfiles are in {sorted(needed)}"

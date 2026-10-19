@@ -30,10 +30,13 @@ jobs:
       - name: Install the tools (locked)
         run: uv sync --frozen
 
-      - name: Lockfiles are in step with their pyproject.toml
+      # npm ci refuses a package-lock.json that does not match its
+      # package.json, so a dry run is the check.
+      - name: Lockfiles are in step with their pyproject.toml or package.json
         run: |
           uv lock --check
           uv lock --check --project actions/python/pip-audit
+          npm ci --prefix actions/publish/mcpb --ignore-scripts --no-audit --no-fund --dry-run
 
       - name: Pytest
         run: uv run --frozen pytest -q

@@ -1,0 +1,8 @@
+{
+  "name": "benethos-hub-mcpb",
+  "private": true,
+  "description": "The Claude Desktop bundle packer that actions/publish/mcpb runs, locked in package-lock.json and kept current by Dependabot.",
+  "dependencies": {
+    "@anthropic-ai/mcpb": "2.1.2"
+  }
+}
