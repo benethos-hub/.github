@@ -2,21 +2,37 @@
 
 Organisation defaults for benethos-hub. The organisation profile lives in [profile/README.md](profile/README.md).
 
+## Contents
+
+### Organisation files
+
 | Path | Purpose |
 | --- | --- |
 | [FUNDING.yml](FUNDING.yml) | Sponsor links for every repository without its own funding file |
 | [SECURITY.md](SECURITY.md) | Security policy for every repository without its own policy |
-| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows of this repository |
 | [profile/](profile/) | Organisation profile shown on github.com/benethos-hub |
-| [.github/workflows/brand.yml](.github/workflows/brand.yml) | Reusable check for the brand assets of a repository |
-| [.github/workflows/brand-report.yml](.github/workflows/brand-report.yml) | Weekly report on brand assets across all repositories |
-| [.github/workflows/python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | Reusable check of the packages in `uv.lock` for known vulnerabilities |
-| [.github/workflows/python-lint.yml](.github/workflows/python-lint.yml) | Reusable lint run: lockfile in step, Ruff and Mypy |
-| [.github/workflows/python-tests.yml](.github/workflows/python-tests.yml) | Reusable test run on every supported Python version, with coverage on the newest |
-| [.github/workflows/python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | Reusable test run against the lowest dependency versions that `pyproject.toml` allows |
-| [actions/python/pip-audit/](actions/python/pip-audit/action.yml) | Shared action that checks pinned Python packages for known vulnerabilities, used by both audits above |
+| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows of this repository |
 
-Workflows have to live directly in `.github/workflows`, because GitHub ignores subfolders there. Workflows for Python projects therefore start with `python-`. Actions may live in subfolders, so those for Python projects are in `actions/python/`.
+### Workflows
+
+Workflows have to live directly in `.github/workflows`, because GitHub ignores subfolders there. Workflows for Python projects therefore start with `python-`. Each reusable workflow names the call for a repository's CI in its header comment.
+
+| Workflow | Kind | Purpose |
+| --- | --- | --- |
+| [brand.yml](.github/workflows/brand.yml) | reusable | Check of the brand assets of a repository |
+| [brand-report.yml](.github/workflows/brand-report.yml) | scheduled | Weekly report on the brand assets of all repositories |
+| [python-lint.yml](.github/workflows/python-lint.yml) | reusable | Lockfile in step with `pyproject.toml`, Ruff and Mypy |
+| [python-tests.yml](.github/workflows/python-tests.yml) | reusable | Tests on every supported Python version, with coverage on the newest |
+| [python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | reusable | Tests against the lowest dependency versions that `pyproject.toml` allows |
+| [python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | reusable | Known vulnerabilities in the packages pinned in `uv.lock` |
+
+### Actions
+
+Actions may live in subfolders. Those for Python projects are in `actions/python/`.
+
+| Action | Purpose |
+| --- | --- |
+| [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
 
 ## Security policy
 
