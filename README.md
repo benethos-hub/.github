@@ -5,6 +5,9 @@
 [![Brand report](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml)
 [![Download pins report](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml)
 
+[![Sponsor](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/sponsor.svg)](https://github.com/sponsors/BeneODev)
+[![PayPal](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/paypal.svg)](https://paypal.me/BeneODev)
+
 Organisation defaults for benethos-hub, and the CI and release process its repositories share. The organisation profile lives in [profile/README.md](profile/README.md).
 
 The repositories call the workflows and actions here at `main`. A project needs no copy of any of it, and a rule changed here applies everywhere on the next run.
@@ -87,29 +90,37 @@ Coverage is measured on one version only, because it slows the older ones down n
 
 ### Badges
 
-The README of every repository opens with its badges, right after the title, in two rows. The first row says whether the project is in order:
+The README of every repository opens with its badges, right after the title, in three rows. A blank line between the rows keeps them apart.
+
+The first row says whether the project is in order and what it runs on:
 
 1. CI, the status badge of `ci.yml`
-2. Coverage, from the `badges` branch, see below
-3. License, read by shields.io from the `LICENSE` file of the repository
+2. Coverage, from the `badges` branch, see below. Only where the tests measure it.
+3. License, read by shields.io from the `LICENSE` file. Only where the repository has one.
+4. The language versions the project supports, for a Python package from PyPI.
 
-The second row says where to get it: one PyPI badge per package, one container badge per image, then the Python versions. A blank line between the rows keeps them apart. A repository that publishes nothing has the first row only.
+The second row says where to get it: one PyPI badge per package and one container badge per image. A repository that publishes nothing has no second row.
 
-None of the badges carries a value written by hand, and all of them use the default style of shields.io. The colours are the same in every repository. The two status badges carry status colours: the CI badge green or red, as GitHub draws it, and the coverage badge the usual scale, green from 80, bright green from 90 and red below 50. Every other badge is blue, the `blue` of shields.io. Where shields.io would choose another colour on its own, green for a permissive licence or orange for a version below 1.0, `color=blue` sets it.
+The third row holds the sponsor links, GitHub Sponsors and PayPal. The badges are served from [profile/badges](profile/badges/) in this repository, the same files the organisation profile shows, so every repository carries the same two and a change here reaches all of them.
+
+None of the badges carries a value written by hand, and all of them use the default style of shields.io. The colours are the same in every repository. The two status badges carry status colours: the CI badge green or red, as GitHub draws it, and the coverage badge the usual scale, green from 80, bright green from 90 and red below 50. Every other badge of the first two rows is blue, the `blue` of shields.io. Where shields.io would choose another colour on its own, green for a permissive licence or orange for a version below 1.0, `color=blue` sets it. The sponsor badges keep the colours of their files.
 
 ```markdown
 [![CI](https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/<owner>/<repo>?color=blue)](https://github.com/<owner>/<repo>/blob/main/LICENSE)
+[![Python](https://img.shields.io/pypi/pyversions/<package>)](https://pypi.org/project/<package>/)
 
 [![PyPI <package>](https://img.shields.io/pypi/v/<package>?label=PyPI%20<package>&color=blue)](https://pypi.org/project/<package>/)
 [![Container <image>](https://img.shields.io/badge/ghcr.io-<image>-blue?logo=docker&logoColor=white)](https://github.com/<owner>/<repo>/pkgs/container/<image>)
-[![Python](https://img.shields.io/pypi/pyversions/<package>)](https://pypi.org/project/<package>/)
+
+[![Sponsor](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/sponsor.svg)](https://github.com/sponsors/BeneODev)
+[![PayPal](https://raw.githubusercontent.com/benethos-hub/.github/main/profile/badges/paypal.svg)](https://paypal.me/BeneODev)
 ```
 
-In the container badge, a dash in the image name is written as `--`, since shields.io reads a single dash as the separator.
+In the container badge, a dash in the image name is written as `--`, since shields.io reads a single dash as the separator. A repository with several packages or images repeats the line per package and per image.
 
-This repository has no licence file and publishes nothing. Its first row at the top of this page goes on with the two weekly reports instead, which are status badges as well.
+This repository has no licence file and publishes nothing. Its first row at the top of this page goes on with the two weekly reports instead, which are status badges as well, and its second row is missing.
 
 #### Coverage badge
 
