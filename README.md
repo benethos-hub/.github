@@ -37,6 +37,7 @@ Actions may live in subfolders. Those for Python projects are in `actions/python
 | Action | Purpose |
 | --- | --- |
 | [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
+| [release/tag-matches-version](actions/release/tag-matches-version/action.yml) | Fails unless the release tag is the version in a `pyproject.toml` or in a JSON file such as `manifest.json` or `server.json`. Meant as the first step of every job that publishes. |
 | [release/ci-passed](actions/release/ci-passed/action.yml) | Waits for the CI run of the pushed commit on the default branch and fails unless it succeeded. The logic is in `ci_passed.py` next to it. Used by `python-release-ci-passed.yml`. |
 
 Every Python tool has its version in a `uv.lock`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked in a `uv.lock` next to the action, so the lockfile decides in every repository that uses it. Dependabot keeps both lockfiles current.

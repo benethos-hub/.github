@@ -22,4 +22,7 @@ testpaths = ["tests"]
 
 [tool.mypy]
 strict = true
-files = ["actions/release/ci-passed/ci_passed.py"]
+files = [
+    "actions/release/ci-passed/ci_passed.py",
+    "actions/release/tag-matches-version/tag_matches_version.py",
+]

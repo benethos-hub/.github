@@ -1,0 +1,38 @@
+name: Tag matches version
+description: Fails unless the release tag is the version in a pyproject.toml or a JSON file such as manifest.json or server.json.
+
+# The tag and the version are written in two places, and a mismatch is found
+# too late otherwise: PyPI refuses the upload while the image is already out
+# under the new tag. Run it first in every job that publishes something. The
+# logic is in tag_matches_version.py next to this file.
+#
+#   - uses: benethos-hub/.github/actions/release/tag-matches-version@main
+#     with:
+#       file: packages/mailbox-mcp/pyproject.toml
+#
+# A pyproject.toml counts with its [project] version, a JSON file with its
+# top-level version. The tag may carry a leading v.
+
+inputs:
+  file:
+    description: The file that declares the version, a pyproject.toml or a JSON file.
+    required: false
+    default: pyproject.toml
+  tag:
+    description: The release tag. Empty means the tag of the release that started the workflow.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    # Standard library only, tomllib needs Python 3.11.
+    - name: The release tag is the version in ${{ inputs.file }}
+      shell: bash
+      env:
+        VERSION_FILE: ${{ inputs.file }}
+        TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/tag_matches_version.py"
