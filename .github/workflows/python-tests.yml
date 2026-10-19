@@ -72,7 +72,7 @@ jobs:
 
       - name: Run tests
         if: matrix.python-version != inputs.coverage-python
-        run: uv run pytest -q
+        run: uv run --frozen pytest -q
 
       - name: Run tests with coverage
         if: matrix.python-version == inputs.coverage-python
@@ -87,4 +87,4 @@ jobs:
               cov+=("--cov=$package")
             done
           fi
-          uv run pytest -q "${cov[@]}" "--cov-fail-under=$COV_FAIL_UNDER"
+          uv run --frozen pytest -q "${cov[@]}" "--cov-fail-under=$COV_FAIL_UNDER"
