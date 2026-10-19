@@ -157,6 +157,7 @@ permissions:
 
 jobs:
   ci-passed:
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main'
     uses: benethos-hub/.github/.github/workflows/python-release-ci-passed.yml@main
     permissions:
       actions: read
@@ -248,6 +249,8 @@ jobs:
 ### The release gate
 
 A version on PyPI cannot be replaced. `python-release-ci-passed.yml` therefore lets a release through only when the push of the release commit to the default branch ran `ci.yml` and that run succeeded. It waits up to 30 minutes for a run still in progress. A commit that never reached the default branch has no such run, and the gate stops the release after five minutes. The calling job grants `actions: read`, because a reusable workflow never gets more rights than its caller.
+
+The calling job runs only for a release or on the default branch, through `if: github.event_name == 'release' || github.ref == 'refs/heads/main'`. A manual run on another branch then skips the gate and every job after it, instead of failing after five minutes although nothing broke. The condition stays in the calling job and not in the reusable workflow, because GitHub does not rate a calling job whose called jobs were all skipped reliably for `needs`.
 
 With `audit: true`, the packages in `uv.lock` are audited once more, for a vulnerability that became known between the merge and the release. The inputs `workflow`, `branch` and `wait-minutes` change which CI workflow and branch count and how long the gate waits.
 
