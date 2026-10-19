@@ -5,7 +5,7 @@ name: Coverage badge
 # the badges branch of the repository. shields.io reads it from there, so
 # the README shows the coverage of the last push to the default branch:
 #
-#   [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
+#   [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/<owner>/<repo>/badges/coverage.json&logo=githubactions&logoColor=white)](https://github.com/<owner>/<repo>/actions/workflows/ci.yml)
 #
 # The same for every language: whatever uploads the artifact decides what
 # was measured. Call it after the tests, on a push to the default branch
