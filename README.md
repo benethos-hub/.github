@@ -75,6 +75,14 @@ jobs:
 
 The calling job has to grant `actions: read`, because a reusable workflow never gets more rights than its caller. With `audit: true`, the packages in `uv.lock` are checked for known vulnerabilities as well. That catches a vulnerability that became known between the merge and the release. The inputs `workflow`, `branch` and `wait-minutes` change which CI workflow and branch count and how long the gate waits.
 
+## Release tags
+
+A release tag is `v` followed by the version exactly as the project's version file writes it. Every action compares the two as text, so the rule holds for any language, and a tag in another spelling stops the release before anything is published.
+
+A Python project writes its versions as PEP 440 does and tags `v1.2.3`, `v1.0.0rc1` or `v1.2.3.post1`, never `v1.0.0-rc.1`. A project in another language tags in its own format, for example `v1.0.0-rc.1` for semver.
+
+Only `publish/ghcr` reads the version itself, to derive the image tags. Its input `version-scheme` is `pep440` by default and `semver` for other projects. A pre-release gets its exact version as image tag, no `1.2` and no `latest`.
+
 ## Security policy
 
 GitHub shows [SECURITY.md](SECURITY.md) on every repository of the organisation that has no `SECURITY.md` of its own. A repository only needs its own file if it has something specific to say, for example what counts as a vulnerability in that project. The file is not part of the repositories themselves, so it is missing from clones and downloads.

@@ -75,7 +75,7 @@ def test_every_docker_action_is_pinned_to_a_commit():
 
 
 def test_the_version_is_checked_on_a_release_only():
-    first = ACTION["runs"]["steps"][0]
+    first = ACTION["runs"]["steps"][1]
     assert first["if"] == "github.event_name == 'release'"
     assert first["uses"] == "benethos-hub/.github/actions/release/tag-matches-version@main"
     assert first["with"] == {"file": "${{ inputs.version-file }}"}
@@ -121,3 +121,25 @@ def test_an_own_description_becomes_title_and_description(tmp_path, description,
     text = output.read_text()
     assert text.startswith("lines<<END_OF_LINES\n") and text.endswith("END_OF_LINES\n")
     assert text.splitlines()[1:-1] == lines
+
+
+def test_the_image_tags_follow_the_version_scheme():
+    """PEP 440 by default, so v1.0.0rc1 of a Python project gives an image tag.
+    semver would give none for it, and the push would have nothing to push."""
+    assert ACTION["inputs"]["version-scheme"]["default"] == "pep440"
+    tags = STEPS["Derive image tags, labels and annotations"]["with"]["tags"]
+    assert "type=${{ inputs.version-scheme }},pattern={{version}}" in tags
+    assert "type=${{ inputs.version-scheme }},pattern={{major}}.{{minor}}" in tags
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the step runs in bash")
+@pytest.mark.parametrize(("scheme", "code"), [("pep440", 0), ("semver", 0), ("pep-440", 1), ("", 1)])
+def test_an_unknown_version_scheme_stops_before_the_build(tmp_path, scheme, code):
+    script = tmp_path / "step.sh"
+    script.write_text(STEPS["The version scheme is one the image tags can follow"]["run"])
+    done = subprocess.run(
+        ["bash", str(script)], env={"PATH": "/usr/bin:/bin", "SCHEME": scheme}, capture_output=True, text=True
+    )
+    assert done.returncode == code
+    if code:
+        assert "::error::version-scheme is" in done.stdout

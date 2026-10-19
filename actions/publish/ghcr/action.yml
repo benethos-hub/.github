@@ -19,7 +19,12 @@ description: Builds a multi-arch container image, pushes it to ghcr.io with tags
 #           dockerfile: containers/images/example/Dockerfile
 #
 # Tags: a release v1.2.3 gives 1.2.3 and 1.2, and latest unless it is a
-# pre-release. A manual run gives edge. The OCI labels and annotations go on
+# pre-release, which gets its exact version only. A manual run gives edge.
+# The release tag is read as version-scheme says: pep440 for a Python
+# project (v1.0.0rc1), semver for others (v1.0.0-rc.1). The action handles
+# the events release and workflow_dispatch. A push of a tag (on: push: tags)
+# is not supported, since the version check and latest go by the release
+# event. The OCI labels and annotations go on
 # the manifests and on the index, since the package page of a multi-arch
 # image reads the index. The published index is then read back: every tag
 # must be the same index, and it must carry the description, the source,
@@ -45,6 +50,10 @@ inputs:
     description: Title and description of this image on its package page. Empty takes the repository's description.
     required: false
     default: ""
+  version-scheme:
+    description: How the release tag is read for the image tags, pep440 for a Python project or semver.
+    required: false
+    default: pep440
   version-file:
     description: The file whose version a release tag must match, a pyproject.toml or a JSON file.
     required: false
@@ -65,6 +74,19 @@ outputs:
 runs:
   using: composite
   steps:
+    - name: The version scheme is one the image tags can follow
+      shell: bash
+      env:
+        SCHEME: ${{ inputs.version-scheme }}
+      run: |
+        case "$SCHEME" in
+          pep440 | semver) echo "Image tags follow $SCHEME." ;;
+          *)
+            echo "::error::version-scheme is '$SCHEME'. Use pep440 for a Python project or semver."
+            exit 1
+            ;;
+        esac
+
     - name: The release tag is the version in ${{ inputs.version-file }}
       if: github.event_name == 'release'
       uses: benethos-hub/.github/actions/release/tag-matches-version@main
@@ -119,8 +141,8 @@ runs:
         images: ghcr.io/${{ github.repository_owner }}/${{ inputs.image }}
         flavor: latest=false
         tags: |
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
+          type=${{ inputs.version-scheme }},pattern={{version}}
+          type=${{ inputs.version-scheme }},pattern={{major}}.{{minor}}
           type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
           type=raw,value=edge,enable=${{ github.event_name == 'workflow_dispatch' }}
         labels: ${{ steps.own.outputs.lines }}
