@@ -8,6 +8,7 @@ name: Python release CI passed
 #
 #   jobs:
 #     ci-passed:
+#       if: github.event_name == 'release' || github.ref == 'refs/heads/main'
 #       uses: benethos-hub/.github/.github/workflows/python-release-ci-passed.yml@main
 #       permissions:
 #         actions: read
@@ -16,7 +17,10 @@ name: Python release CI passed
 #       needs: ci-passed
 #
 # The calling job has to grant actions: read. A reusable workflow never gets
-# more rights than its caller.
+# more rights than its caller. Its if skips the gate and everything after it
+# on a manual run outside main, where the gate would fail after five minutes.
+# The condition stays with the caller, since GitHub does not rate a calling
+# job whose called jobs were all skipped reliably for needs.
 #
 # With audit: true, the packages locked in uv.lock are checked for known
 # vulnerabilities as well, through python-dependency-audit.yml. That catches a
