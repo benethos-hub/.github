@@ -13,6 +13,7 @@ updates:
     directories:
       - "/"
       - "/actions/release/ci-passed"
+      - "/actions/publish/mcp-registry"
       - "/actions/release/tag-matches-version"
     schedule:
       interval: "weekly"

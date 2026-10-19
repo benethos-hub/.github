@@ -32,11 +32,12 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 
 ### Actions
 
-Actions may live in subfolders. Those for Python projects are in `actions/python/`, those for releases in `actions/release/`.
+Actions may live in subfolders. Those for Python projects are in `actions/python/`, those that guard a release in `actions/release/`, and those that publish somewhere in `actions/publish/`.
 
 | Action | Purpose |
 | --- | --- |
 | [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
+| [publish/mcp-registry](actions/publish/mcp-registry/action.yml) | Publishes a `server.json` to the MCP Registry. Checks its version against the release tag, fills in the checksum of the release's Claude Desktop bundle, logs in with the workflow's OIDC token and retries a refusal, with a fallback without the bundle. The version of `mcp-publisher` is pinned here for all repositories. |
 | [release/tag-matches-version](actions/release/tag-matches-version/action.yml) | Fails unless the release tag is the version in a `pyproject.toml` or in a JSON file such as `manifest.json` or `server.json`. Meant as the first step of every job that publishes. |
 | [release/ci-passed](actions/release/ci-passed/action.yml) | Waits for the CI run of the pushed commit on the default branch and fails unless it succeeded. The logic is in `ci_passed.py` next to it. Used by `python-release-ci-passed.yml`. |
 
