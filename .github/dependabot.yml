@@ -2,12 +2,17 @@ version: 2
 updates:
   # The actions the workflows use, each pinned to a commit with its version in
   # a comment beside it. Dependabot reads the comment and raises commit and
-  # comment together. The repositories call the reusable workflows here at
-  # main, so their own Dependabot never sees these pins. This entry is the
-  # only one that keeps them current. Minor and patch updates come as one
+  # comment together. The repositories call the reusable workflows and actions
+  # here at main, so their own Dependabot never sees these pins. This entry is
+  # the only one that keeps them current. Minor and patch updates come as one
   # pull request, a major update comes alone.
+  #
+  # "/" covers the workflows. Every action under actions/ that uses another
+  # action itself needs its folder listed as well.
   - package-ecosystem: "github-actions"
-    directory: "/"
+    directories:
+      - "/"
+      - "/actions/release/ci-passed"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

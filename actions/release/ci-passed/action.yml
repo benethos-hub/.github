@@ -1,0 +1,49 @@
+name: CI passed
+description: Fails a release unless the CI run of the pushed commit on the default branch succeeded, and waits for it while it runs.
+
+# A version on PyPI cannot be replaced. This lets a release through only when
+# the push of its commit to the default branch ran the CI workflow, and that
+# run succeeded. A commit that never reached the branch has no such run and
+# stops the release after five minutes. The logic is in ci_passed.py next to
+# this file. It runs from the action's own folder, since the repository that
+# releases has no copy of it. Mostly used through the reusable workflow
+# python-release-ci-passed.yml, which also grants the token what it needs.
+#
+#   - uses: benethos-hub/.github/actions/release/ci-passed@main
+#
+# The token needs actions: read.
+
+inputs:
+  workflow:
+    description: File name of the CI workflow whose run decides.
+    required: false
+    default: ci.yml
+  branch:
+    description: Branch whose push runs count. Empty means the default branch of the repository.
+    required: false
+    default: ""
+  wait-minutes:
+    description: How long to wait for a CI run that is still in progress.
+    required: false
+    default: "30"
+  token:
+    description: Token that may list the workflow runs (actions read).
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    # The script needs the standard library only, so it runs without a
+    # project and without installing anything.
+    - name: The commit has a green CI run
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.token }}
+        CI_WORKFLOW: ${{ inputs.workflow }}
+        CI_BRANCH: ${{ inputs.branch || github.event.repository.default_branch }}
+        CI_WAIT_MINUTES: ${{ inputs.wait-minutes }}
+      run: uv run --no-project "$GITHUB_ACTION_PATH/ci_passed.py"

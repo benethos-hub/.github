@@ -11,7 +11,8 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | [FUNDING.yml](FUNDING.yml) | Sponsor links for every repository without its own funding file |
 | [SECURITY.md](SECURITY.md) | Security policy for every repository without its own policy |
 | [profile/](profile/) | Organisation profile shown on github.com/benethos-hub |
-| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows of this repository |
+| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows and actions of this repository |
+| [tests/](tests/) | Tests for the scripts of the actions and for how the workflows wire them |
 
 ### Workflows
 
@@ -25,14 +26,41 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 | [python-tests.yml](.github/workflows/python-tests.yml) | reusable | Tests on every supported Python version, with coverage on the newest |
 | [python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | reusable | Tests against the lowest dependency versions that `pyproject.toml` allows |
 | [python-dependency-audit.yml](.github/workflows/python-dependency-audit.yml) | reusable | Known vulnerabilities in the packages pinned in `uv.lock` |
+| [python-release-ci-passed.yml](.github/workflows/python-release-ci-passed.yml) | reusable | Release gate: nothing is published before the CI run of the release commit on the default branch has passed |
+| [ci.yml](.github/workflows/ci.yml) | push and pull request | Tests and a strict Mypy run for the scripts of the actions in this repository |
 
 ### Actions
 
-Actions may live in subfolders. Those for Python projects are in `actions/python/`.
+Actions may live in subfolders. Those for Python projects are in `actions/python/`, those for releases in `actions/release/`.
 
 | Action | Purpose |
 | --- | --- |
 | [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
+| [release/ci-passed](actions/release/ci-passed/action.yml) | Waits for the CI run of the pushed commit on the default branch and fails unless it succeeded. The logic is in `ci_passed.py` next to it. Used by `python-release-ci-passed.yml`. |
+
+An action that uses another action itself needs its folder in `.github/dependabot.yml`. A test in `tests/` fails otherwise.
+
+## Release gate
+
+A version on PyPI cannot be replaced. `python-release-ci-passed.yml` therefore lets a release through only when the push of the release commit to the default branch ran `ci.yml` and that run succeeded. It waits up to 30 minutes for a run still in progress. A commit that never reached the default branch has no such run, and the gate stops the release after five minutes.
+
+Call it first in the publish workflow of a repository and let every upload need it:
+
+```yaml
+jobs:
+  ci-passed:
+    uses: benethos-hub/.github/.github/workflows/python-release-ci-passed.yml@main
+    permissions:
+      actions: read
+      contents: read
+    with:
+      audit: true
+
+  pypi-publish:
+    needs: ci-passed
+```
+
+The calling job has to grant `actions: read`, because a reusable workflow never gets more rights than its caller. With `audit: true`, the packages in `uv.lock` are checked for known vulnerabilities as well. That catches a vulnerability that became known between the merge and the release. The inputs `workflow`, `branch` and `wait-minutes` change which CI workflow and branch count and how long the gate waits.
 
 ## Security policy
 

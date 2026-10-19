@@ -1,0 +1,73 @@
+name: Python release CI passed
+
+# Reusable gate in front of every upload of a release. It passes only when the
+# push of the release commit to the default branch ran the CI workflow and that
+# run succeeded, and it waits for the run while it is still going. A version on
+# PyPI cannot be replaced, so nothing is published from an untested commit. Call
+# it first in a repository's publish workflow and let every upload need it:
+#
+#   jobs:
+#     ci-passed:
+#       uses: benethos-hub/.github/.github/workflows/python-release-ci-passed.yml@main
+#       permissions:
+#         actions: read
+#         contents: read
+#     pypi-publish:
+#       needs: ci-passed
+#
+# The calling job has to grant actions: read. A reusable workflow never gets
+# more rights than its caller.
+#
+# With audit: true, the packages locked in uv.lock are checked for known
+# vulnerabilities as well, through python-dependency-audit.yml. That catches a
+# vulnerability that became known between the merge and the release.
+
+on:
+  workflow_call:
+    inputs:
+      workflow:
+        description: File name of the CI workflow whose run decides.
+        type: string
+        default: ci.yml
+      branch:
+        description: Branch whose push runs count. Empty means the default branch of the repository.
+        type: string
+        default: ""
+      wait-minutes:
+        description: How long to wait for a CI run that is still in progress.
+        type: number
+        default: 30
+      timeout-minutes:
+        description: Time limit for the gate job. Keep it above wait-minutes.
+        type: number
+        default: 35
+      audit:
+        description: Also check the packages in uv.lock for known vulnerabilities.
+        type: boolean
+        default: false
+      ignore-vulns:
+        description: Vulnerability IDs to waive in the audit, separated by spaces.
+        type: string
+        default: ""
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  ci-passed:
+    name: CI passed
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - uses: benethos-hub/.github/actions/release/ci-passed@main
+        with:
+          workflow: ${{ inputs.workflow }}
+          branch: ${{ inputs.branch }}
+          wait-minutes: ${{ inputs.wait-minutes }}
+
+  audit:
+    if: inputs.audit
+    uses: benethos-hub/.github/.github/workflows/python-dependency-audit.yml@main
+    with:
+      ignore-vulns: ${{ inputs.ignore-vulns }}
