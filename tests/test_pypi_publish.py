@@ -92,3 +92,32 @@ def test_the_action_builds_checks_and_uploads_from_one_folder():
     assert '"$GITHUB_ACTION_PATH/check_dist.py"' in check["run"]
     assert upload["run"] == 'uv publish --trusted-publishing always "$DIST"/*'
     assert check["env"]["TAG"] == "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+
+
+def test_a_trial_run_checks_everything_but_the_version(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("DIST", str(_dist(tmp_path)))
+    monkeypatch.setenv("TAG", "main")
+    monkeypatch.setenv("PACKAGE", "")
+    monkeypatch.setenv("DRY_RUN", "true")
+    monkeypatch.setenv("WHEEL_CONTAINS", "benethos_example/py.typed")
+    assert check_dist.main() == 0
+    assert "Trial run: benethos_example-1.2.3-py3-none-any.whl is version 1.2.3" in capsys.readouterr().out
+    monkeypatch.setenv("WHEEL_CONTAINS", "benethos_example/missing.txt")
+    assert check_dist.main() == 1
+
+
+def test_a_real_run_without_a_tag_stops(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("DIST", str(_dist(tmp_path)))
+    monkeypatch.setenv("TAG", "")
+    monkeypatch.setenv("DRY_RUN", "false")
+    assert check_dist.main() == 1
+    assert "::error::No release tag" in capsys.readouterr().out
+
+
+def test_a_trial_run_uploads_nothing_and_needs_no_token():
+    upload = STEPS["Publish to PyPI (Trusted Publishing)"]
+    trial = STEPS["Ask PyPI whether it would take the files (trial run)"]
+    assert upload["if"] == "inputs.dry-run != 'true'"
+    assert trial["if"] == "inputs.dry-run == 'true'"
+    assert trial["run"] == 'uv publish --dry-run --trusted-publishing never "$DIST"/*'
+    assert ACTION["inputs"]["dry-run"]["default"] == "false"

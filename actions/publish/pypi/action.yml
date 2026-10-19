@@ -25,8 +25,17 @@ description: Builds a Python package with uv, checks what was built, and uploads
 # Nothing is uploaded unless the wheel carries the version of the release
 # tag and every path in wheel-contains. The logic of that check is in
 # check_dist.py next to this file.
+#
+# dry-run: true is a trial run, for example on workflow_dispatch before the
+# first release through this action. It builds and checks everything but the
+# version, which needs a release tag, and asks PyPI whether it would take the
+# files without uploading them. No credentials are needed for that.
 
 inputs:
+  dry-run:
+    description: Build and check, then ask PyPI whether it would take the files, without uploading.
+    required: false
+    default: "false"
   package:
     description: The distribution to build in a uv workspace. Empty builds the project in the root.
     required: false
@@ -69,10 +78,21 @@ runs:
         PACKAGE: ${{ inputs.package }}
         WHEEL_CONTAINS: ${{ inputs.wheel-contains }}
         TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+        DRY_RUN: ${{ inputs.dry-run }}
       run: uv run --no-project "$GITHUB_ACTION_PATH/check_dist.py"
 
     - name: Publish to PyPI (Trusted Publishing)
+      if: inputs.dry-run != 'true'
       shell: bash
       env:
         DIST: ${{ runner.temp }}/pypi-dist
       run: uv publish --trusted-publishing always "$DIST"/*
+
+    # A trial run asks PyPI about the files without an OIDC token, which only
+    # an upload needs.
+    - name: Ask PyPI whether it would take the files (trial run)
+      if: inputs.dry-run == 'true'
+      shell: bash
+      env:
+        DIST: ${{ runner.temp }}/pypi-dist
+      run: uv publish --dry-run --trusted-publishing never "$DIST"/*
