@@ -1,0 +1,25 @@
+name: Brand assets
+description: Checks the brand assets in assets/brand of the checked-out repository against the rules of the organisation.
+
+# The rules are in brand_assets.py next to this file, which the weekly brand
+# report of benethos-hub/.github applies as well. Used by the reusable
+# workflow brand.yml. The checkout needs the full history, without file
+# contents, so git can tell which file changed last:
+#
+#   - uses: actions/checkout@<sha> # vX
+#     with:
+#       fetch-depth: 0
+#       filter: blob:none
+#       sparse-checkout: assets/brand
+#       sparse-checkout-cone-mode: false
+#   - uses: benethos-hub/.github/actions/brand/assets@main
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+    - name: Brand assets are present and current
+      shell: bash
+      run: uv run --no-project "$GITHUB_ACTION_PATH/brand_assets.py" check

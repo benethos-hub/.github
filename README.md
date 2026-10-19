@@ -35,10 +35,11 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 
 ### Actions
 
-Actions may live in subfolders. Those for Python projects are in `actions/python/`, those that guard a release in `actions/release/`, and those that publish somewhere in `actions/publish/`. Every action that needs uv installs it itself, so a caller never has to. A second install in the same job comes from the cache.
+Actions may live in subfolders. Those for Python projects are in `actions/python/`, those that guard a release in `actions/release/`, those that publish somewhere in `actions/publish/`, and the brand rules in `actions/brand/`. Every action that needs uv installs it itself, so a caller never has to. A second install in the same job comes from the cache.
 
 | Action | Purpose |
 | --- | --- |
+| [brand/assets](actions/brand/assets/action.yml) | Checks the brand assets of the checked-out repository. The rules are written once, in `brand_assets.py` next to it, which the CI check `brand.yml` and the weekly brand report both apply. |
 | [python/pip-audit](actions/python/pip-audit/action.yml) | Checks pinned Python packages for known vulnerabilities. Used by `python-dependency-audit.yml` and `python-lowest-versions.yml`, so both apply the same rules and waivers. |
 | [publish/pypi](actions/publish/pypi/action.yml) | Builds a Python package with uv, checks that the wheel carries the version of the release tag and every file the repository names, and uploads it through Trusted Publishing. A composite action, because Trusted Publishing identifies the workflow of the uploading job, so that job stays in the repository. In a uv workspace, `package` names the member. `dry-run: true` builds and checks everything but the version and asks PyPI about the files without uploading, for a trial before the first release. It does not tell whether the version is on PyPI already. |
 | [publish/ghcr](actions/publish/ghcr/action.yml) | Builds a multi-arch container image and pushes it to ghcr.io, tagged from the release (`1.2.3`, `1.2`, `latest` for a full release, `edge` for a manual run). Then reads the published index back: every tag must be the same index, with the description, source, version and every platform built. One image per call, so a repository with several images calls it from a matrix. |

@@ -12,6 +12,7 @@ updates:
   - package-ecosystem: "github-actions"
     directories:
       - "/"
+      - "/actions/brand/assets"
       - "/actions/publish/ghcr"
       - "/actions/publish/mcp-registry"
       - "/actions/publish/mcpb"

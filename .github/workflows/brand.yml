@@ -2,8 +2,9 @@ name: Brand
 
 # Reusable check that every repository of the organisation carries its brand
 # assets in assets/brand: the icon as icon.svg, and two PNG files exported from
-# it, icon.png (512x512) and social-preview.png (1280x640). Call it from a
-# repository's CI with:
+# it, icon.png (512x512) and social-preview.png (1280x640), neither older than
+# the SVG. The rules are in actions/brand/assets, which the weekly brand
+# report applies as well. Call it from a repository's CI with:
 #
 #   brand:
 #     uses: benethos-hub/.github/.github/workflows/brand.yml@main
@@ -22,56 +23,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Full history without file contents, so git log can tell which of
+          # Full history without file contents, so git can tell which of
           # the files changed last.
           fetch-depth: 0
           filter: blob:none
           sparse-checkout: assets/brand
           sparse-checkout-cone-mode: false
 
-      - name: Brand assets are present and current
-        run: |
-          failed=0
-          fail() {
-            echo "::error file=$1::$2"
-            failed=1
-          }
-
-          svg=assets/brand/icon.svg
-          if [ ! -s "$svg" ]; then
-            fail "$svg" "Missing $svg."
-          elif ! grep -q '<svg' "$svg"; then
-            fail "$svg" "$svg is not an SVG file."
-          fi
-
-          # A PNG exported from the SVG must exist, have the given size, and
-          # must not be older than the last change to the SVG. Its last commit
-          # is therefore the same as or later than the last commit of the SVG.
-          check_png() {
-            local png=$1 want=$2 size
-            if [ ! -s "$png" ]; then
-              fail "$png" "Missing $png."
-              return
-            fi
-            if [ "$(head -c 8 "$png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
-              fail "$png" "$png is not a PNG file."
-              return
-            fi
-            # Width and height are the two 4-byte big-endian numbers at offset 16.
-            size=$(od -An -tu1 -j16 -N8 "$png" | awk '{ printf "%dx%d", $1*16777216 + $2*65536 + $3*256 + $4, $5*16777216 + $6*65536 + $7*256 + $8 }')
-            if [ "$size" != "$want" ]; then
-              fail "$png" "$png is $size pixels. It has to be $want."
-            fi
-            if [ -s "$svg" ] && ! git merge-base --is-ancestor "$(git log -1 --format=%H -- "$svg")" "$(git log -1 --format=%H -- "$png")"; then
-              fail "$png" "$png is older than the last change to $svg. Export it again from the SVG."
-            fi
-          }
-
-          check_png assets/brand/icon.png 512x512
-          check_png assets/brand/social-preview.png 1280x640
-
-          if [ "$failed" -ne 0 ]; then
-            echo "Every repository of benethos-hub needs assets/brand/icon.svg and, exported from it, a 512x512 icon.png and a 1280x640 social-preview.png."
-            exit 1
-          fi
-          echo "All brand assets are present and current."
+      - uses: benethos-hub/.github/actions/brand/assets@main
