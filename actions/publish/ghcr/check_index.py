@@ -45,7 +45,11 @@ def problems(index: dict[str, Any], wanted: list[str]) -> list[str]:
         if not annotations.get(key)
     ]
     have = platforms_of(index)
-    found += [f"{platform} is missing, the index holds {have}" for platform in wanted if platform not in have]
+    found += [
+        f"{platform} is missing, the index holds {have}"
+        for platform in wanted
+        if platform not in have
+    ]
     return found
 
 
@@ -54,7 +58,9 @@ def main(argv: list[str]) -> int:
         print(__doc__, file=sys.stderr)
         return 2
     index: dict[str, Any] = json.loads(Path(argv[0]).read_text("utf-8"))
-    wanted = [p.strip() for p in os.environ.get("PLATFORMS", "").split(",") if p.strip()]
+    wanted = [
+        p.strip() for p in os.environ.get("PLATFORMS", "").split(",") if p.strip()
+    ]
     found = problems(index, wanted)
     for line in found:
         print(f"::error::{line}")

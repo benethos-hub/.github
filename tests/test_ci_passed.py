@@ -119,8 +119,12 @@ def test_another_workflow_and_branch_reach_the_query(capsys):
 def test_main_reads_its_settings_from_the_environment(monkeypatch):
     seen: dict[str, Any] = {}
 
-    def fake_check(repository: str, sha: str, workflow: str, branch: str, **kwargs: Any) -> int:
-        seen.update(repository=repository, sha=sha, workflow=workflow, branch=branch, **kwargs)
+    def fake_check(
+        repository: str, sha: str, workflow: str, branch: str, **kwargs: Any
+    ) -> int:
+        seen.update(
+            repository=repository, sha=sha, workflow=workflow, branch=branch, **kwargs
+        )
         return 0
 
     monkeypatch.setattr(ci_passed, "check", fake_check)
@@ -147,7 +151,9 @@ def test_without_a_branch_the_release_stops(monkeypatch, capsys):
 
 def test_an_api_error_stops_the_release_with_a_hint(monkeypatch, capsys):
     def refused(*args: Any, **kwargs: Any) -> int:
-        raise urllib.error.HTTPError("https://example.invalid", 403, "Forbidden", Message(), None)
+        raise urllib.error.HTTPError(
+            "https://example.invalid", 403, "Forbidden", Message(), None
+        )
 
     monkeypatch.setattr(ci_passed, "check", refused)
     monkeypatch.setenv("GITHUB_REPOSITORY", "benethos-hub/example")
@@ -177,7 +183,11 @@ def test_the_action_and_the_workflow_share_their_defaults():
     workflow = WORKFLOW[True]["workflow_call"]["inputs"]
     assert action["workflow"]["default"] == workflow["workflow"]["default"] == "ci.yml"
     assert action["branch"]["default"] == workflow["branch"]["default"] == ""
-    assert int(action["wait-minutes"]["default"]) == workflow["wait-minutes"]["default"] == 30
+    assert (
+        int(action["wait-minutes"]["default"])
+        == workflow["wait-minutes"]["default"]
+        == 30
+    )
     assert workflow["timeout-minutes"]["default"] > workflow["wait-minutes"]["default"]
 
 

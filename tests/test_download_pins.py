@@ -63,8 +63,14 @@ def _fetch(latest: str = "v1.9.0"):
                 "tag_name": tag,
                 "html_url": f"https://github.com/example/tool/releases/tag/{tag}",
                 "assets": [
-                    {"name": "tool_linux_amd64.tar.gz", "browser_download_url": "unused"},
-                    {"name": f"tool_{tag}_checksums.txt", "browser_download_url": f"sums/{tag}"},
+                    {
+                        "name": "tool_linux_amd64.tar.gz",
+                        "browser_download_url": "unused",
+                    },
+                    {
+                        "name": f"tool_{tag}_checksums.txt",
+                        "browser_download_url": f"sums/{tag}",
+                    },
                 ],
             }
         ).encode()
@@ -76,7 +82,9 @@ def _fetch(latest: str = "v1.9.0"):
             return release(url.rsplit("/", 1)[1])
         if url.startswith("sums/"):
             tag = url.split("/", 1)[1]
-            return f"{'c' * 64}  other.tar.gz\n{SHA[tag]}  tool_linux_amd64.tar.gz\n".encode()
+            other = f"{'c' * 64}  other.tar.gz"
+            ours = f"{SHA[tag]}  tool_linux_amd64.tar.gz"
+            return f"{other}\n{ours}\n".encode()
         raise AssertionError(url)
 
     return fetch
@@ -87,7 +95,9 @@ def test_a_current_pin_is_not_reported(tmp_path):
 
 
 def test_a_newer_release_comes_with_the_lines_to_paste(tmp_path):
-    body = download_pins.report([_pin()], _pinned(tmp_path), _fetch(latest="v1.10.0"), BASE)
+    body = download_pins.report(
+        [_pin()], _pinned(tmp_path), _fetch(latest="v1.10.0"), BASE
+    )
     assert body.startswith("These pinned downloads need an update:\n\n### tool\n")
     assert f"[action.yml]({BASE}/blob/main/action.yml) pins v1.9.0." in body
     assert f"TOOL_VERSION: v1.10.0\nTOOL_SHA256: {SHA['v1.10.0']}\n" in body
@@ -95,8 +105,13 @@ def test_a_newer_release_comes_with_the_lines_to_paste(tmp_path):
 
 
 def test_a_checksum_that_is_not_the_official_one_is_reported(tmp_path):
-    body = download_pins.report([_pin()], _pinned(tmp_path, sha="d" * 64), _fetch(), BASE)
-    assert "with a checksum that is not the one in the [checksums file](sums/v1.9.0)" in body
+    body = download_pins.report(
+        [_pin()], _pinned(tmp_path, sha="d" * 64), _fetch(), BASE
+    )
+    assert (
+        "with a checksum that is not the one in the [checksums file](sums/v1.9.0)"
+        in body
+    )
     assert f"TOOL_SHA256: {SHA['v1.9.0']}" in body
 
 
@@ -138,7 +153,9 @@ def test_the_token_goes_to_the_api_only(monkeypatch):
     monkeypatch.setenv("GH_TOKEN", "secret")
     monkeypatch.setattr(download_pins.urllib.request, "urlopen", urlopen)
     download_pins.fetch_url("https://api.github.com/repos/example/tool/releases/latest")
-    download_pins.fetch_url("https://github.com/example/tool/releases/download/v1/sums.txt")
+    download_pins.fetch_url(
+        "https://github.com/example/tool/releases/download/v1/sums.txt"
+    )
     assert seen == [
         ("https://api.github.com/repos/example/tool/releases/latest", "Bearer secret"),
         ("https://github.com/example/tool/releases/download/v1/sums.txt", None),
@@ -160,7 +177,10 @@ def test_every_entry_names_a_file_that_pins_both_values():
 def test_the_workflow_runs_the_script_from_the_lockfile():
     steps = WORKFLOW["jobs"]["report"]["steps"]
     (check,) = [s for s in steps if s.get("name") == "Check every pin"]
-    assert check["run"] == 'uv run --frozen .github/scripts/download_pins.py > "$RUNNER_TEMP/report.md"'
+    assert (
+        check["run"]
+        == 'uv run --frozen .github/scripts/download_pins.py > "$RUNNER_TEMP/report.md"'
+    )
 
 
 FAKE_GH = r"""#!/bin/bash
@@ -175,14 +195,27 @@ esac
 @pytest.mark.parametrize(
     ("report", "open_issue", "expected"),
     [
-        ("These pinned downloads need an update:", "", "gh issue create --title Pinned downloads need an update --body These pinned"),
-        ("These pinned downloads need an update:", "7", "gh issue edit 7 --body These pinned"),
+        (
+            "These pinned downloads need an update:",
+            "",
+            "gh issue create --title Pinned downloads need an update "
+            "--body These pinned",
+        ),
+        (
+            "These pinned downloads need an update:",
+            "7",
+            "gh issue edit 7 --body These pinned",
+        ),
         ("", "7", "gh issue close 7 --comment Every pinned download is current now."),
         ("", "", ""),
     ],
 )
 def test_the_issue_follows_the_report(tmp_path, report, open_issue, expected):
-    (step,) = [s for s in WORKFLOW["jobs"]["report"]["steps"] if s.get("name") == "Update the issue"]
+    (step,) = [
+        s
+        for s in WORKFLOW["jobs"]["report"]["steps"]
+        if s.get("name") == "Update the issue"
+    ]
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     gh = bin_dir / "gh"
@@ -203,7 +236,9 @@ def test_the_issue_follows_the_report(tmp_path, report, open_issue, expected):
         "GITHUB_SERVER_URL": "https://github.com",
         "GITHUB_REPOSITORY": "benethos-hub/.github",
     }
-    done = subprocess.run(["bash", str(script)], env=env, capture_output=True, text=True, check=False)
+    done = subprocess.run(
+        ["bash", str(script)], env=env, capture_output=True, text=True, check=False
+    )
     assert done.returncode == 0, done.stderr
     assert log.read_text().startswith(expected)
 
@@ -211,16 +246,21 @@ def test_the_issue_follows_the_report(tmp_path, report, open_issue, expected):
 @pytest.mark.parametrize(
     ("entry", "named"),
     [
-        ("- name: tool\n  file: action.yml\n", "Missing: asset, checksums, repository, sha256, version"),
         (
-            "- name: tool\n  file: action.yml\n  version: V\n  sha256: S\n  repository: r/t\n"
-            "  asset: a\n  checksums: c\n  checksum: typo\n",
+            "- name: tool\n  file: action.yml\n",
+            "Missing: asset, checksums, repository, sha256, version",
+        ),
+        (
+            "- name: tool\n  file: action.yml\n  version: V\n  sha256: S\n"
+            "  repository: r/t\n  asset: a\n  checksums: c\n  checksum: typo\n",
             "Unknown: checksum.",
         ),
         ("- just a text\n", "Missing: asset, checksums, file, name"),
     ],
 )
-def test_a_broken_entry_is_named_without_a_traceback(tmp_path, monkeypatch, capsys, entry, named):
+def test_a_broken_entry_is_named_without_a_traceback(
+    tmp_path, monkeypatch, capsys, entry, named
+):
     (tmp_path / ".github").mkdir()
     (tmp_path / ".github" / "download-pins.yml").write_text(entry, "utf-8")
     monkeypatch.chdir(tmp_path)

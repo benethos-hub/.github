@@ -2,8 +2,8 @@ name: CI
 
 # Tests for the scripts of the actions in this repository. The repositories of
 # the organisation call these actions at main, so a mistake here reaches all of
-# them on their next run. pytest, PyYAML and Mypy come from uv.lock, and their
-# settings from pyproject.toml.
+# them on their next run. Ruff, pytest, PyYAML and Mypy come from uv.lock, and
+# their settings from pyproject.toml.
 
 on:
   push:
@@ -37,6 +37,13 @@ jobs:
           uv lock --check
           uv lock --check --project actions/python/pip-audit
           npm ci --prefix actions/publish/mcpb --ignore-scripts --no-audit --no-fund --dry-run
+
+      # The same rules python-lint.yml asks of every project.
+      - name: Ruff (lint)
+        run: uv run --frozen ruff check .
+
+      - name: Ruff (format check)
+        run: uv run --frozen ruff format --check .
 
       - name: Pytest
         run: uv run --frozen pytest -q

@@ -89,7 +89,8 @@ def check(
                 return 0
             print(
                 f"::error::CI on {branch} ended {run['conclusion']} for {sha[:7]}: "
-                f"{run['html_url']}. Fix it on {branch} and release from a green commit."
+                f"{run['html_url']}. Fix it on {branch} and release from a green "
+                "commit."
             )
             return 1
         if run is None and waited >= min(appear_seconds, wait_seconds):
@@ -105,7 +106,9 @@ def check(
             )
             return 1
         state = "no run yet" if run is None else run["status"]
-        print(f"CI on {branch} for {sha[:7]}: {state}, checking again in {interval:.0f} s")
+        print(
+            f"CI on {branch} for {sha[:7]}: {state}, checking again in {interval:.0f} s"
+        )
         sleep(interval)
         waited += interval
 

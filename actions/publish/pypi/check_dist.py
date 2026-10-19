@@ -43,7 +43,9 @@ def check(dist: Path, tag: str | None, package: str, contains: list[str]) -> int
     if package and _normalize(name) != _normalize(package):
         errors.append(f"{wheel.name} is not the package {package}.")
     if tag is None:
-        print(f"Trial run: {wheel.name} is version {version}, no release tag to compare.")
+        print(
+            f"Trial run: {wheel.name} is version {version}, no release tag to compare."
+        )
     elif tag.removeprefix("v") != version:
         errors.append(
             f"{wheel.name} is version {version}, the release tag is {tag}. "
@@ -59,17 +61,24 @@ def check(dist: Path, tag: str | None, package: str, contains: list[str]) -> int
         for error in errors:
             print(f"::error::{error}")
         return 1
-    print(f"OK: {wheel.name} and {sdists[0].name}, version {version}, {len(names)} files")
+    print(
+        f"OK: {wheel.name} and {sdists[0].name}, version {version}, {len(names)} files"
+    )
     return 0
 
 
 def main() -> int:
-    contains = [line.strip() for line in os.environ.get("WHEEL_CONTAINS", "").splitlines()]
+    contains = [
+        line.strip() for line in os.environ.get("WHEEL_CONTAINS", "").splitlines()
+    ]
     tag: str | None = None
     if os.environ.get("DRY_RUN") != "true":
         tag = os.environ.get("TAG", "")
         if not tag:
-            print("::error::No release tag to compare the wheel with. Run this on a release.")
+            print(
+                "::error::No release tag to compare the wheel with. "
+                "Run this on a release."
+            )
             return 1
     return check(
         Path(os.environ["DIST"]),

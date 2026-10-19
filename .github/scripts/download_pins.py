@@ -49,11 +49,15 @@ def load(config: Path) -> list[Pin]:
     pins = []
     for number, entry in enumerate(entries, 1):
         keys = set(entry) if isinstance(entry, dict) else set()
-        if keys != fields or not all(isinstance(entry[k], str) and entry[k] for k in keys):
+        if keys != fields or not all(
+            isinstance(entry[k], str) and entry[k] for k in keys
+        ):
+            missing = ", ".join(sorted(fields - keys)) or "none"
+            unknown = ", ".join(sorted(keys - fields)) or "none"
             raise ValueError(
-                f"entry {number} of {config} needs exactly these keys, each with a text: "
-                f"{', '.join(sorted(fields))}. Missing: {', '.join(sorted(fields - keys)) or 'none'}. "
-                f"Unknown: {', '.join(sorted(keys - fields)) or 'none'}."
+                f"entry {number} of {config} needs exactly these keys, each with "
+                f"a text: {', '.join(sorted(fields))}. Missing: {missing}. "
+                f"Unknown: {unknown}."
             )
         pins.append(Pin(**entry))
     return pins
@@ -82,7 +86,9 @@ def version_key(version: str) -> tuple[int, ...]:
 
 
 def _release(fetch: Fetch, repository: str, which: str) -> dict[str, Any]:
-    release: dict[str, Any] = json.loads(fetch(f"{API}/repos/{repository}/releases/{which}"))
+    release: dict[str, Any] = json.loads(
+        fetch(f"{API}/repos/{repository}/releases/{which}")
+    )
     return release
 
 
@@ -95,7 +101,9 @@ def _checksum(fetch: Fetch, release: dict[str, Any], pin: Pin) -> tuple[str, str
         if a["name"].endswith(pin.checksums)
     ]
     if len(urls) != 1:
-        raise LookupError(f"{release['tag_name']} has no single file ending in {pin.checksums}")
+        raise LookupError(
+            f"{release['tag_name']} has no single file ending in {pin.checksums}"
+        )
     for line in fetch(urls[0]).decode("utf-8").splitlines():
         parts = line.split()
         if len(parts) == 2 and parts[1].lstrip("*") == pin.asset:
@@ -111,13 +119,16 @@ def check(pin: Pin, root: Path, fetch: Fetch, base: str) -> str:
     if not version or not sha:
         return f"### {pin.name}\n\n{link} has no {pin.version} or no {pin.sha256}.\n"
 
-    official, official_sums = _checksum(fetch, _release(fetch, pin.repository, f"tags/{version}"), pin)
+    official, official_sums = _checksum(
+        fetch, _release(fetch, pin.repository, f"tags/{version}"), pin
+    )
     latest = _release(fetch, pin.repository, "latest")
     lines: list[str] = []
     if version_key(latest["tag_name"]) > version_key(version):
         new_sha, new_sums = _checksum(fetch, latest, pin)
         lines += [
-            f"{link} pins {version}. [{latest['tag_name']}]({latest['html_url']}) is out. "
+            f"{link} pins {version}. "
+            f"[{latest['tag_name']}]({latest['html_url']}) is out. "
             "To update, set these two lines there:",
             "",
             "```yaml",
@@ -125,7 +136,8 @@ def check(pin: Pin, root: Path, fetch: Fetch, base: str) -> str:
             f"{pin.sha256}: {new_sha}",
             "```",
             "",
-            f"The checksum is the line for `{pin.asset}` in the release's [checksums file]({new_sums}).",
+            f"The checksum is the line for `{pin.asset}` in the release's "
+            f"[checksums file]({new_sums}).",
         ]
     elif sha != official:
         lines += [
@@ -151,11 +163,14 @@ def report(pins: list[Pin], root: Path, fetch: Fetch, base: str) -> str:
 def main() -> int:
     root = Path.cwd()
     config = root / (os.environ.get("CONFIG") or ".github/download-pins.yml")
-    base = f"{os.environ.get('GITHUB_SERVER_URL', 'https://github.com')}/{os.environ.get('GITHUB_REPOSITORY', '')}"
+    server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+    base = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}"
     try:
         print(report(load(config), root, fetch_url, base), end="")
     except (urllib.error.URLError, LookupError, ValueError) as error:
-        print(f"::error::Could not check the pinned downloads: {error}", file=sys.stderr)
+        print(
+            f"::error::Could not check the pinned downloads: {error}", file=sys.stderr
+        )
         return 1
     return 0
 

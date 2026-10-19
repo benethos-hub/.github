@@ -26,7 +26,9 @@ ACTION_DIR = ROOT / "actions" / "publish" / "mcp-registry"
 ACTION = yaml.safe_load((ACTION_DIR / "action.yml").read_text("utf-8"))
 STEPS = {step.get("name"): step for step in ACTION["runs"]["steps"]}
 
-_spec = importlib.util.spec_from_file_location("registry_entry", ACTION_DIR / "registry_entry.py")
+_spec = importlib.util.spec_from_file_location(
+    "registry_entry", ACTION_DIR / "registry_entry.py"
+)
 assert _spec and _spec.loader
 registry_entry = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(registry_entry)
@@ -47,7 +49,12 @@ def _entry(tmp_path: Path, with_bundle: bool = True, sha: str = "0" * 64) -> Pat
             }
         )
     path = tmp_path / "server.json"
-    entry = {"name": "io.github.benethos-hub/example", "version": "1.2.3", "description": "Grüße", "packages": packages}
+    entry = {
+        "name": "io.github.benethos-hub/example",
+        "version": "1.2.3",
+        "description": "Grüße",
+        "packages": packages,
+    }
     path.write_text(json.dumps(entry, indent=2), "utf-8")
     return path
 
@@ -90,7 +97,9 @@ def test_a_hash_is_never_written_twice(tmp_path):
 def test_drop_keeps_every_other_package(tmp_path):
     entry = _entry(tmp_path)
     registry_entry.drop(entry)
-    assert [p["registryType"] for p in json.loads(entry.read_text("utf-8"))["packages"]] == ["pypi"]
+    assert [
+        p["registryType"] for p in json.loads(entry.read_text("utf-8"))["packages"]
+    ] == ["pypi"]
     with pytest.raises(SystemExit, match="no bundle to drop"):
         registry_entry.drop(entry)
 
@@ -105,7 +114,9 @@ def test_a_wrong_call_prints_the_usage(capsys):
 
 def test_the_entry_version_is_checked_against_the_tag_first():
     first = ACTION["runs"]["steps"][0]
-    assert first["uses"] == "benethos-hub/.github/actions/release/tag-matches-version@main"
+    assert (
+        first["uses"] == "benethos-hub/.github/actions/release/tag-matches-version@main"
+    )
     assert first["with"] == {"file": "${{ inputs.entry }}", "tag": "${{ inputs.tag }}"}
 
 
@@ -123,7 +134,8 @@ needs_bash = pytest.mark.skipif(
 
 FAKE_PUBLISHER = r"""#!/bin/bash
 [ "$1" = publish ] || exit 0
-types=$(grep -o '"registryType": *"[a-z]*"' "$2" | sed 's/.*"\([a-z]*\)"$/\1/' | paste -sd' ')
+types=$(grep -o '"registryType": *"[a-z]*"' "$2" \
+  | sed 's/.*"\([a-z]*\)"$/\1/' | paste -sd' ')
 echo "publish $types" >> "$PUBLISHER_LOG"
 count=$(grep -c '^publish' "$PUBLISHER_LOG")
 [ "$count" -gt "$REFUSE" ] && exit 0
@@ -159,21 +171,31 @@ def _step(tmp_path: Path, name: str, env: dict[str, str]) -> tuple[int, str, lis
         "WAIT_SECONDS": "0",
         **env,
     }
-    done = subprocess.run(["bash", str(script)], env=full_env, capture_output=True, text=True, check=False)
+    done = subprocess.run(
+        ["bash", str(script)], env=full_env, capture_output=True, text=True, check=False
+    )
     return done.returncode, done.stdout + done.stderr, log.read_text().splitlines()
 
 
 @needs_bash
 def test_an_entry_taken_at_once_is_published_once(tmp_path):
     entry = _entry(tmp_path)
-    code, _, calls = _step(tmp_path, "Publish the entry", {"ENTRY": str(entry), "ATTEMPTS": "6", "REFUSE": "0"})
+    code, _, calls = _step(
+        tmp_path,
+        "Publish the entry",
+        {"ENTRY": str(entry), "ATTEMPTS": "6", "REFUSE": "0"},
+    )
     assert code == 0 and calls == ["publish pypi mcpb"]
 
 
 @needs_bash
 def test_a_refusal_is_retried(tmp_path):
     entry = _entry(tmp_path)
-    code, out, calls = _step(tmp_path, "Publish the entry", {"ENTRY": str(entry), "ATTEMPTS": "3", "REFUSE": "2"})
+    code, out, calls = _step(
+        tmp_path,
+        "Publish the entry",
+        {"ENTRY": str(entry), "ATTEMPTS": "3", "REFUSE": "2"},
+    )
     assert code == 0 and calls == ["publish pypi mcpb"] * 3
     assert "attempt 2 refused" in out
 
@@ -181,7 +203,11 @@ def test_a_refusal_is_retried(tmp_path):
 @needs_bash
 def test_a_lasting_refusal_falls_back_to_the_entry_without_the_bundle(tmp_path):
     entry = _entry(tmp_path)
-    code, out, calls = _step(tmp_path, "Publish the entry", {"ENTRY": str(entry), "ATTEMPTS": "3", "REFUSE": "3"})
+    code, out, calls = _step(
+        tmp_path,
+        "Publish the entry",
+        {"ENTRY": str(entry), "ATTEMPTS": "3", "REFUSE": "3"},
+    )
     assert code == 1
     assert calls == ["publish pypi mcpb"] * 3 + ["publish pypi"]
     assert "::warning::The registry refused the entry with the bundle" in out
@@ -191,7 +217,11 @@ def test_a_lasting_refusal_falls_back_to_the_entry_without_the_bundle(tmp_path):
 @needs_bash
 def test_an_entry_without_a_bundle_has_no_fallback(tmp_path):
     entry = _entry(tmp_path, with_bundle=False)
-    code, out, calls = _step(tmp_path, "Publish the entry", {"ENTRY": str(entry), "ATTEMPTS": "2", "REFUSE": "9"})
+    code, out, calls = _step(
+        tmp_path,
+        "Publish the entry",
+        {"ENTRY": str(entry), "ATTEMPTS": "2", "REFUSE": "9"},
+    )
     assert code == 1 and calls == ["publish pypi"] * 2
     assert "refused the entry 2 times" in out
 
@@ -199,17 +229,31 @@ def test_an_entry_without_a_bundle_has_no_fallback(tmp_path):
 @needs_bash
 def test_the_checksum_is_taken_from_the_release_asset(tmp_path):
     entry = _entry(tmp_path)
-    code, _, calls = _step(tmp_path, "Fill in the bundle's checksum", {"ENTRY": str(entry), "TAG": "v1.2.3", "REFUSE": "0"})
+    code, _, calls = _step(
+        tmp_path,
+        "Fill in the bundle's checksum",
+        {"ENTRY": str(entry), "TAG": "v1.2.3", "REFUSE": "0"},
+    )
     assert code == 0
-    assert calls == [f"gh release download v1.2.3 --pattern {BUNDLE} --dir {tmp_path} --clobber"]
-    (mcpb,) = [p for p in json.loads(entry.read_text("utf-8"))["packages"] if p["registryType"] == "mcpb"]
+    assert calls == [
+        f"gh release download v1.2.3 --pattern {BUNDLE} --dir {tmp_path} --clobber"
+    ]
+    (mcpb,) = [
+        p
+        for p in json.loads(entry.read_text("utf-8"))["packages"]
+        if p["registryType"] == "mcpb"
+    ]
     assert mcpb["fileSha256"] == hashlib.sha256(b"the bundle").hexdigest()
 
 
 @needs_bash
 def test_without_a_bundle_nothing_is_downloaded(tmp_path):
     entry = _entry(tmp_path, with_bundle=False)
-    code, out, calls = _step(tmp_path, "Fill in the bundle's checksum", {"ENTRY": str(entry), "TAG": "v1.2.3", "REFUSE": "0"})
+    code, out, calls = _step(
+        tmp_path,
+        "Fill in the bundle's checksum",
+        {"ENTRY": str(entry), "TAG": "v1.2.3", "REFUSE": "0"},
+    )
     assert code == 0 and calls == []
     assert "nothing to fill in" in out
 

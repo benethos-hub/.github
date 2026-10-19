@@ -18,7 +18,9 @@ ACTION_DIR = ROOT / "actions" / "publish" / "pypi"
 ACTION = yaml.safe_load((ACTION_DIR / "action.yml").read_text("utf-8"))
 STEPS = {step.get("name"): step for step in ACTION["runs"]["steps"]}
 
-_spec = importlib.util.spec_from_file_location("check_dist", ACTION_DIR / "check_dist.py")
+_spec = importlib.util.spec_from_file_location(
+    "check_dist", ACTION_DIR / "check_dist.py"
+)
 assert _spec and _spec.loader
 check_dist = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(check_dist)
@@ -30,7 +32,12 @@ FILES = [
 ]
 
 
-def _dist(tmp_path: Path, name: str = "benethos_example", version: str = "1.2.3", files: list[str] = FILES) -> Path:
+def _dist(
+    tmp_path: Path,
+    name: str = "benethos_example",
+    version: str = "1.2.3",
+    files: list[str] = FILES,
+) -> Path:
     dist = tmp_path / "dist"
     dist.mkdir()
     with zipfile.ZipFile(dist / f"{name}-{version}-py3-none-any.whl", "w") as wheel:
@@ -41,9 +48,16 @@ def _dist(tmp_path: Path, name: str = "benethos_example", version: str = "1.2.3"
 
 
 def test_the_release_passes(tmp_path, capsys):
-    contains = ["benethos_example/py.typed", "benethos_example-{version}.dist-info/licenses/LICENSE"]
-    assert check_dist.check(_dist(tmp_path), "v1.2.3", "benethos-example", contains) == 0
-    assert capsys.readouterr().out.startswith("OK: benethos_example-1.2.3-py3-none-any.whl")
+    contains = [
+        "benethos_example/py.typed",
+        "benethos_example-{version}.dist-info/licenses/LICENSE",
+    ]
+    assert (
+        check_dist.check(_dist(tmp_path), "v1.2.3", "benethos-example", contains) == 0
+    )
+    assert capsys.readouterr().out.startswith(
+        "OK: benethos_example-1.2.3-py3-none-any.whl"
+    )
 
 
 def test_a_wheel_of_another_version_is_not_uploaded(tmp_path, capsys):
@@ -91,7 +105,10 @@ def test_the_action_builds_checks_and_uploads_from_one_folder():
     assert 'rm -rf "$DIST"' in build["run"] and '--package "$PACKAGE"' in build["run"]
     assert '"$GITHUB_ACTION_PATH/check_dist.py"' in check["run"]
     assert upload["run"] == 'uv publish --trusted-publishing always "$DIST"/*'
-    assert check["env"]["TAG"] == "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+    assert (
+        check["env"]["TAG"]
+        == "${{ inputs.tag || github.event.release.tag_name || github.ref_name }}"
+    )
 
 
 def test_a_trial_run_checks_everything_but_the_version(tmp_path, monkeypatch, capsys):
@@ -101,7 +118,10 @@ def test_a_trial_run_checks_everything_but_the_version(tmp_path, monkeypatch, ca
     monkeypatch.setenv("DRY_RUN", "true")
     monkeypatch.setenv("WHEEL_CONTAINS", "benethos_example/py.typed")
     assert check_dist.main() == 0
-    assert "Trial run: benethos_example-1.2.3-py3-none-any.whl is version 1.2.3" in capsys.readouterr().out
+    assert (
+        "Trial run: benethos_example-1.2.3-py3-none-any.whl is version 1.2.3"
+        in capsys.readouterr().out
+    )
     monkeypatch.setenv("WHEEL_CONTAINS", "benethos_example/missing.txt")
     assert check_dist.main() == 1
 

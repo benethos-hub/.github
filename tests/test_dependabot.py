@@ -30,13 +30,18 @@ def test_every_action_that_uses_another_is_watched():
     needed = {
         _folder(path)
         for path in (ROOT / "actions").rglob("action.yml")
-        if any("uses" in step for step in yaml.safe_load(path.read_text("utf-8"))["runs"]["steps"])
+        if any(
+            "uses" in step
+            for step in yaml.safe_load(path.read_text("utf-8"))["runs"]["steps"]
+        )
     }
     assert "/" in watched
     assert needed <= watched, f"add to dependabot.yml: {sorted(needed - watched)}"
 
 
-@pytest.mark.parametrize(("ecosystem", "lockfile"), [("uv", "uv.lock"), ("npm", "package-lock.json")])
+@pytest.mark.parametrize(
+    ("ecosystem", "lockfile"), [("uv", "uv.lock"), ("npm", "package-lock.json")]
+)
 def test_every_lockfile_is_watched(ecosystem, lockfile):
     watched = _watched(ecosystem)
     needed = {
@@ -44,4 +49,6 @@ def test_every_lockfile_is_watched(ecosystem, lockfile):
         for path in ROOT.rglob(lockfile)
         if not {".git", ".venv", "node_modules"} & set(path.parts)
     }
-    assert needed == watched, f"dependabot.yml lists {sorted(watched)}, the lockfiles are in {sorted(needed)}"
+    assert needed == watched, (
+        f"dependabot.yml lists {sorted(watched)}, the lockfiles are in {sorted(needed)}"
+    )

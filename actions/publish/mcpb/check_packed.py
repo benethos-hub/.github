@@ -37,7 +37,9 @@ def differences(root: Path, bundle: Path) -> list[str]:
     staged = staged_files(root)
     packed = packed_files(bundle)
     found = [f"added by the packer: {name}" for name in sorted(packed.keys() - staged)]
-    found += [f"missing from the bundle: {name}" for name in sorted(staged.keys() - packed)]
+    found += [
+        f"missing from the bundle: {name}" for name in sorted(staged.keys() - packed)
+    ]
     found += [
         f"changed by the packer: {name}"
         for name in sorted(staged.keys() & packed)

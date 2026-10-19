@@ -14,7 +14,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = pytest.mark.skipif(sys.platform == "win32", reason="the action runs in bash")
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="the action runs in bash"
+)
 
 ROOT = Path(__file__).resolve().parent.parent
 ACTION_DIR = ROOT / "actions" / "python" / "pip-audit"
@@ -83,7 +85,9 @@ def test_pip_audit_comes_from_the_lockfile_of_the_action(tmp_path):
     into the runner's temporary folder."""
     _, _, calls = _audit(tmp_path, "idna==3.15\n")
     for call in calls:
-        assert call[0].startswith(f"run --quiet --frozen --project {ACTION_DIR} pip-audit ")
+        assert call[0].startswith(
+            f"run --quiet --frozen --project {ACTION_DIR} pip-audit "
+        )
         assert call[0].endswith(f" ENV {tmp_path}/pip-audit-env")
     lock = (ACTION_DIR / "uv.lock").read_text("utf-8")
     assert '\nname = "pip-audit"\n' in lock
@@ -121,7 +125,9 @@ def test_a_package_without_a_pinned_version_is_named(tmp_path):
 
 
 def test_each_waiver_reaches_pip_audit(tmp_path):
-    _, _, calls = _audit(tmp_path, "idna==3.15\n", ignore="GHSA-aaaa-bbbb-cccc PYSEC-2026-1")
+    _, _, calls = _audit(
+        tmp_path, "idna==3.15\n", ignore="GHSA-aaaa-bbbb-cccc PYSEC-2026-1"
+    )
     for call in calls:
         assert "--ignore-vuln GHSA-aaaa-bbbb-cccc --ignore-vuln PYSEC-2026-1" in call[0]
 
