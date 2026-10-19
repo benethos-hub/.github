@@ -12,6 +12,8 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | [SECURITY.md](SECURITY.md) | Security policy for every repository without its own policy |
 | [profile/](profile/) | Organisation profile shown on github.com/benethos-hub |
 | [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows and actions of this repository |
+| [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see. One entry per download. |
+| [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
 | [tests/](tests/) | Tests for the scripts of the actions and for how the workflows wire them |
 | [pyproject.toml](pyproject.toml), [uv.lock](uv.lock) | The tools for the tests (pytest, PyYAML, Mypy), locked, with their settings |
 
@@ -23,6 +25,7 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 | --- | --- | --- |
 | [brand.yml](.github/workflows/brand.yml) | reusable | Check of the brand assets of a repository |
 | [brand-report.yml](.github/workflows/brand-report.yml) | scheduled | Weekly report on the brand assets of all repositories |
+| [download-pins-report.yml](.github/workflows/download-pins-report.yml) | scheduled | Weekly report on pinned downloads with a newer release or a checksum that is not the official one |
 | [python-lint.yml](.github/workflows/python-lint.yml) | reusable | Lockfile in step with `pyproject.toml`, Ruff and Mypy |
 | [python-tests.yml](.github/workflows/python-tests.yml) | reusable | Tests on every supported Python version, with coverage on the newest |
 | [python-lowest-versions.yml](.github/workflows/python-lowest-versions.yml) | reusable | Tests against the lowest dependency versions that `pyproject.toml` allows |
@@ -45,6 +48,8 @@ Actions may live in subfolders. Those for Python projects are in `actions/python
 Every Python tool has its version in a `uv.lock`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked in a `uv.lock` next to the action, so the lockfile decides in every repository that uses it. Dependabot keeps both lockfiles current.
 
 An action that uses another action itself needs its folder in `.github/dependabot.yml`, and so does every folder with a `uv.lock`. A test in `tests/` fails otherwise.
+
+A tool downloaded directly, pinned by version and checksum like the `mcp-publisher` of `publish/mcp-registry`, is invisible to Dependabot. It gets an entry in [.github/download-pins.yml](.github/download-pins.yml) instead. The Download pins report checks every entry each week against the releases of its upstream and lists a newer release, with the version and checksum to paste, in the issue [Pinned downloads need an update](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Pinned+downloads+need+an+update%22).
 
 ## Release gate
 

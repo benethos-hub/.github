@@ -53,10 +53,10 @@ runs:
       uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
     # Pinned with its checksum. Dependabot cannot see a download, so the bump
-    # is by hand: take the line for mcp-publisher_linux_amd64.tar.gz from the
-    # release's checksums file. The registry refuses a publisher that is too
-    # old with "invalid audience", and that error is the cue. This is the one
-    # place for all repositories.
+    # is by hand. The Download pins report (.github/download-pins.yml) opens
+    # an issue with both lines to paste once a newer release is out. The
+    # registry refuses a publisher that is too old with "invalid audience".
+    # This is the one place for all repositories.
     - name: Install mcp-publisher
       shell: bash
       env:

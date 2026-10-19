@@ -1,0 +1,64 @@
+name: Download pins report
+
+# Dependabot cannot see a download pinned by version and checksum, such as
+# the mcp-publisher of actions/publish/mcp-registry. Every week this checks
+# each pin listed in .github/download-pins.yml against the releases of its
+# upstream (.github/scripts/download_pins.py). A newer release, or a pinned
+# checksum that is not the official one, is reported in a single open issue
+# in this repository, with the lines to paste. The issue is closed once every
+# pin is current.
+
+on:
+  schedule:
+    - cron: "30 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: download-pins-report
+
+jobs:
+  report:
+    name: Report outdated download pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITLE: Pinned downloads need an update
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+
+      - name: Check every pin
+        run: uv run --frozen .github/scripts/download_pins.py > "$RUNNER_TEMP/report.md"
+
+      - name: Update the issue
+        run: |
+          set -euo pipefail
+          body=$(cat "$RUNNER_TEMP/report.md")
+          issue=$(gh issue list --state open --limit 100 --json number,title \
+            --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n 1)
+
+          if [ -z "$body" ]; then
+            echo "Every pinned download is current." | tee -a "$GITHUB_STEP_SUMMARY"
+            if [ -n "$issue" ]; then
+              gh issue close "$issue" --comment "Every pinned download is current now."
+            fi
+            exit 0
+          fi
+
+          body="$body"$'\n\n'"This issue is updated by the [Download pins report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/download-pins-report.yml) workflow and closed once every pin is current."
+          printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi

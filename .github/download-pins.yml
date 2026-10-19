@@ -1,0 +1,21 @@
+# Versions this repository downloads directly in a workflow or an action.
+# Dependabot cannot see a download, so download-pins-report.yml compares each
+# pin with the newest release of its upstream every week. A newer release, or
+# a pinned checksum that is not the official one, is reported in an issue
+# with the lines to paste. A new pin needs one entry here:
+#
+#   name        what is downloaded, as the report names it
+#   file        the file that pins it
+#   version     the key that holds the version in that file
+#   sha256      the key that holds the checksum in that file
+#   repository  the GitHub repository whose releases it comes from
+#   asset       the file name of the download in a release
+#   checksums   how the name of the release's checksums file ends
+
+- name: mcp-publisher
+  file: actions/publish/mcp-registry/action.yml
+  version: MCP_PUBLISHER_VERSION
+  sha256: MCP_PUBLISHER_SHA256
+  repository: modelcontextprotocol/registry
+  asset: mcp-publisher_linux_amd64.tar.gz
+  checksums: _checksums.txt
