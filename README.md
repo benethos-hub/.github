@@ -14,6 +14,7 @@ Organisation defaults for benethos-hub. The organisation profile lives in [profi
 | [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for the actions pinned in the workflows and actions of this repository |
 | [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see. One entry per download. |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
+| [.github/actions/](.github/actions/) | Actions the workflows of this repository use themselves, such as `report-issue`, which keeps the one issue of each weekly report |
 | [tests/](tests/) | Tests for the scripts of the actions and for how the workflows wire them |
 | [pyproject.toml](pyproject.toml), [uv.lock](uv.lock) | The tools for the checks of this repository (Ruff, pytest, pytest-cov, PyYAML, Mypy), locked, with their settings |
 

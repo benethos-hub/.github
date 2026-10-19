@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -183,64 +182,11 @@ def test_the_workflow_runs_the_script_from_the_lockfile():
     )
 
 
-FAKE_GH = r"""#!/bin/bash
-case "$*" in
-  "issue list"*) echo "$OPEN_ISSUE" ;;
-  issue*) printf 'gh %s\n' "$*" >> "$GH_LOG" ;;
-esac
-"""
-
-
-@pytest.mark.skipif(sys.platform == "win32", reason="the step runs in bash")
-@pytest.mark.parametrize(
-    ("report", "open_issue", "expected"),
-    [
-        (
-            "These pinned downloads need an update:",
-            "",
-            "gh issue create --title Pinned downloads need an update "
-            "--body These pinned",
-        ),
-        (
-            "These pinned downloads need an update:",
-            "7",
-            "gh issue edit 7 --body These pinned",
-        ),
-        ("", "7", "gh issue close 7 --comment Every pinned download is current now."),
-        ("", "", ""),
-    ],
-)
-def test_the_issue_follows_the_report(tmp_path, report, open_issue, expected):
-    (step,) = [
-        s
-        for s in WORKFLOW["jobs"]["report"]["steps"]
-        if s.get("name") == "Update the issue"
-    ]
-    bin_dir = tmp_path / "bin"
-    bin_dir.mkdir()
-    gh = bin_dir / "gh"
-    gh.write_text(FAKE_GH)
-    gh.chmod(0o755)
-    (tmp_path / "report.md").write_text(report, "utf-8")
-    log = tmp_path / "gh.log"
-    log.touch()
-    script = tmp_path / "step.sh"
-    script.write_text(step["run"])
-    env = {
-        "PATH": f"{bin_dir}:/usr/bin:/bin",
-        "RUNNER_TEMP": str(tmp_path),
-        "TITLE": WORKFLOW["jobs"]["report"]["env"]["TITLE"],
-        "OPEN_ISSUE": open_issue,
-        "GH_LOG": str(log),
-        "GITHUB_STEP_SUMMARY": str(tmp_path / "summary.md"),
-        "GITHUB_SERVER_URL": "https://github.com",
-        "GITHUB_REPOSITORY": "benethos-hub/.github",
-    }
-    done = subprocess.run(
-        ["bash", str(script)], env=env, capture_output=True, text=True, check=False
-    )
-    assert done.returncode == 0, done.stderr
-    assert log.read_text().startswith(expected)
+def test_the_workflow_keeps_its_issue_with_the_shared_action():
+    issue = WORKFLOW["jobs"]["report"]["steps"][-1]
+    assert issue["uses"] == "./.github/actions/report-issue"
+    assert issue["with"]["title"] == "Pinned downloads need an update"
+    assert issue["with"]["report"] == "${{ runner.temp }}/report.md"
 
 
 @pytest.mark.parametrize(

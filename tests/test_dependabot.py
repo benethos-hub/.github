@@ -29,7 +29,8 @@ def test_every_action_that_uses_another_is_watched():
     watched = _watched("github-actions")
     needed = {
         _folder(path)
-        for path in (ROOT / "actions").rglob("action.yml")
+        for folder in (ROOT / "actions", ROOT / ".github" / "actions")
+        for path in folder.rglob("action.yml")
         if any(
             "uses" in step
             for step in yaml.safe_load(path.read_text("utf-8"))["runs"]["steps"]

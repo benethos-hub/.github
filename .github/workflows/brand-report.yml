@@ -26,13 +26,13 @@ jobs:
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
       ORG: ${{ github.repository_owner }}
-      TITLE: Brand assets need fixing
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sparse-checkout: actions/brand/assets
+          sparse-checkout: |
+            actions/brand/assets
+            .github/actions/report-issue
 
       - name: Install uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
@@ -41,24 +41,8 @@ jobs:
         run: uv run --no-project --python ">=3.11" actions/brand/assets/brand_assets.py report > "$RUNNER_TEMP/report.md"
 
       - name: Update the issue
-        run: |
-          set -euo pipefail
-          body=$(cat "$RUNNER_TEMP/report.md")
-          issue=$(gh issue list --state open --limit 100 --json number,title \
-            --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n 1)
-
-          if [ -z "$body" ]; then
-            echo "All repositories meet the brand rules." | tee -a "$GITHUB_STEP_SUMMARY"
-            if [ -n "$issue" ]; then
-              gh issue close "$issue" --comment "All repositories meet the brand rules now."
-            fi
-            exit 0
-          fi
-
-          body="$body This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once all repositories meet the rules."
-          printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
-          if [ -n "$issue" ]; then
-            gh issue edit "$issue" --body "$body"
-          else
-            gh issue create --title "$TITLE" --body "$body"
-          fi
+        uses: ./.github/actions/report-issue
+        with:
+          title: Brand assets need fixing
+          report: ${{ runner.temp }}/report.md
+          resolved: All repositories meet the brand rules.

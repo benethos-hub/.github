@@ -1,0 +1,68 @@
+name: Keep the report issue
+description: Opens, updates or closes the one issue that carries the report of a scheduled workflow.
+
+# Used by the scheduled reports of this repository, brand-report.yml and
+# download-pins-report.yml, by local path after the checkout:
+#
+#   - uses: ./.github/actions/report-issue
+#     with:
+#       title: Brand assets need fixing
+#       report: ${{ runner.temp }}/report.md
+#       resolved: All repositories meet the brand rules.
+#
+# An empty report closes the open issue with that title, if there is one.
+# Any other report becomes its body, or the body of a new issue. The job
+# needs issues: write.
+
+inputs:
+  title:
+    description: The title of the issue. The open issue with exactly this title is the one kept.
+    required: true
+  report:
+    description: The Markdown file with the report. An empty file means there is nothing to report.
+    required: true
+  resolved:
+    description: One sentence for a run with nothing to report, written to the step summary and used as the comment that closes the issue.
+    required: true
+  token:
+    description: The token for the GitHub CLI.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - name: Open, update or close the issue
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GH_REPO: ${{ github.repository }}
+        TITLE: ${{ inputs.title }}
+        REPORT: ${{ inputs.report }}
+        RESOLVED: ${{ inputs.resolved }}
+        WORKFLOW: ${{ github.workflow }}
+        WORKFLOW_REF: ${{ github.workflow_ref }}
+      run: |
+        set -euo pipefail
+        body=$(cat "$REPORT")
+        issue=$(gh issue list --state open --limit 100 --json number,title \
+          --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n 1)
+
+        if [ -z "$body" ]; then
+          echo "$RESOLVED" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "$RESOLVED"
+          fi
+          exit 0
+        fi
+
+        # WORKFLOW_REF is owner/repo/.github/workflows/<file>@<ref>.
+        file=${WORKFLOW_REF%@*}
+        file=${file##*/}
+        body="$body"$'\n\n'"This issue is updated by the [$WORKFLOW]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/$file) workflow and closed once nothing is left to report."
+        printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
+        if [ -n "$issue" ]; then
+          gh issue edit "$issue" --body "$body"
+        else
+          gh issue create --title "$TITLE" --body "$body"
+        fi
