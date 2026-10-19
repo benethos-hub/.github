@@ -1,12 +1,11 @@
 name: Brand report
 
-# Checks every public repository of the organisation against the brand rules:
-# an icon at assets/brand/icon.svg, and two PNG files exported from it,
-# icon.png (512x512) and social-preview.png (1280x640), neither older than the
-# last change to the SVG. The social preview uploaded in the repository
-# settings must match social-preview.png. Repositories that break a rule are
-# listed in a single open issue in this repository. The issue is updated on
-# each run and closed once all repositories meet the rules.
+# Checks every public repository of the organisation against the brand rules,
+# the same rules the CI check brand.yml applies (actions/brand/assets/
+# brand_assets.py), and compares the social preview uploaded in each
+# repository's settings with its social-preview.png. Repositories that break a
+# rule are listed in a single open issue in this repository. The issue is
+# updated on each run and closed once all repositories meet the rules.
 
 on:
   schedule:
@@ -31,84 +30,24 @@ jobs:
       ORG: ${{ github.repository_owner }}
       TITLE: Brand assets need fixing
     steps:
-      - name: Check repositories and update the issue
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: actions/brand/assets
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+
+      - name: Check every repository
+        run: uv run --no-project actions/brand/assets/brand_assets.py report > "$RUNNER_TEMP/report.md"
+
+      - name: Update the issue
         run: |
           set -euo pipefail
-
-          dir=assets/brand
-          svg=$dir/icon.svg
-          work=$(mktemp -d)
-
-          repos=$(gh api --paginate "orgs/$ORG/repos?type=public&per_page=100" \
-            --jq '.[] | select(.archived | not) | select(.fork | not) | select(.name != ".github") | .name' | sort)
-
-          report=""
-          for repo in $repos; do
-            problems=""
-            add() { problems="$problems  - $1"$'\n'; }
-            last_commit() { gh api "repos/$ORG/$repo/commits?path=$1&per_page=1" --jq '.[0].sha'; }
-
-            svg_commit=""
-            if gh api -H "Accept: application/vnd.github.raw" "repos/$ORG/$repo/contents/$svg" > "$work/icon.svg" 2>/dev/null; then
-              svg_commit=$(last_commit "$svg")
-              grep -q '<svg' "$work/icon.svg" || add "\`$svg\` is not an SVG file"
-            else
-              add "\`$svg\` is missing"
-            fi
-
-            # A PNG exported from the SVG must exist, have the given size, and
-            # its last commit must be the same as or later than the last commit
-            # of the SVG.
-            check_png() {
-              local png=$1 want=$2 size status
-              if ! gh api -H "Accept: application/vnd.github.raw" "repos/$ORG/$repo/contents/$png" > "$work/file.png" 2>/dev/null; then
-                add "\`$png\` is missing"
-                return
-              fi
-              if [ "$(head -c 8 "$work/file.png" | od -An -tx1 | tr -d ' \n')" != "89504e470d0a1a0a" ]; then
-                add "\`$png\` is not a PNG file"
-                return
-              fi
-              # Width and height are the two 4-byte big-endian numbers at offset 16.
-              size=$(od -An -tu1 -j16 -N8 "$work/file.png" | awk '{ printf "%dx%d", $1*16777216 + $2*65536 + $3*256 + $4, $5*16777216 + $6*65536 + $7*256 + $8 }')
-              [ "$size" = "$want" ] || add "\`$png\` is $size pixels instead of $want"
-              if [ -n "$svg_commit" ]; then
-                status=$(gh api "repos/$ORG/$repo/compare/$svg_commit...$(last_commit "$png")" --jq '.status')
-                case "$status" in
-                  identical | ahead) ;;
-                  *) add "\`$png\` is older than the last change to \`$svg\`" ;;
-                esac
-              fi
-            }
-
-            check_png "$dir/icon.png" 512x512
-            check_png "$dir/social-preview.png" 1280x640
-
-            # GitHub does not read the social preview from the repository. It
-            # has to be uploaded in the settings, and GitHub keeps the upload
-            # byte for byte, so the two files can be compared directly.
-            preview=$dir/social-preview.png
-            if gh api -H "Accept: application/vnd.github.raw" "repos/$ORG/$repo/contents/$preview" > "$work/preview.png" 2>/dev/null; then
-              og=$(gh api graphql \
-                -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { usesCustomOpenGraphImage openGraphImageUrl } }' \
-                -f owner="$ORG" -f name="$repo" \
-                --jq '.data.repository | "\(.usesCustomOpenGraphImage) \(.openGraphImageUrl)"')
-              if [ "${og%% *}" != "true" ]; then
-                add "no social preview is uploaded in the repository settings"
-              elif ! curl -sfL "${og#* }" | cmp -s - "$work/preview.png"; then
-                add "the social preview uploaded in the repository settings differs from \`$preview\`"
-              fi
-            fi
-
-            if [ -n "$problems" ]; then
-              report="$report- [$repo](https://github.com/$ORG/$repo)"$'\n'"$problems"
-            fi
-          done
-
+          body=$(cat "$RUNNER_TEMP/report.md")
           issue=$(gh issue list --state open --limit 100 --json number,title \
             --jq ".[] | select(.title == \"$TITLE\") | .number" | head -n 1)
 
-          if [ -z "$report" ]; then
+          if [ -z "$body" ]; then
             echo "All repositories meet the brand rules." | tee -a "$GITHUB_STEP_SUMMARY"
             if [ -n "$issue" ]; then
               gh issue close "$issue" --comment "All repositories meet the brand rules now."
@@ -116,9 +55,8 @@ jobs:
             exit 0
           fi
 
-          body="These repositories do not meet the brand rules:"$'\n\n'"$report"$'\n'"Every repository of the organisation needs its icon as \`$svg\` and, exported from it, a 512x512 \`$dir/icon.png\` and a 1280x640 \`$dir/social-preview.png\`. Neither PNG may be older than the last change to the SVG. The social preview uploaded in the repository settings must be the same file as \`$dir/social-preview.png\`. This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once all repositories meet the rules."
+          body="$body This issue is updated by the [Brand report]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/brand-report.yml) workflow and closed once all repositories meet the rules."
           printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
-
           if [ -n "$issue" ]; then
             gh issue edit "$issue" --body "$body"
           else

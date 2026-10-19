@@ -258,3 +258,64 @@ def test_the_action_runs_the_shared_rules():
     assert (
         step["run"] == 'uv run --no-project "$GITHUB_ACTION_PATH/brand_assets.py" check'
     )
+
+
+REPORT = yaml.safe_load(
+    (ROOT / ".github" / "workflows" / "brand-report.yml").read_text("utf-8")
+)
+
+
+def test_the_report_applies_the_same_script():
+    steps = {s.get("name"): s for s in REPORT["jobs"]["report"]["steps"]}
+    assert steps["Check every repository"]["run"] == (
+        "uv run --no-project actions/brand/assets/brand_assets.py report "
+        '> "$RUNNER_TEMP/report.md"'
+    )
+    assert REPORT["jobs"]["report"]["env"]["TITLE"] == "Brand assets need fixing"
+
+
+FAKE_GH = r"""#!/bin/bash
+case "$*" in
+  "issue list"*) echo "$OPEN_ISSUE" ;;
+  issue*) printf 'gh %s\n' "$*" >> "$GH_LOG" ;;
+esac
+"""
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="the step runs in bash")
+@pytest.mark.parametrize(
+    ("report", "open_issue", "expected"),
+    [
+        ("These repositories", "", "gh issue create --title Brand assets need fixing"),
+        ("These repositories", "2", "gh issue edit 2 --body These repositories"),
+        ("", "2", "gh issue close 2 --comment All repositories meet the brand rules"),
+        ("", "", ""),
+    ],
+)
+def test_the_issue_follows_the_report(tmp_path, report, open_issue, expected):
+    steps = {s.get("name"): s for s in REPORT["jobs"]["report"]["steps"]}
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    gh = bin_dir / "gh"
+    gh.write_text(FAKE_GH)
+    gh.chmod(0o755)
+    (tmp_path / "report.md").write_text(report, "utf-8")
+    log = tmp_path / "gh.log"
+    log.touch()
+    script = tmp_path / "step.sh"
+    script.write_text(steps["Update the issue"]["run"])
+    env = {
+        "PATH": f"{bin_dir}:/usr/bin:/bin",
+        "RUNNER_TEMP": str(tmp_path),
+        "TITLE": REPORT["jobs"]["report"]["env"]["TITLE"],
+        "OPEN_ISSUE": open_issue,
+        "GH_LOG": str(log),
+        "GITHUB_STEP_SUMMARY": str(tmp_path / "summary.md"),
+        "GITHUB_SERVER_URL": "https://github.com",
+        "GITHUB_REPOSITORY": "benethos-hub/.github",
+    }
+    done = subprocess.run(
+        ["bash", str(script)], env=env, capture_output=True, text=True, check=False
+    )
+    assert done.returncode == 0, done.stderr
+    assert log.read_text().startswith(expected)
