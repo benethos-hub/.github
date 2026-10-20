@@ -1,4 +1,4 @@
-# .github
+# Organisation repository for benethos-hub
 
 [![CI](https://github.com/benethos-hub/.github/actions/workflows/ci.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/benethos-hub/.github/badges/coverage.json&logo=githubactions&logoColor=white)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
