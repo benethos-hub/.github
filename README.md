@@ -323,14 +323,14 @@ Two rules follow from that:
 
 `ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `coverage-badge.yml`, called by local path, the way a project calls them. A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
 
-A branch ruleset for `main` of this repository requires these checks:
+The branch protection of `main` in this repository requires these checks. It binds admins as well, so every change reaches `main` through a pull request and passes these checks first, before any project loads it at `@main`:
 
 - `lint / lint`
 - `test / Python 3.11`, `test / Python 3.12`, `test / Python 3.13`, `test / Python 3.14` and `test / Python 3.15`
 - `audit / Dependency audit`
 - `Lockfiles of the actions`
 
-The names come from the calling job and the job name in the called workflow. A change to either, or to the Python versions of `python-tests.yml`, changes the names, and the ruleset has to follow in the same step. Otherwise it waits for a check that never comes. `coverage-badge / Coverage badge` runs on a push only and is not required.
+The names come from the calling job and the job name in the called workflow. A change to either, or to the Python versions of `python-tests.yml`, changes the names, and the branch protection has to follow in the same step. Otherwise it waits for a check that never comes. `coverage-badge / Coverage badge` runs on a push only and is not required.
 
 The scripts of the actions run with `uv run --no-project --python ">=3.11"`, so they get the lowest Python this repository is checked against, whichever Python the runner brings. Every action that needs uv installs it itself, so a caller never has to. A second install in the same job comes from the runner's tool cache. The uv cache in the GitHub Actions cache belongs to the job: no action saves it, and every workflow that does saves it under a key of its own, through `cache-suffix` or the Python version. `python-lowest-versions.yml` names its key after the Python version, `editable` and `requirements` of the call, so the calls of a repository with several packages do not share one. Jobs that run side by side would otherwise race for one key, and the loser would restore a cache another job filled. A test in `tests/` fails for a script call without that version, for an action that saves the uv cache, for two workflows with the same cache key, for an action that uses another action without its folder in `dependabot.yml`, and for a lockfile without its folder there.
 
