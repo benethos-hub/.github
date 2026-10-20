@@ -7,7 +7,7 @@ name: CI
 # The calls below go by a local path. GitHub loads such a workflow from the
 # very commit under test, also in a pull request, so a change to
 # python-lint.yml or python-tests.yml is tried here before it reaches main.
-# The actions those workflows call at main are not, see the README.
+# The actions those workflows call at main are not, see docs/maintaining.md.
 #
 # Ruff, pytest, PyYAML and Mypy come from uv.lock, and their settings from
 # pyproject.toml. Coverage covers the scripts the actions and workflows run.
