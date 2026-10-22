@@ -22,7 +22,7 @@ updates:
       - "/actions/release/ci-passed"
       - "/actions/release/tag-matches-version"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 5
     groups:
       minor-and-patch:
@@ -38,7 +38,7 @@ updates:
       - "/"
       - "/actions/python/pip-audit"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 5
     groups:
       minor-and-patch:
@@ -53,7 +53,7 @@ updates:
     directories:
       - "/actions/publish/mcpb"
     schedule:
-      interval: "weekly"
+      interval: "daily"
     open-pull-requests-limit: 5
     groups:
       minor-and-patch:
