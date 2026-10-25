@@ -147,4 +147,6 @@ Every repository has a `.github/dependabot.yml` with one entry per ecosystem it 
 
 This repository runs every entry daily. The repositories call its workflows and actions at `main`, so an update here reaches all of them on the same day, and only the Dependabot of this repository keeps those pins current.
 
+Dependabot takes daily as Monday to Friday, and it proposes a release only once it is three days old. It waits that long without being told. This repository writes the wait down as `cooldown` with `default-days: 3`, so the file shows what happens.
+
 A package whose updates need a review of their own, such as the `mcp` SDK in the MCP servers, is left out of the group through `exclude-patterns`, so each of its updates is a pull request of its own. The `dependabot.yml` of [lexware-office-mcp](https://github.com/benethos-hub/lexware-office-mcp/blob/main/.github/dependabot.yml) shows all three entries with the reason for each.
