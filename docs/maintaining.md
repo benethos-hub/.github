@@ -34,7 +34,7 @@ A test in `tests/` fails for a script call without that version, for an action t
 
 ## Dependencies
 
-Every action in a workflow or action here is pinned to a commit, with its version in a comment beside it. Dependabot raises commit and comment together. Every Python tool has its version in a `uv.lock` and every Node tool in a `package-lock.json`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked next to the action, so the lockfile decides in every repository that uses it, and so is the packer of `publish/mcpb`. Dependabot keeps every lockfile current.
+Every action in a workflow or action here is pinned to a commit, with its version in a comment beside it. Dependabot raises commit and comment together. Every Python tool has its version in a `uv.lock` and every Node tool in a `package-lock.json`, never in a workflow. The pip-audit that `python/pip-audit` runs is locked next to the action, so the lockfile decides in every repository that uses it, and so is the packer of `publish/mcpb`. Dependabot raises the direct dependencies in every lockfile. Packages beneath them move only through a security update or a refresh by hand, such as `uv lock --upgrade` and `npm update`.
 
 A tool downloaded directly, pinned by version and checksum like the `mcp-publisher` of `publish/mcp-registry`, is invisible to Dependabot. It gets an entry in [.github/download-pins.yml](../.github/download-pins.yml) instead. `download-pins-report.yml` checks every entry each Monday against the releases of its upstream and lists a newer release, with the version and checksum to paste, in the issue [Pinned downloads need an update](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Pinned+downloads+need+an+update%22).
 

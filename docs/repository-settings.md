@@ -162,6 +162,8 @@ Every repository has a `.github/dependabot.yml` with one entry per ecosystem it 
 
 Every `uv` entry also sets `versioning-strategy: increase-if-necessary`, so a release the range in `pyproject.toml` allows changes `uv.lock` only. Left to itself, Dependabot can raise the lower bound as well, which reaches everyone who installs the package although nothing asks for it. The lower bounds stay what `lowest-versions` tests, and that job says when one has become too low.
 
+The standard for `open-pull-requests-limit` is 5, and 10 is the most an entry sets. This repository sets 10.
+
 This repository runs every entry daily. The repositories call its workflows and actions at `main`, so an update here reaches all of them on the same day, and only the Dependabot of this repository keeps those pins current.
 
 Dependabot takes daily as Monday to Friday, and it proposes a release only once it is three days old. It waits that long without being told. This repository writes the wait down as `cooldown` with `default-days: 3`, so the file shows what happens.
