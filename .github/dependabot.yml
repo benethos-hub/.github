@@ -17,6 +17,7 @@ updates:
       - "/"
       - "/actions/brand/assets"
       - "/actions/coverage-badge"
+      - "/actions/freshness/report"
       - "/actions/publish/ghcr"
       - "/actions/publish/mcp-registry"
       - "/actions/publish/mcpb"
