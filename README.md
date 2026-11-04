@@ -17,7 +17,7 @@ The repositories call the workflows and actions here at `main`. A project needs 
 | Path | What it holds |
 | --- | --- |
 | [.github/workflows/](.github/workflows/) | The reusable workflows, the two weekly reports and the CI of this repository |
-| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/`, `publish/`, and `coverage-badge/` and `report-issue/` for every language |
+| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/`, `publish/`, and `coverage-badge/`, `freshness/` and `report-issue/` for every language |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
 | [.github/dependabot.yml](.github/dependabot.yml) | Daily updates for every pinned action and every lockfile here |
 | [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see |
@@ -38,6 +38,7 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 | [Publishing a release](docs/releases.md) | The `publish.yml` of a project, the publishing actions, the release gate, release tags, trial runs and the one-time setup |
 | [Brand assets](docs/brand-assets.md) | The icon and social preview of every repository, the check in the CI and the weekly report |
 | [Reports in an issue](docs/reports.md) | How a scheduled workflow of any repository keeps its result in one issue |
+| [Freshness report](docs/freshness.md) | The daily report of what a repository pins and what is newer: packages, vulnerabilities, images and actions in one issue |
 | [Repository settings](docs/repository-settings.md) | The settings in GitHub: merging, branch protection, release tags, environments, security, Actions and Dependabot |
 | [Maintaining this repository](docs/maintaining.md) | How a change here reaches the projects, the checks of this repository and its dependencies |
 

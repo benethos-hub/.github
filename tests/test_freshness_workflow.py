@@ -165,3 +165,13 @@ def test_the_audit_adapter_exports_like_the_dependency_audit_and_asks_for_findin
     assert audit["with"]["ignore-vulns"] == "${{ inputs.ignore-vulns }}"
     assert audit["with"]["requirements"] == adapter_export["env"]["LOCKED"]
     assert set(AUDIT_ACTION["inputs"]) == {"findings", "ignore-vulns"}
+
+
+def test_the_documentation_names_every_input_and_is_linked():
+    page = (ROOT / "docs" / "freshness.md").read_text("utf-8")
+    for name in INPUTS:
+        assert f"`{name}`" in page, name
+    for job in JOBS.values():
+        assert f"`{job['name']}`" in page, job["name"]
+    assert "(docs/freshness.md)" in (ROOT / "README.md").read_text("utf-8")
+    assert "freshness.md" in (ROOT / "docs" / "new-repository.md").read_text("utf-8")

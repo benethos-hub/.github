@@ -43,4 +43,4 @@ The check writes nothing to the file when all is well, and only the report when 
 
 The action adds a line to the body that links to the calling workflow. It looks at the newest 100 open issues. A changed title opens a new issue and leaves the old one open.
 
-`brand-report.yml` and `download-pins-report.yml` of this repository use it as well, by local path after the checkout.
+`brand-report.yml` and `download-pins-report.yml` of this repository use it as well, by local path after the checkout, and so does the [freshness report](freshness.md) of every repository.
