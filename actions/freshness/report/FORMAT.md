@@ -1,6 +1,12 @@
 # The findings between the freshness jobs
 
-Every job of `freshness.yml` that measures something leaves an artifact named `freshness-<job>` with two files. The report job reads all of them and knows nothing else. A job for another language writes the same two files and needs no change in the report.
+Every job of `freshness.yml` that measures something leaves an artifact named `freshness-<job>` with up to three files. The report job reads all of them and knows nothing else. A job for another language, or a job of the calling repository, writes the same files and needs no change in the report.
+
+| File | Required | Holds |
+| --- | --- | --- |
+| `status.json` | yes | Whether the job has a result, and which issue it addresses. |
+| `findings.jsonl` | no | One finding per line, for the tables of the report. |
+| `section.md` | no | Prose of the job, for what no table can say. |
 
 ## status.json
 
@@ -12,11 +18,14 @@ One object that says whether the job has a result.
 
 | Field | Meaning |
 | --- | --- |
-| `result` | `ok` when the job measured everything it set out to measure. Anything else counts as failed. |
+| `result` | `ok` when the job measured everything it set out to measure. `inconclusive` when it ran but could not prove anything, after a rate limit or an unreachable counterpart, say. Anything else counts as failed. |
 | `checked` | How many pins the job looked at. Informational. |
 | `packages` | Optional. The packages of the repository, for a job that knows them. The report shows a packages column once more than one is named. |
+| `issue` | Optional. `report`, the default, or `alarm`. The findings and the section of an `alarm` job go to the alarm issue, which the caller names with `alarm-title`. |
 
-A job that is expected and leaves no artifact, or leaves a status other than `ok`, is reported as a job without a result. The report is then never empty, so a run that proved nothing cannot close an open issue. A job the caller switched off is not expected and leaves nothing.
+A job that is expected and leaves no artifact, or leaves a status other than `ok`, is reported as a job without a result. The report is then never empty, so a run that proved nothing cannot close an open issue. A job the caller switched off is not expected and leaves nothing. A job of the calling repository is expected once the caller lists it in `extra-jobs`.
+
+The alarm issue is touched only when every job is conclusive: no job `inconclusive`, no `alarm` job failed, no expected job without an artifact, whose issue would be unknown. Otherwise the alarm issue is left as it was, and the report says which job could not prove anything.
 
 ## findings.jsonl
 
@@ -46,12 +55,16 @@ One JSON object per line, one line per finding. A pin that occurs in several fil
 | `vulnerability` | for `vulnerability` | The advisory ID. |
 | `fix` | no | The versions that fix the advisory. |
 
+## section.md
+
+Markdown the report takes over as it is, under a heading with the name of the job, after the tables. It is for what no finding can say, such as which step of a check failed on which versions. A job may leave `status.json` and `section.md` alone, without findings. The issue is public: names, versions and the result of a step go in, no log, no secret. Headings inside the section start at the fourth level.
+
 ## How the report derives the kind
 
 The kind compares the numbers in `current` and `newest`, a leading `v` or a suffix like `-slim` is ignored. A different first number is `major`, a different second number is `minor`, any other difference is `patch`. A version that looks like a date, with a first number of four digits or any number of eight digits, is `unknown`, so a new `2026.5.4` never reads as a minor. A digest or a commit, hexadecimal, is `unknown` as well, and so are two values without numbers.
 
 ## What the report lists
 
-Named one by one: every vulnerability, image and action, every build backend, every direct runtime package and every major of a runtime package. Only counted: transitive runtime packages that moved by a minor, a patch or an unknown kind. They do not open the issue by themselves. Packages with scope `dev` are hidden and counted, unless the caller asks for them. A finding whose name matches a pattern of the caller's `ignore` input is dropped and counted.
+Named one by one: every vulnerability, image and action, every build backend, every direct runtime package and every major of a runtime package. Only counted: transitive runtime packages that moved by a minor, a patch or an unknown kind. They do not open the issue by themselves. Packages with scope `dev` are hidden and counted, unless the caller asks for them. A finding whose name matches a pattern of the caller's `ignore` input is dropped and counted. Every section is named.
 
-The report is empty, which closes the issue, exactly when nothing is named one by one and every expected job has a result.
+The report is empty, which closes the issue, exactly when nothing is named one by one, no job left a section, and every expected job has a result. The alarm file is empty exactly when no `alarm` job named a finding or left a section.

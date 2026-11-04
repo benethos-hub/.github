@@ -41,6 +41,7 @@ def _job(
     job: str,
     findings: list[dict[str, object]] | None = None,
     status: dict[str, object] | None = None,
+    section: str = "",
 ) -> None:
     folder = results / f"freshness-{job}"
     folder.mkdir(parents=True)
@@ -49,6 +50,8 @@ def _job(
     if findings is not None:
         lines = "".join(json.dumps(f) + "\n" for f in findings)
         folder.joinpath("findings.jsonl").write_text(lines, "utf-8")
+    if section:
+        folder.joinpath("section.md").write_text(section, "utf-8")
 
 
 def _ok(
@@ -57,9 +60,15 @@ def _ok(
     _job(results, job, list(findings), {"result": "ok", "checked": 1} | status)
 
 
-def _render(results: Path, expected: str = "", ignore: str = "", dev: bool = False):
+def _render(
+    results: Path,
+    expected: str = "",
+    ignore: str = "",
+    dev: bool = False,
+    issue: str = "report",
+):
     loaded = report.load_results(results, expected.split())
-    return report.render(loaded, ignore.split(), dev)
+    return report.render(loaded, ignore.split(), dev, "", issue)
 
 
 # --- kind -------------------------------------------------------------------
@@ -262,9 +271,144 @@ def test_a_failed_job_is_reported(tmp_path):
     assert "The job `images` failed" in _render(tmp_path, "images")
 
 
-def test_a_job_without_its_files_counts_as_failed(tmp_path):
+def test_a_job_without_its_status_counts_as_failed(tmp_path):
     (tmp_path / "freshness-images").mkdir()
     assert "The job `images` failed" in _render(tmp_path, "images")
+
+
+def test_a_job_with_a_status_alone_is_a_result_without_findings(tmp_path):
+    _job(tmp_path, "newest", None, {"result": "ok", "checked": 1})
+    assert _render(tmp_path, "newest") == ""
+
+
+# --- a section of prose and a second issue ------------------------------------------
+
+
+def test_a_section_is_taken_over_after_the_tables_under_the_name_of_the_job(tmp_path):
+    _ok(tmp_path, "images", _finding(category="image", name="python"))
+    _job(
+        tmp_path,
+        "newest",
+        None,
+        {"result": "ok", "checked": 1},
+        "The tests failed on `mcp` 2.4.0.\n\n- Tests: failure\n",
+    )
+    text = _render(tmp_path, "images newest")
+    assert text.index("### Images") < text.index("### newest")
+    section = "### newest\n\nThe tests failed on `mcp` 2.4.0.\n\n- Tests: failure\n"
+    assert section in text
+    assert text.index("### newest") < text.index("Versions are measured")
+
+
+def test_a_section_alone_opens_the_issue(tmp_path):
+    _job(tmp_path, "newest", None, {"result": "ok", "checked": 1}, "Something.\n")
+    text = _render(tmp_path, "newest")
+    assert text == "### newest\n\nSomething.\n"
+
+
+def test_an_alarm_job_goes_to_the_alarm_and_not_to_the_report(tmp_path):
+    _ok(tmp_path, "outdated", _finding())
+    _job(
+        tmp_path,
+        "newest",
+        [_finding(name="yfinance", current="1.8.0", newest="1.8.1")],
+        {"result": "ok", "checked": 1, "issue": "alarm"},
+        "The smoke run failed.",
+    )
+    text = _render(tmp_path, "outdated newest")
+    assert "| `mcp` |" in text
+    assert "yfinance" not in text and "smoke" not in text
+    alarm = _render(tmp_path, "outdated newest", issue="alarm")
+    assert "| `yfinance` | 1.8.0 | 1.8.1 | patch |" in alarm
+    assert "### newest\n\nThe smoke run failed.\n" in alarm
+    assert "mcp" not in alarm
+
+
+def test_the_alarm_is_empty_when_its_jobs_have_nothing_to_say(tmp_path):
+    _ok(tmp_path, "outdated", _finding())
+    _job(tmp_path, "newest", None, {"result": "ok", "checked": 1, "issue": "alarm"})
+    assert _render(tmp_path, "outdated newest", issue="alarm") == ""
+
+
+def test_an_inconclusive_job_is_a_line_in_the_report_and_not_in_the_alarm(tmp_path):
+    _job(tmp_path, "newest", None, {"result": "inconclusive", "issue": "alarm"})
+    text = _render(tmp_path, "newest")
+    assert "The job `newest` ran but could not prove anything" in text
+    assert _render(tmp_path, "newest", issue="alarm") == ""
+
+
+@pytest.mark.parametrize(
+    ("statuses", "expected", "ready"),
+    [
+        ({"newest": {"result": "ok", "issue": "alarm"}}, "newest", True),
+        ({"newest": {"result": "inconclusive", "issue": "alarm"}}, "newest", False),
+        ({"newest": {"result": "failed", "issue": "alarm"}}, "newest", False),
+        ({"images": {"result": "inconclusive"}}, "images", False),
+        ({"images": {"result": "failed"}}, "images", True),
+        ({}, "newest", False),
+        ({"newest": {"result": "ok", "issue": "alarm"}}, "newest images", False),
+    ],
+)
+def test_when_the_alarm_issue_may_be_touched(tmp_path, statuses, expected, ready):
+    for job, status in statuses.items():
+        _job(tmp_path, job, None, {"checked": 0} | status)
+    loaded = report.load_results(tmp_path, expected.split())
+    assert report.alarm_ready(loaded) is ready
+
+
+def test_an_unknown_issue_is_an_error(tmp_path):
+    _job(tmp_path, "newest", None, {"result": "ok", "issue": "news"})
+    with pytest.raises(ValueError):
+        report.load_results(tmp_path, ["newest"])
+
+
+def test_the_script_writes_the_alarm_and_says_whether_it_is_ready(tmp_path):
+    _job(
+        tmp_path,
+        "newest",
+        None,
+        {"result": "ok", "checked": 1, "issue": "alarm"},
+        "The tests failed.",
+    )
+    output = tmp_path / "output.txt"
+    env = os.environ | {
+        "RESULTS": str(tmp_path),
+        "EXPECTED": "newest",
+        "REPORT": str(tmp_path / "out" / "report.md"),
+        "ALARM": str(tmp_path / "out" / "alarm.md"),
+        "GITHUB_OUTPUT": str(output),
+    }
+    run = subprocess.run(
+        [sys.executable, str(FOLDER / "report.py")],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert (tmp_path / "out" / "report.md").read_text("utf-8") == ""
+    assert "The tests failed." in (tmp_path / "out" / "alarm.md").read_text("utf-8")
+    assert output.read_text("utf-8") == "alarm=ready\n"
+    assert "ready for its issue" in run.stdout
+
+
+def test_without_an_alarm_path_the_script_writes_the_report_alone(tmp_path):
+    _ok(tmp_path, "outdated", _finding())
+    output = tmp_path / "output.txt"
+    env = os.environ | {
+        "RESULTS": str(tmp_path),
+        "EXPECTED": "outdated",
+        "REPORT": str(tmp_path / "out" / "report.md"),
+        "GITHUB_OUTPUT": str(output),
+    }
+    subprocess.run(
+        [sys.executable, str(FOLDER / "report.py")],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert sorted(p.name for p in (tmp_path / "out").iterdir()) == ["report.md"]
+    assert not output.exists()
 
 
 def test_a_switched_off_job_is_not_expected_and_leaves_the_report_empty(tmp_path):
@@ -363,14 +507,31 @@ def test_the_script_writes_the_report_and_names_each_job(tmp_path):
 
 
 def test_the_action_takes_the_results_and_writes_the_report():
-    assert set(ACTION["inputs"]) == {"results", "expected", "ignore", "dev", "report"}
+    assert set(ACTION["inputs"]) == {
+        "results",
+        "expected",
+        "ignore",
+        "dev",
+        "report",
+        "alarm",
+    }
+    assert ACTION["inputs"]["alarm"]["default"] == ""
+    assert ACTION["outputs"]["alarm"]["value"] == "${{ steps.write.outputs.alarm }}"
     (run,) = [s for s in ACTION["runs"]["steps"] if "run" in s]
     assert '"$GITHUB_ACTION_PATH/report.py"' in run["run"]
-    assert set(run["env"]) == {"RESULTS", "EXPECTED", "IGNORE", "DEV", "REPORT"}
+    assert run["id"] == "write"
+    assert set(run["env"]) == {
+        "RESULTS",
+        "EXPECTED",
+        "IGNORE",
+        "DEV",
+        "REPORT",
+        "ALARM",
+    }
 
 
 def test_the_format_documents_every_field():
     for field in report.Finding.__dataclass_fields__:
         assert f"`{field}`" in FORMAT, field
-    for key in ("result", "checked", "packages"):
+    for key in ("result", "checked", "packages", "issue", "inconclusive", "section.md"):
         assert f"`{key}`" in FORMAT

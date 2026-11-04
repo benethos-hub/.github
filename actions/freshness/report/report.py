@@ -1,15 +1,19 @@
 """The Markdown of the freshness issue, from the findings of the other jobs.
 
 Each measuring job of freshness.yml leaves an artifact freshness-<job> with
-findings.jsonl and status.json, as FORMAT.md next to this file describes.
-This reads every artifact in RESULTS, drops what the caller's IGNORE patterns
-name, hides development packages unless DEV is true, and writes REPORT. An
-empty report means there is nothing to say, and the issue closes.
+status.json, findings.jsonl and section.md, as FORMAT.md next to this file
+describes. This reads every artifact in RESULTS, drops what the caller's
+IGNORE patterns name, hides development packages unless DEV is true, and
+writes REPORT. An empty report means there is nothing to say, and the issue
+closes.
 
 EXPECTED names the jobs that must have left a result. One that did not is a
 line in the report, never an empty report, so a run that proved nothing cannot
-close an open issue. Only names, versions and the result of a job go in, the
-issue is public. Standard library only.
+close an open issue. A job may address a second issue, the alarm, through the
+issue field of its status. Its findings and its section go to ALARM instead,
+and GITHUB_OUTPUT gets alarm=ready or alarm=skip: skip when a job could not
+prove anything, so the alarm issue is left as it was. Only names, versions and
+the result of a job go in, the issue is public. Standard library only.
 """
 
 from __future__ import annotations
@@ -26,6 +30,7 @@ from typing import Any
 CATEGORIES = ("vulnerability", "image", "action", "package")
 KINDS = ("major", "minor", "patch", "rebuild", "unknown")
 SCOPES = ("runtime", "dev", "build")
+ISSUES = ("report", "alarm")
 PREFIX = "freshness-"
 
 
@@ -49,10 +54,12 @@ class Finding:
 class Result:
     job: str
     state: str
-    """``ok``, ``failed`` or ``missing``."""
+    """``ok``, ``inconclusive``, ``failed`` or ``missing``."""
     checked: int
     packages: tuple[str, ...]
     findings: tuple[Finding, ...]
+    issue: str = "report"
+    section: str = ""
 
 
 _HEX = re.compile(r"(sha\d+:)?[0-9a-f]*[a-f][0-9a-f]*")
@@ -135,28 +142,38 @@ def parse_finding(data: dict[str, Any]) -> Finding:
 
 
 def _read_result(job: str, folder: Path) -> Result:
-    status_file, findings_file = folder / "status.json", folder / "findings.jsonl"
+    """A job's artifact. status.json decides, findings.jsonl and section.md
+    are optional."""
+    status_file = folder / "status.json"
     if not folder.is_dir():
         return Result(job, "missing", 0, (), ())
-    if not status_file.is_file() or not findings_file.is_file():
+    if not status_file.is_file():
         return Result(job, "failed", 0, (), ())
     status = json.loads(status_file.read_text("utf-8"))
     if not isinstance(status, dict):
         raise ValueError(f"{status_file} is not an object")
-    findings = tuple(
-        parse_finding(json.loads(line))
-        for line in findings_file.read_text("utf-8").splitlines()
-        if line.strip()
-    )
+    findings: tuple[Finding, ...] = ()
+    findings_file = folder / "findings.jsonl"
+    if findings_file.is_file():
+        findings = tuple(
+            parse_finding(json.loads(line))
+            for line in findings_file.read_text("utf-8").splitlines()
+            if line.strip()
+        )
+    section_file = folder / "section.md"
+    section = section_file.read_text("utf-8").strip() if section_file.is_file() else ""
     checked = status.get("checked", 0)
     if not isinstance(checked, int):
         raise ValueError(f"checked in {status_file} is not a number")
+    result = status.get("result")
     return Result(
         job=job,
-        state="ok" if status.get("result") == "ok" else "failed",
+        state=result if result in ("ok", "inconclusive") else "failed",
         checked=checked,
         packages=_strings(status.get("packages", []), "packages"),
         findings=findings,
+        issue=_one_of(status.get("issue", "report"), "issue", ISSUES),
+        section=section,
     )
 
 
@@ -169,6 +186,18 @@ def load_results(results: Path, expected: list[str]) -> list[Result]:
             if folder.is_dir() and folder.name != name and name not in jobs:
                 jobs.append(name)
     return [_read_result(job, results / f"{PREFIX}{job}") for job in jobs]
+
+
+def alarm_ready(results: list[Result]) -> bool:
+    """Whether this run may touch the alarm issue. Not when a job could not
+    prove anything, when a job of the alarm failed, or when an expected job
+    left nothing, since its issue is then unknown."""
+    for result in results:
+        if result.state in ("inconclusive", "missing"):
+            return False
+        if result.issue == "alarm" and result.state != "ok":
+            return False
+    return True
 
 
 def cell(text: str) -> str:
@@ -252,12 +281,25 @@ def _named_one_by_one(finding: Finding) -> bool:
     return finding.direct or finding.kind == "major"
 
 
+_WHAT = {
+    "missing": "left no result",
+    "failed": "failed",
+    "inconclusive": "ran but could not prove anything",
+}
+
+
 def render(
-    results: list[Result], ignore: list[str], dev: bool, run_url: str = ""
+    results: list[Result],
+    ignore: list[str],
+    dev: bool,
+    run_url: str = "",
+    issue: str = "report",
 ) -> str:
-    """The report, or an empty string when there is nothing to say."""
-    without_result = [r for r in results if r.state != "ok"]
+    """The Markdown for ``issue``, or an empty string when there is nothing
+    to say. The lines about jobs without a result go to the report only."""
+    without_result = [r for r in results if r.state != "ok" and issue == "report"]
     packages_column = len({p for r in results for p in r.packages}) > 1
+    own = [r for r in results if r.issue == issue]
 
     ignored = 0
     hidden_dev = 0
@@ -265,7 +307,7 @@ def render(
     listed: dict[str, list[Finding]] = {c: [] for c in CATEGORIES}
     build: list[Finding] = []
     development: list[Finding] = []
-    for result in results:
+    for result in own:
         for finding in result.findings:
             if any(fnmatch.fnmatchcase(finding.name, p) for p in ignore):
                 ignored += 1
@@ -282,19 +324,19 @@ def render(
                 listed[finding.category].append(finding)
             else:
                 counted += 1
+    prose = [r for r in own if r.section]
 
-    anything = any(listed.values()) or build or development or without_result
-    if not anything:
+    tables = any(listed.values()) or build or development
+    if not (tables or prose or without_result):
         return ""
 
     lines: list[str] = []
     if without_result:
         for result in without_result:
-            what = "left no result" if result.state == "missing" else "failed"
             run = f" See [the run]({run_url})." if run_url else ""
             lines.append(
-                f"- The job {_code(result.job)} {what}, so its part of this "
-                f"report is missing.{run}"
+                f"- The job {_code(result.job)} {_WHAT[result.state]}, so its "
+                f"part of this report is missing.{run}"
             )
         lines.append("")
 
@@ -320,6 +362,10 @@ def render(
         lines += _table(header, rows)
         lines.append("")
 
+    # The prose of a job comes after the tables, under the name of the job.
+    for result in prose:
+        lines += [f"### {result.job}", "", result.section, ""]
+
     notes = []
     if counted:
         notes.append(
@@ -331,21 +377,28 @@ def render(
         notes.append(f"{ignored} findings match the ignore patterns of the caller.")
     if notes:
         lines += [" ".join(notes), ""]
-    lines.append(
-        "Versions are measured at their source, the package index, the registry "
-        "or the API. Kind, scope and the counts are derived from them. Image "
-        "tags of the same digit form are assumed to be one series."
-    )
-    return "\n".join(lines) + "\n"
+    if tables:
+        lines.append(
+            "Versions are measured at their source, the package index, the registry "
+            "or the API. Kind, scope and the counts are derived from them. Image "
+            "tags of the same digit form are assumed to be one series."
+        )
+    return "\n".join(lines).rstrip("\n") + "\n"
 
 
 def _words(value: str) -> list[str]:
     return value.split()
 
 
+def _write(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, "utf-8")
+
+
 def main() -> int:
     results = Path(os.environ.get("RESULTS", ""))
     report = Path(os.environ["REPORT"])
+    alarm = os.environ.get("ALARM", "")
     expected = _words(os.environ.get("EXPECTED", ""))
     ignore = _words(os.environ.get("IGNORE", ""))
     dev = os.environ.get("DEV", "false").lower() == "true"
@@ -356,14 +409,25 @@ def main() -> int:
     try:
         loaded = load_results(results, expected)
         text = render(loaded, ignore, dev, run_url)
+        alarm_text = render(loaded, ignore, dev, run_url, "alarm")
     except (ValueError, OSError) as error:
         print(f"::error::Could not read the findings: {error}", file=sys.stderr)
         return 1
-    report.parent.mkdir(parents=True, exist_ok=True)
-    report.write_text(text, "utf-8")
+    _write(report, text)
     for result in loaded:
         print(f"{result.job}: {result.state}, {len(result.findings)} findings")
     print("Nothing to report." if not text else f"Report written to {report}.")
+    if alarm:
+        _write(Path(alarm), alarm_text)
+        ready = alarm_ready(loaded)
+        print(
+            f"Alarm written to {alarm}, "
+            + ("ready for its issue." if ready else "a job could not prove anything.")
+        )
+        output = os.environ.get("GITHUB_OUTPUT")
+        if output:
+            with open(output, "a", encoding="utf-8") as handle:
+                handle.write(f"alarm={'ready' if ready else 'skip'}\n")
     return 0
 
 

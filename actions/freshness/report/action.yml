@@ -2,9 +2,10 @@ name: Freshness report
 description: Writes the Markdown of the freshness issue from the findings the other jobs left as artifacts.
 
 # The last job of freshness.yml downloads every artifact named freshness-*
-# into one folder and calls this. It knows only the two files each job leaves,
-# FORMAT.md next to this file describes them. A job for another language
-# writes the same files and needs no change here. report.py holds the logic.
+# into one folder and calls this. It knows only the files each job leaves,
+# FORMAT.md next to this file describes them. A job for another language, or
+# a job of the calling repository, writes the same files and needs no change
+# here. report.py holds the logic.
 #
 #   - uses: actions/download-artifact@<sha> # vX
 #     with:
@@ -19,10 +20,15 @@ description: Writes the Markdown of the freshness issue from the findings the ot
 # An expected job without a result is a line in the report, so a run that
 # proved nothing never closes the issue. An empty report means there is
 # nothing to say, and report-issue closes the issue.
+#
+# A job may address the alarm issue instead, through the issue field of its
+# status. With alarm set, its findings and its section go to that file, and
+# the output alarm says ready or skip: skip when a job could not prove
+# anything, so the alarm issue is left as it was.
 
 inputs:
   results:
-    description: The folder with one subfolder per artifact, freshness-<job>, each holding findings.jsonl and status.json.
+    description: The folder with one subfolder per artifact, freshness-<job>, each holding status.json and, optionally, findings.jsonl and section.md.
     required: true
   expected:
     description: The jobs that must have left a result, separated by spaces. A job the caller switched off is not listed.
@@ -39,6 +45,15 @@ inputs:
   report:
     description: Where to write the Markdown. The folder is created. The file stays empty when there is nothing to report.
     required: true
+  alarm:
+    description: Where to write the Markdown of the alarm issue, from the jobs whose status names that issue. Empty writes none.
+    required: false
+    default: ""
+
+outputs:
+  alarm:
+    description: With alarm set, ready when this run may open, update or close the alarm issue, skip when a job could not prove anything.
+    value: ${{ steps.write.outputs.alarm }}
 
 runs:
   using: composite
@@ -51,6 +66,7 @@ runs:
         enable-cache: false
 
     - name: Write the report
+      id: write
       shell: bash
       env:
         RESULTS: ${{ inputs.results }}
@@ -58,4 +74,5 @@ runs:
         IGNORE: ${{ inputs.ignore }}
         DEV: ${{ inputs.dev }}
         REPORT: ${{ inputs.report }}
+        ALARM: ${{ inputs.alarm }}
       run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/report.py"
