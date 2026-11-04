@@ -187,6 +187,19 @@ def test_a_reference_that_floats_is_none(text):
     assert images.parse_reference(text) is None
 
 
+def test_the_name_of_an_image_a_workflow_builds_has_no_tag_and_is_left_out(tmp_path):
+    workflows = tmp_path / ".github" / "workflows"
+    workflows.mkdir(parents=True)
+    (workflows / "publish.yml").write_text(
+        "      - uses: example/publish@main\n"
+        "        with:\n          image: example-app\n"
+        "    services:\n      cache:\n        image: redis:7\n",
+        "utf-8",
+    )
+    pins = images.collect(tmp_path, images.files_to_read(tmp_path, []))
+    assert [r.pinned for r in pins] == ["redis:7"]
+
+
 def test_a_dockerfile_gives_every_base_but_its_own_stages(tmp_path):
     path = tmp_path / "Dockerfile"
     assert images.references_in(path, DOCKERFILE) == [
@@ -223,10 +236,10 @@ def test_the_same_pin_in_two_files_is_one_reference_and_floating_ones_are_left_o
     }
 
 
-def test_the_default_files_leave_the_workflows_out_and_patterns_replace_them(tmp_path):
+def test_the_default_files_include_the_workflows_and_patterns_replace_them(tmp_path):
     (tmp_path / ".github" / "workflows").mkdir(parents=True)
-    (tmp_path / ".github" / "workflows" / "publish.yml").write_text(
-        "image: x:1\n", "utf-8"
+    (tmp_path / ".github" / "workflows" / "ci.yml").write_text(
+        "    container:\n      image: x:1\n", "utf-8"
     )
     (tmp_path / "containers").mkdir()
     (tmp_path / "containers" / "mcp.yaml").write_text("image: y:1\n", "utf-8")
@@ -235,6 +248,7 @@ def test_the_default_files_leave_the_workflows_out_and_patterns_replace_them(tmp
     (tmp_path / "node_modules" / "Dockerfile").write_text("FROM n:1\n", "utf-8")
     default = images.files_to_read(tmp_path, [])
     assert [p.relative_to(tmp_path).as_posix() for p in default] == [
+        ".github/workflows/ci.yml",
         "containers/Dockerfile.dev",
         "containers/mcp.yaml",
     ]

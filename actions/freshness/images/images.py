@@ -2,7 +2,9 @@
 
 Every FROM of a Dockerfile and every image: of a YAML file is a reference,
 ``registry/repository:tag@sha256:digest`` with the registry, the tag or the
-digest left out. A reference with a variable, a stage name of the same
+digest left out. The workflows count too: the container or a service of a
+job is a pin like any other, while the name of an image a workflow builds
+has no tag and floats. A reference with a variable, a stage name of the same
 Dockerfile or no digits in its tag floats on purpose and is left out. The
 rest gets up to two checks, as findings for the report action:
 
@@ -37,7 +39,6 @@ from pathlib import Path
 from typing import Any
 
 SKIPPED_FOLDERS = {".git", ".venv", "node_modules", "__pycache__"}
-SKIPPED_FILES = (".github/workflows/",)
 DEFAULT_FILES = ("**/Dockerfile*", "**/*.yml", "**/*.yaml")
 MANIFEST_TYPES = ", ".join(
     [
@@ -123,14 +124,10 @@ def files_to_read(root: Path, patterns: Iterable[str]) -> list[Path]:
     found: set[Path] = set()
     for pattern in patterns or DEFAULT_FILES:
         for path in root.glob(pattern):
-            relative = path.relative_to(root).as_posix()
-            if not path.is_file() or SKIPPED_FOLDERS & set(
+            if path.is_file() and not SKIPPED_FOLDERS & set(
                 path.relative_to(root).parts
             ):
-                continue
-            if any(relative.startswith(skip) for skip in SKIPPED_FILES):
-                continue
-            found.add(path)
+                found.add(path)
     return sorted(found)
 
 
