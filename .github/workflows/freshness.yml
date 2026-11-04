@@ -54,7 +54,9 @@ name: Freshness
 # files of actions/freshness/report/FORMAT.md, and the call follows with
 # needs and names the job in extra-jobs. A job whose status names the alarm
 # addresses a second issue, alarm-title, which is only touched when every
-# job was conclusive.
+# job was conclusive. The if is optional: with it the report runs after a
+# failed job and names it, without it GitHub skips the call and the issue
+# stays as it was.
 #
 #   jobs:
 #     newest:
@@ -67,6 +69,7 @@ name: Freshness
 #             path: ${{ runner.temp }}/freshness/newest
 #     freshness:
 #       needs: newest
+#       if: ${{ !cancelled() }}
 #       uses: benethos-hub/.github/.github/workflows/freshness.yml@main
 #       permissions:
 #         contents: read
