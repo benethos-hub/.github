@@ -47,6 +47,9 @@ updates:
     cooldown:
       default-days: 3
     open-pull-requests-limit: 10
+    # A release the range allows changes uv.lock only. Left to itself Dependabot
+    # can raise the lower bound as well, although nothing asks for it.
+    versioning-strategy: increase-if-necessary
     groups:
       minor-and-patch:
         patterns: ["*"]
