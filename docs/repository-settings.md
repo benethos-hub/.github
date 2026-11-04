@@ -111,19 +111,34 @@ gh api -X POST repos/benethos-hub/<repo>/environments/<environment>/deployment-b
 
 Settings, Advanced Security:
 
-- Dependabot alerts and Dependabot security updates on.
+- Dependency graph on. Dependabot finds vulnerable packages through it.
+- Dependabot alerts, malware alerts and Dependabot security updates on.
+- CodeQL analysis with the default setup. It needs no file in the repository and is not a required check.
 - Secret scanning and push protection on.
 - Private vulnerability reporting on. The [security policy](../SECURITY.md) asks for reports through it, and the button only appears when it is on.
+
+The dependency graph and malware alerts are switched on this page, the rest also through these calls:
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/vulnerability-alerts
 gh api -X PUT repos/benethos-hub/<repo>/automated-security-fixes
 gh api -X PUT repos/benethos-hub/<repo>/private-vulnerability-reporting
+gh api -X PATCH repos/benethos-hub/<repo>/code-scanning/default-setup -f state=configured
 gh api -X PATCH repos/benethos-hub/<repo> --input - <<'EOF'
 {"security_and_analysis": {"secret_scanning": {"status": "enabled"},
  "secret_scanning_push_protection": {"status": "enabled"}}}
 EOF
 ```
+
+Check the dependency graph on its own. It can be off while the calls for alerts and security updates report success, and then no alert ever comes. This call answers 404 as long as it is off:
+
+```sh
+gh api repos/benethos-hub/<repo>/dependency-graph/sbom --jq '.sbom.packages | length'
+```
+
+The graph reads the lockfiles and the actions, not the base images of a Dockerfile. Those stay with the `docker` entry of [Dependabot](#dependabot).
+
+A security update can fail when another package holds the vulnerable version back. The Dependabot run then ends in red with `security_update_not_possible`, which is no defect here. Report it to the project that holds the version. If the vulnerable code cannot be reached here, dismiss the alert with the reason in its comment, so that a new alert stands out.
 
 ## Actions
 
