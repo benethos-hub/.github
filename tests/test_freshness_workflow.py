@@ -43,9 +43,18 @@ def _step(job: str, uses_prefix: str) -> dict:
     return step
 
 
-def test_the_issue_title_has_no_default_and_the_switches_are_on():
-    assert INPUTS["issue-title"]["required"] is True
-    assert "default" not in INPUTS["issue-title"]
+def test_the_issue_title_is_checked_when_the_report_is_on_and_the_switches_are_on():
+    """The title is required for the report, not for a call that only
+    measures, so the workflow checks it instead of GitHub."""
+    assert INPUTS["issue-title"]["default"] == ""
+    assert "required" not in INPUTS["issue-title"]
+    assert INPUTS["report"]["type"] == "boolean"
+    assert INPUTS["report"]["default"] is True
+    (title,) = [s for s in JOBS["expected"]["steps"] if "TITLE" in s.get("env", {})]
+    assert title["if"] == "inputs.report"
+    assert title["env"] == {"TITLE": "${{ inputs.issue-title }}"}
+    assert 'if [ -z "$TITLE" ]' in title["run"]
+    assert "exit 1" in title["run"]
     for job in MEASURING:
         assert INPUTS[job]["type"] == "boolean"
         assert INPUTS[job]["default"] is ON_BY_DEFAULT[job]
@@ -61,7 +70,7 @@ def test_the_issue_title_has_no_default_and_the_switches_are_on():
 def test_the_workflow_itself_only_reads_and_the_report_writes_issues():
     assert WORKFLOW["permissions"] == {"contents": "read"}
     assert JOBS["report"]["permissions"] == {"contents": "read", "issues": "write"}
-    for job in MEASURING:
+    for job in (*MEASURING, "expected"):
         assert "permissions" not in JOBS[job]
 
 
@@ -133,7 +142,7 @@ def test_the_default_lists_are_the_root_and_the_one_project():
 
 
 def test_the_expected_jobs_carry_the_same_suffixes():
-    (expected,) = [s for s in JOBS["report"]["steps"] if s.get("id") == "expected"]
+    (expected,) = [s for s in JOBS["expected"]["steps"] if s.get("id") == "expected"]
     assert expected["env"]["PROJECTS"] == "${{ inputs.projects }}"
     assert expected["env"]["INDEX_PACKAGES"] == "${{ inputs.index-packages }}"
     run = expected["run"]
@@ -159,17 +168,14 @@ def test_the_waivers_reach_the_audit():
     assert audit["with"]["ignore-vulns"] == "${{ inputs.ignore-vulns }}"
 
 
-def test_the_report_runs_whatever_happened_and_knows_the_expected_jobs():
-    report = JOBS["report"]
-    assert report["needs"] == list(MEASURING)
-    assert report["if"] == "always()"
-    download = _step("report", "actions/download-artifact@")
-    assert download["continue-on-error"] is True
-    assert download["with"] == {
-        "pattern": "freshness-*",
-        "path": "${{ runner.temp }}/freshness",
-    }
-    (expected,) = [s for s in report["steps"] if s.get("id") == "expected"]
+def test_the_expected_list_is_a_job_of_its_own_and_an_output():
+    """A repository that calls the report itself needs the list, so it is
+    an output, and extra jobs stay with the report call."""
+    expected_job = JOBS["expected"]
+    assert "needs" not in expected_job
+    assert "if" not in expected_job
+    assert expected_job["outputs"] == {"jobs": "${{ steps.expected.outputs.jobs }}"}
+    (expected,) = [s for s in expected_job["steps"] if s.get("id") == "expected"]
     for job in MEASURING:
         assert expected["env"][job.upper()] == f"${{{{ inputs.{job} }}}}"
     for job in ("images", "actions"):
@@ -177,53 +183,30 @@ def test_the_report_runs_whatever_happened_and_knows_the_expected_jobs():
             f'[ "${job.upper()}" = true ] && expected="$expected {job}"'
             in expected["run"]
         )
-    assert expected["env"]["EXTRA_JOBS"] == "${{ inputs.extra-jobs }}"
-    assert 'expected="$expected $EXTRA_JOBS"' in expected["run"]
-    writer = _step("report", "benethos-hub/.github/actions/freshness/report@main")
-    assert writer["id"] == "report"
-    assert writer["with"] == {
-        "results": "${{ runner.temp }}/freshness",
-        "expected": "${{ steps.expected.outputs.jobs }}",
-        "ignore": "${{ inputs.ignore }}",
-        "dev": "${{ inputs.dev }}",
-        "report": "${{ runner.temp }}/report.md",
-        "alarm": "${{ runner.temp }}/alarm.md",
-    }
-    issue, _alarm = _issue_steps()
-    assert "if" not in issue
-    assert issue["with"] == {
-        "title": "${{ inputs.issue-title }}",
-        "report": "${{ runner.temp }}/report.md",
-        "resolved": "${{ inputs.resolved }}",
-    }
+    assert "EXTRA_JOBS" not in expected["env"]
+    assert "EXTRA_JOBS" not in expected["run"]
+    outputs = WORKFLOW[True]["workflow_call"]["outputs"]
+    assert outputs["expected"]["value"] == "${{ jobs.expected.outputs.jobs }}"
 
 
-def _issue_steps() -> list[dict]:
-    return [
-        s
-        for s in JOBS["report"]["steps"]
-        if str(s.get("uses", "")).startswith(
-            "benethos-hub/.github/actions/report-issue@"
-        )
-    ]
-
-
-def test_the_alarm_issue_is_kept_only_with_a_title_and_a_conclusive_run():
-    _issue, alarm = _issue_steps()
-    assert alarm["if"] == (
-        "inputs.alarm-title != '' && steps.report.outputs.alarm == 'ready'"
+def test_the_report_runs_whatever_happened_when_it_is_on_and_has_its_list():
+    """The report is freshness-report.yml, called after every measuring job
+    with the list of the expected job, never without that list."""
+    report = JOBS["report"]
+    assert report["needs"] == ["expected", *MEASURING]
+    assert report["if"] == (
+        "always() && inputs.report && needs.expected.result == 'success'"
     )
-    assert alarm["with"] == {
-        "title": "${{ inputs.alarm-title }}",
-        "report": "${{ runner.temp }}/alarm.md",
-        "resolved": "${{ inputs.alarm-resolved }}",
-    }
-    (note,) = [
-        s for s in JOBS["report"]["steps"] if "left as it was" in s.get("run", "")
-    ]
-    assert note["if"] == (
-        "inputs.alarm-title != '' && steps.report.outputs.alarm != 'ready'"
+    assert report["uses"] == (
+        "benethos-hub/.github/.github/workflows/freshness-report.yml@main"
     )
+    assert "steps" not in report
+    assert report["with"]["expected"] == "${{ needs.expected.outputs.jobs }}"
+    assert report["with"]["extra-jobs"] == "${{ inputs.extra-jobs }}"
+    assert report["with"]["issue-title"] == "${{ inputs.issue-title }}"
+
+
+def test_the_alarm_inputs_have_their_defaults():
     assert INPUTS["alarm-title"]["default"] == ""
     assert INPUTS["extra-jobs"]["default"] == ""
     assert "default" in INPUTS["alarm-resolved"]

@@ -2,7 +2,7 @@ name: Freshness
 
 # Reusable report of what a repository pins and what is newer, kept in one
 # issue. Five jobs measure, four by default, each leaves its findings as an
-# artifact, and the report job turns them into the Markdown of the issue
+# artifact, and the report turns them into the Markdown of the issue
 # (actions/freshness/report, its FORMAT.md describes the files). Nothing
 # here writes to the repository, and the issue is public, so only names and
 # versions go in.
@@ -47,16 +47,17 @@ name: Freshness
 # issue-title has no default. Two workflows with the same title would keep
 # the same issue and close or overwrite it for each other. A job the caller
 # switches off is left out of the report, a job that fails is a line in it,
-# so a run that proved nothing never closes the issue.
+# so a run that proved nothing never closes the issue. The report itself is
+# freshness-report.yml, called at the end of this run.
 #
 # A repository adds checks of its own without a change here: a job of the
-# calling workflow runs first, leaves an artifact freshness-<job> with the
-# files of actions/freshness/report/FORMAT.md, and the call follows with
-# needs and names the job in extra-jobs. A job whose status names the alarm
-# addresses a second issue, alarm-title, which is only touched when every
-# job was conclusive. The if is optional: with it the report runs after a
-# failed job and names it, without it GitHub skips the call and the issue
-# stays as it was.
+# calling workflow leaves an artifact freshness-<job> with the files of
+# actions/freshness/report/FORMAT.md and is named in extra-jobs. A job whose
+# status names the alarm addresses a second issue, alarm-title, which is
+# only touched when every job was conclusive. With report off this call only
+# measures, gives the jobs it ran in its output expected, and the caller
+# calls freshness-report.yml after its own job and this one, so the two run
+# side by side:
 #
 #   jobs:
 #     newest:
@@ -67,29 +68,41 @@ name: Freshness
 #           with:
 #             name: freshness-newest
 #             path: ${{ runner.temp }}/freshness/newest
-#     freshness:
-#       needs: newest
-#       if: ${{ !cancelled() }}
+#     measure:
 #       uses: benethos-hub/.github/.github/workflows/freshness.yml@main
+#       with:
+#         report: false
+#     report:
+#       needs: [newest, measure]
+#       if: ${{ !cancelled() }}
+#       uses: benethos-hub/.github/.github/workflows/freshness-report.yml@main
 #       permissions:
 #         contents: read
 #         issues: write
 #       with:
 #         issue-title: Pinned versions have newer releases
+#         expected: ${{ needs.measure.outputs.expected }}
 #         extra-jobs: newest
 #         alarm-title: Newest dependency versions break the server
+#
+# The one call with report on and needs on the job of the repository works
+# as well. The report then waits for that job, and the measuring jobs do too.
 
 on:
   workflow_call:
     inputs:
       issue-title:
-        description: The title of the issue that carries the report. Unique per repository.
+        description: The title of the issue that carries the report. Unique per repository. Required with report on, which is the default.
         type: string
-        required: true
+        default: ""
       resolved:
         description: The sentence that closes the issue when there is nothing to report.
         type: string
         default: Every pin is current and nothing is known against it.
+      report:
+        description: Write the report at the end of this call. Off, the call only measures, leaves the artifacts and gives the jobs it ran in its output expected, for a call of freshness-report.yml that runs after the jobs of the repository as well.
+        type: boolean
+        default: true
       extra-jobs:
         description: Jobs of the calling workflow that leave an artifact freshness-<job> for the report, separated by spaces. Each must have a result, or the report says so.
         type: string
@@ -103,7 +116,7 @@ on:
         type: string
         default: The checks pass again on the newest versions allowed.
       ecosystem:
-        description: The package tool of the repository, as Dependabot names it. Decides the adapter of the outdated and audit jobs. Only uv so far.
+        description: The package tool of the repository, as Dependabot names it. Decides the adapter of the outdated, audit and index jobs. Only uv so far.
         type: string
         default: uv
       projects:
@@ -174,11 +187,66 @@ on:
         description: Show packages that are only needed in development. They are hidden and counted otherwise.
         type: boolean
         default: false
+    outputs:
+      expected:
+        description: The measuring jobs of this call that must have left an artifact freshness-<job>, separated by spaces, for a call of freshness-report.yml.
+        value: ${{ jobs.expected.outputs.jobs }}
 
 permissions:
   contents: read
 
 jobs:
+  # The names match the artifacts of the jobs below: a suffix per project
+  # and per package, none for the root and the one project. A job of its
+  # own, so the list is an output of this workflow for a report called by
+  # the repository itself.
+  expected:
+    name: Which jobs must have a result
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      jobs: ${{ steps.expected.outputs.jobs }}
+    steps:
+      - name: The report has a title
+        if: inputs.report
+        env:
+          TITLE: ${{ inputs.issue-title }}
+        run: |
+          if [ -z "$TITLE" ]; then
+            echo "::error::issue-title is empty. The report needs a title of its own, unique in the repository."
+            exit 1
+          fi
+
+      - name: Which jobs must have a result
+        id: expected
+        env:
+          OUTDATED: ${{ inputs.outdated }}
+          AUDIT: ${{ inputs.audit }}
+          IMAGES: ${{ inputs.images }}
+          ACTIONS: ${{ inputs.actions }}
+          INDEX: ${{ inputs.index }}
+          PROJECTS: ${{ inputs.projects }}
+          INDEX_PACKAGES: ${{ inputs.index-packages }}
+        run: |
+          slug() { printf '%s' "$1" | tr -c 'A-Za-z0-9\n' '-'; }
+          expected=""
+          for project in $(echo "$PROJECTS" | jq -r '.[]'); do
+            suffix=""
+            [ "$project" != . ] && suffix="-$(slug "$project")"
+            [ "$OUTDATED" = true ] && expected="$expected outdated$suffix"
+            [ "$AUDIT" = true ] && expected="$expected audit$suffix"
+          done
+          [ "$IMAGES" = true ] && expected="$expected images"
+          [ "$ACTIONS" = true ] && expected="$expected actions"
+          if [ "$INDEX" = true ]; then
+            for package in $(echo "$INDEX_PACKAGES" | jq -r '.[] | if . == "" then "." else . end'); do
+              suffix=""
+              [ "$package" != . ] && suffix="-$(slug "$package")"
+              expected="$expected index$suffix"
+            done
+          fi
+          echo "jobs=$(echo $expected)" >> "$GITHUB_OUTPUT"
+
   outdated:
     name: Outdated packages
     if: inputs.outdated
@@ -373,90 +441,22 @@ jobs:
           retention-days: ${{ inputs.retention-days }}
 
   # Runs whatever happened before, since a failed job must reach the report
-  # as a line and not as an empty issue.
+  # as a line and not as an empty issue. Not without the expected list: the
+  # report would then find nothing missing and could close the issue.
   report:
     name: Freshness report
-    needs: [outdated, audit, images, actions, index]
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    needs: [expected, outdated, audit, images, actions, index]
+    if: always() && inputs.report && needs.expected.result == 'success'
+    uses: benethos-hub/.github/.github/workflows/freshness-report.yml@main
     permissions:
       contents: read
       issues: write
-    steps:
-      # A job that failed before its upload left nothing. The report names
-      # it, so a download with nothing to download must not stop the job.
-      - name: Collect the findings
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        continue-on-error: true
-        with:
-          pattern: freshness-*
-          path: ${{ runner.temp }}/freshness
-
-      - name: Which jobs must have a result
-        id: expected
-        env:
-          OUTDATED: ${{ inputs.outdated }}
-          AUDIT: ${{ inputs.audit }}
-          IMAGES: ${{ inputs.images }}
-          ACTIONS: ${{ inputs.actions }}
-          INDEX: ${{ inputs.index }}
-          PROJECTS: ${{ inputs.projects }}
-          INDEX_PACKAGES: ${{ inputs.index-packages }}
-          EXTRA_JOBS: ${{ inputs.extra-jobs }}
-        # The names match the artifacts of the jobs above: a suffix per
-        # project and per package, none for the root and the one project.
-        run: |
-          slug() { printf '%s' "$1" | tr -c 'A-Za-z0-9\n' '-'; }
-          expected=""
-          for project in $(echo "$PROJECTS" | jq -r '.[]'); do
-            suffix=""
-            [ "$project" != . ] && suffix="-$(slug "$project")"
-            [ "$OUTDATED" = true ] && expected="$expected outdated$suffix"
-            [ "$AUDIT" = true ] && expected="$expected audit$suffix"
-          done
-          [ "$IMAGES" = true ] && expected="$expected images"
-          [ "$ACTIONS" = true ] && expected="$expected actions"
-          if [ "$INDEX" = true ]; then
-            for package in $(echo "$INDEX_PACKAGES" | jq -r '.[] | if . == "" then "." else . end'); do
-              suffix=""
-              [ "$package" != . ] && suffix="-$(slug "$package")"
-              expected="$expected index$suffix"
-            done
-          fi
-          expected="$expected $EXTRA_JOBS"
-          echo "jobs=$(echo $expected)" >> "$GITHUB_OUTPUT"
-
-      - name: Write the report
-        id: report
-        uses: benethos-hub/.github/actions/freshness/report@main
-        with:
-          results: ${{ runner.temp }}/freshness
-          expected: ${{ steps.expected.outputs.jobs }}
-          ignore: ${{ inputs.ignore }}
-          dev: ${{ inputs.dev }}
-          report: ${{ runner.temp }}/report.md
-          alarm: ${{ runner.temp }}/alarm.md
-
-      - name: Keep the issue
-        uses: benethos-hub/.github/actions/report-issue@main
-        with:
-          title: ${{ inputs.issue-title }}
-          report: ${{ runner.temp }}/report.md
-          resolved: ${{ inputs.resolved }}
-
-      # Only when every job was conclusive. A run that proved nothing must
-      # neither open nor close the alarm issue.
-      - name: Keep the alarm issue
-        if: inputs.alarm-title != '' && steps.report.outputs.alarm == 'ready'
-        uses: benethos-hub/.github/actions/report-issue@main
-        with:
-          title: ${{ inputs.alarm-title }}
-          report: ${{ runner.temp }}/alarm.md
-          resolved: ${{ inputs.alarm-resolved }}
-
-      - name: Say that the alarm issue was left as it was
-        if: inputs.alarm-title != '' && steps.report.outputs.alarm != 'ready'
-        run: |
-          echo "A job could not prove anything, so the alarm issue was left as it was." \
-            >> "$GITHUB_STEP_SUMMARY"
+    with:
+      issue-title: ${{ inputs.issue-title }}
+      resolved: ${{ inputs.resolved }}
+      expected: ${{ needs.expected.outputs.jobs }}
+      extra-jobs: ${{ inputs.extra-jobs }}
+      alarm-title: ${{ inputs.alarm-title }}
+      alarm-resolved: ${{ inputs.alarm-resolved }}
+      ignore: ${{ inputs.ignore }}
+      dev: ${{ inputs.dev }}

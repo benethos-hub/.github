@@ -12,6 +12,8 @@
 
 Nothing is written to the repository. The upgrade of the lockfile is a dry run inside the runner, and the environment of the `index` job lives in the runner's temporary folder. The issue is public, so the report holds names, versions and the result of a job, and no log.
 
+The report is a workflow of its own, [freshness-report.yml](../.github/workflows/freshness-report.yml). `freshness.yml` calls it at the end of a run, so one call does everything. A repository with checks of its own calls the two apart, see [A job of the repository](#a-job-of-the-repository).
+
 ## Calling it
 
 The schedule, the concurrency group and the permission to write issues belong to the calling repository:
@@ -42,8 +44,9 @@ jobs:
 
 | Input | What it does |
 | --- | --- |
-| `issue-title` | The title of the issue. Required and without a default, because two workflows with the same title would keep the same issue and close or overwrite it for each other. |
+| `issue-title` | The title of the issue. Required when the report is part of the call, without a default, because two workflows with the same title would keep the same issue and close or overwrite it for each other. An empty title with `report` on fails the run before anything is written. |
 | `resolved` | The sentence that closes the issue when there is nothing to report. Default: `Every pin is current and nothing is known against it.` |
+| `report` | Write the report at the end of this call. On by default. Off, the call only measures and gives the jobs it ran in its output `expected`, for a call of `freshness-report.yml` by the repository. |
 | `ecosystem` | The package tool of the repository, named as Dependabot names it. Decides the adapter of the `outdated`, `audit` and `index` jobs. `uv` is the default and the only value so far. |
 | `projects` | The folders with a lockfile of their own, as a JSON list in a string, such as `'[".", "tools/audit"]'`. The `outdated` and `audit` jobs run once per folder. The default is the root alone. See [Several projects in one repository](#several-projects-in-one-repository). |
 | `outdated`, `audit`, `images`, `actions`, `index` | One switch per job. The first four are on by default, `index` is off. A job that is switched off is left out of the report. |
@@ -53,7 +56,7 @@ jobs:
 | `platforms` | The platforms a changed image digest counts for. Default `linux/amd64 linux/arm64`. A rebuild of another architecture moves the digest of the image as well and is nobody's news. |
 | `image-files` | Patterns of the files the `images` job reads. Empty reads every `Dockerfile*` and every `yml` or `yaml` file of the repository, the workflows included, where the container or a service of a job is a pin like any other. |
 | `action-files` | Patterns of the files the `actions` job reads. Empty reads the workflows and every `action.yml`. |
-| `timeout-minutes` | The time each measuring job may take. Default 15. The report job has 10 of its own. |
+| `timeout-minutes` | The time each measuring job may take. Default 15. The report has 10 of its own. |
 | `retention-days` | How long the findings of a run stay as artifacts, for a look at what the report was made of. Default 7. |
 | `ignore` | Names of pins the repository keeps on purpose, as shell patterns, for example `example/server` for the image of a test server. Matching findings are dropped and counted. |
 | `ignore-vulns` | Vulnerability IDs to waive, as in the CI. |
@@ -62,7 +65,9 @@ jobs:
 | `alarm-title` | The title of a second issue for the jobs whose status names the alarm, the `index` job among them. Empty keeps everything in the one issue. |
 | `alarm-resolved` | The sentence that closes the alarm issue when nothing is alarming any more. Default: `The checks pass again on the newest versions allowed.` |
 
-The job names are `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions`, `Installed from the index` and `Freshness report`. The first two carry the folder and the fifth the package in parentheses, as GitHub names a run of a matrix, so the root shows as `Outdated packages (.)`. None of them is a required check, the workflow runs on a schedule.
+The call has one output, `expected`: the measuring jobs of the call that must have left an artifact, separated by spaces and with the suffix per project and per package, such as `outdated audit images actions index-example-mcp`. It is for a call of `freshness-report.yml` by the repository and nothing else needs it.
+
+The job names are `Which jobs must have a result`, `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions`, `Installed from the index` and `Freshness report`. The second and third carry the folder and the sixth the package in parentheses, as GitHub names a run of a matrix, so the root shows as `Outdated packages (.)`. The report appears beneath the job that calls it. None of them is a required check, the workflow runs on a schedule.
 
 ## What the report says
 
@@ -104,7 +109,7 @@ Each run leaves its own artifact, `freshness-outdated-tools-audit` or `freshness
 
 ## A job of the repository
 
-A repository adds a check of its own without a change here. A job of the calling workflow runs first and leaves an artifact `freshness-<job>` with the files of [FORMAT.md](../actions/freshness/report/FORMAT.md): `status.json`, and `findings.jsonl` or `section.md` or both. The call follows with `needs` and names the job in `extra-jobs`, so a job that dies before its upload is a line in the issue and not a silent gap.
+A repository adds a check of its own without a change here. A job of the calling workflow leaves an artifact `freshness-<job>` with the files of [FORMAT.md](../actions/freshness/report/FORMAT.md): `status.json`, and `findings.jsonl` or `section.md` or both. The report learns of the job through `extra-jobs`, so a job that dies before its upload is a line in the issue and not a silent gap. The job runs beside the measuring jobs: `freshness.yml` is called with `report: false` and only measures, and `freshness-report.yml` is called after both, with the output `expected` of the measuring call.
 
 ```yaml
 jobs:
@@ -120,6 +125,30 @@ jobs:
           name: freshness-newest
           path: ${{ runner.temp }}/freshness/newest
 
+  measure:
+    uses: benethos-hub/.github/.github/workflows/freshness.yml@main
+    with:
+      report: false
+
+  report:
+    needs: [newest, measure]
+    if: ${{ !cancelled() }}
+    uses: benethos-hub/.github/.github/workflows/freshness-report.yml@main
+    permissions:
+      contents: read
+      issues: write
+    with:
+      issue-title: Pinned versions have newer releases
+      expected: ${{ needs.measure.outputs.expected }}
+      extra-jobs: newest
+      alarm-title: Newest dependency versions break the server
+```
+
+`freshness-report.yml` takes `issue-title`, `resolved`, `extra-jobs`, `alarm-title`, `alarm-resolved`, `ignore` and `dev` with the meaning above, and `expected`, the output of the measuring call. The permission to write issues goes to this call, the measuring call needs none. The `if` lets the report run when a job before it failed, which is then a line in the issue. Without it, GitHub skips the report after a failed job and the issue stays as it was. An empty `expected` fails the report before it writes anything: it means the output was lost or that nothing measured, and in both cases the issue has to stay as it was.
+
+The one call works as well, with the job of the repository first and `needs` on the call. The report and the measuring jobs then wait for that job. Nothing else differs, both forms get the same artifacts, the same expected jobs and the same issue.
+
+```yaml
   freshness:
     needs: newest
     if: ${{ !cancelled() }}
@@ -133,7 +162,7 @@ jobs:
       alarm-title: Newest dependency versions break the server
 ```
 
-The `if` is optional. With it, the report runs when the job of the repository failed, and that job is a line in the issue. Without it, GitHub skips the call after a failed job, the report does not run and the issue stays as it was. Nothing else differs, a call with or without the `if` gets the same artifacts and the same expected jobs. A job says in one sentence what it checked through `summary` in its status, such as which versions its tests passed on, and the report lists it under `Checks`. A job that says something alarming, such as tests that fail on the newest versions allowed, sets `"issue": "alarm"` in its status. Its findings and its section then go to the second issue named by `alarm-title`, and the pins report stays what it is. The alarm issue is touched only when every job was conclusive. A job that ran but could not prove anything, after a rate limit, say, sets `"result": "inconclusive"`: that is a line in the pins report, and the alarm issue is left as it was. Without `alarm-title` everything goes to the one issue.
+A job says in one sentence what it checked through `summary` in its status, such as which versions its tests passed on, and the report lists it under `Checks`. A job that says something alarming, such as tests that fail on the newest versions allowed, sets `"issue": "alarm"` in its status. Its findings and its section then go to the second issue named by `alarm-title`, and the pins report stays what it is. The alarm issue is touched only when every job was conclusive. A job that ran but could not prove anything, after a rate limit, say, sets `"result": "inconclusive"`: that is a line in the pins report, and the alarm issue is left as it was. Without `alarm-title` everything goes to the one issue.
 
 For a uv project the job is ready made: [python/freshness-newest](../actions/python/freshness-newest/action.yml) upgrades the lockfile inside the runner, runs the tests and an optional check on the newest versions allowed, after the same check on the locked ones, and leaves the artifact with `issue: alarm`, a summary of what passed and what moved, and a section when a step failed. A failure of the check on the locked versions, a rate limit or a failure without a move is inconclusive.
 
@@ -162,11 +191,9 @@ For a uv project the job is ready made: [python/freshness-newest](../actions/pyt
 | `check` | A command run on the locked versions first and on the newest ones after, such as a smoke run against a live service. Empty runs the tests alone. |
 | `rate-limit-exit-code` | The exit code of the check that means a rate limit and no verdict. Default 3. |
 
-The `needs` delays the pins report by the time the repository's job takes. A form in which both run side by side would need the report in a workflow of its own, called after both, two files here and two calls in every repository. That is not built.
-
 ## Another language
 
-The jobs `images`, `actions` and `report` know no language. The jobs `outdated`, `audit` and `index` run one step per ecosystem, guarded by `if: inputs.ecosystem == 'uv'`, and fail with a word for an ecosystem without a step. A second language adds an adapter action that writes the files [FORMAT.md](../actions/freshness/report/FORMAT.md) describes, and one such step per job. The report needs no change.
+The jobs `images`, `actions` and the report know no language. The jobs `outdated`, `audit` and `index` run one step per ecosystem, guarded by `if: inputs.ecosystem == 'uv'`, and fail with a word for an ecosystem without a step. A second language adds an adapter action that writes the files [FORMAT.md](../actions/freshness/report/FORMAT.md) describes, and one such step per job. The report needs no change.
 
 The actions behind the jobs, each usable on its own:
 
