@@ -208,9 +208,7 @@ def test_a_vulnerability_is_named_with_its_fix(tmp_path):
     )
     text = _render(tmp_path, "audit")
     assert "### Known vulnerabilities" in text
-    assert (
-        "| `example` | 1.0.0 | GHSA-xxxx-xxxx-xxxx | 1.0.1, 2.0.0 | runtime |" in text
-    )
+    assert "| `example` | 1.0.0 | GHSA-xxxx-xxxx-xxxx | 1.0.1, 2.0.0 |  |" in text
 
 
 def test_the_packages_column_appears_only_for_more_than_one_package(tmp_path):

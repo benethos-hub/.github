@@ -41,7 +41,7 @@ One JSON object per line, one line per finding. A pin that occurs in several fil
 | `kind` | no | `major`, `minor`, `patch`, `rebuild` or `unknown`. Left out, the report derives it from `current` and `newest`. A job sets it when the two are no version numbers, as for a digest. |
 | `within_bounds` | no | Whether `newest` lies inside the bounds the repository allows. Measured by the resolver of the ecosystem. |
 | `direct` | no | Whether the repository names the package itself. Left out, the report treats the finding as direct. |
-| `scope` | no | `runtime`, `dev` or `build`. A package needed at runtime and in development is `runtime`. |
+| `scope` | no | `runtime`, `dev` or `build`. A package needed at runtime and in development is `runtime`. Left out when the job does not know it, which reads as runtime. |
 | `packages` | no | The packages of the repository that need the finding at runtime. |
 | `vulnerability` | for `vulnerability` | The advisory ID. |
 | `fix` | no | The versions that fix the advisory. |

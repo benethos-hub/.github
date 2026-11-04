@@ -11,6 +11,11 @@ description: Checks pinned Python packages for known vulnerabilities, against Py
 #     with:
 #       requirements: ${{ runner.temp }}/versions.txt
 #       ignore-vulns: GHSA-xxxx-xxxx-xxxx
+#
+# With findings, the audit job of freshness.yml gets what it found as
+# findings for the report (findings.py next to this file). A vulnerability
+# is then a finding and not a failure of the step, a package that could not
+# be audited still is one.
 
 inputs:
   requirements:
@@ -20,6 +25,14 @@ inputs:
     description: Vulnerability IDs to waive, separated by spaces. Meant for a vulnerability without a fixed version yet.
     required: false
     default: ""
+  findings:
+    description: A folder to write findings.jsonl and status.json into, in the format of the freshness report. Empty keeps the audit a check that fails on a vulnerability.
+    required: false
+    default: ""
+  pinned-in:
+    description: With findings, the file of the repository the versions come from, named in each finding.
+    required: false
+    default: uv.lock
 
 runs:
   using: composite
@@ -36,6 +49,8 @@ runs:
       env:
         REQUIREMENTS: ${{ inputs.requirements }}
         IGNORE_VULNS: ${{ inputs.ignore-vulns }}
+        FINDINGS: ${{ inputs.findings }}
+        PINNED_IN: ${{ inputs.pinned-in }}
       run: |
         set -euo pipefail
         if [ ! -s "$REQUIREMENTS" ]; then
@@ -77,14 +92,28 @@ runs:
         # --no-deps with --disable-pip audits exactly the listed versions
         # instead of resolving them anew. --strict fails when a package cannot
         # be audited at all, so a gap never passes as "no vulnerabilities".
+        # With FINDINGS each call writes JSON for the report instead, and a
+        # vulnerability is no failure. A call that leaves no file could not
+        # audit, and that still is one.
         failed=0
         for service in pypi osv; do
           for part in "$work"/part*.txt; do
             echo "::group::$service, $(basename "$part")"
-            "${audit[@]}" --strict --no-deps --disable-pip \
-              --desc on --vulnerability-service "$service" ${ignore[@]+"${ignore[@]}"} \
-              -r "$part" || failed=1
+            if [ -n "$FINDINGS" ]; then
+              out="$work/findings-$service-$(basename "$part" .txt).json"
+              "${audit[@]}" --strict --no-deps --disable-pip \
+                --desc on --vulnerability-service "$service" ${ignore[@]+"${ignore[@]}"} \
+                --format json --output "$out" -r "$part" || true
+              [ -s "$out" ] || failed=1
+            else
+              "${audit[@]}" --strict --no-deps --disable-pip \
+                --desc on --vulnerability-service "$service" ${ignore[@]+"${ignore[@]}"} \
+                -r "$part" || failed=1
+            fi
             echo "::endgroup::"
           done
         done
+        if [ -n "$FINDINGS" ] && [ "$failed" = 0 ]; then
+          WORK="$work" uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/findings.py"
+        fi
         exit "$failed"

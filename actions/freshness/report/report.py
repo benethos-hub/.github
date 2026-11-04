@@ -126,7 +126,7 @@ def parse_finding(data: dict[str, Any]) -> Finding:
         newest=str(newest),
         kind=found_kind,
         direct=direct,
-        scope=_one_of(data.get("scope", "runtime"), "scope", SCOPES),
+        scope=_one_of(data.get("scope", ""), "scope", ("", *SCOPES)),
         packages=_strings(data.get("packages", []), "packages"),
         within_bounds=within,
         vulnerability=str(vulnerability),
