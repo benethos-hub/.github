@@ -1,0 +1,264 @@
+name: Freshness
+
+# Reusable report of what a repository pins and what is newer, kept in one
+# issue. Four jobs measure, each leaves its findings as an artifact, and the
+# report job turns them into the Markdown of the issue (actions/freshness/
+# report, its FORMAT.md describes the files). Nothing here writes to the
+# repository, and the issue is public, so only names and versions go in.
+#
+#   outdated   what is newer than the lockfile pins, inside the bounds the
+#              repository allows and beyond them, and the build backends
+#   audit      known vulnerabilities of the pinned versions
+#   images     every FROM and image: with a digit in its tag, against its
+#              registry, as a rebuild of a platform or a newer tag of the
+#              same form
+#   actions    every uses: pinned to a commit, against its newest release
+#
+# The first two depend on the package tool of the repository and run through
+# an adapter chosen by ecosystem. The last two are the same for every
+# language. A repository calls it on a schedule, with the cron and the
+# permission to write issues of its own:
+#
+#   on:
+#     schedule:
+#       - cron: "30 5 * * *"
+#     workflow_dispatch:
+#
+#   permissions:
+#     contents: read
+#
+#   concurrency:
+#     group: freshness
+#
+#   jobs:
+#     freshness:
+#       uses: benethos-hub/.github/.github/workflows/freshness.yml@main
+#       permissions:
+#         contents: read
+#         issues: write
+#       with:
+#         issue-title: Pinned versions have newer releases
+#
+# issue-title has no default. Two workflows with the same title would keep
+# the same issue and close or overwrite it for each other. A job the caller
+# switches off is left out of the report, a job that fails is a line in it,
+# so a run that proved nothing never closes the issue.
+
+on:
+  workflow_call:
+    inputs:
+      issue-title:
+        description: The title of the issue that carries the report. Unique per repository.
+        type: string
+        required: true
+      resolved:
+        description: The sentence that closes the issue when there is nothing to report.
+        type: string
+        default: Every pin is current and nothing is known against it.
+      ecosystem:
+        description: The package tool of the repository, as Dependabot names it. Decides the adapter of the outdated and audit jobs. Only uv so far.
+        type: string
+        default: uv
+      outdated:
+        description: Run the outdated job.
+        type: boolean
+        default: true
+      audit:
+        description: Run the audit job.
+        type: boolean
+        default: true
+      images:
+        description: Run the images job.
+        type: boolean
+        default: true
+      actions:
+        description: Run the actions job.
+        type: boolean
+        default: true
+      platforms:
+        description: The platforms a changed image digest counts for, separated by spaces or commas.
+        type: string
+        default: linux/amd64 linux/arm64
+      image-files:
+        description: Patterns of the files the images job reads, separated by spaces. Empty reads every Dockerfile and every yml or yaml file outside .github/workflows.
+        type: string
+        default: ""
+      ignore:
+        description: Names of pins the repository keeps on purpose, as shell patterns separated by spaces. Matching findings are dropped and counted.
+        type: string
+        default: ""
+      ignore-vulns:
+        description: Vulnerability IDs to waive, separated by spaces.
+        type: string
+        default: ""
+      dev:
+        description: Show packages that are only needed in development. They are hidden and counted otherwise.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  outdated:
+    name: Outdated packages
+    if: inputs.outdated
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The ecosystem has an adapter
+        if: inputs.ecosystem != 'uv'
+        env:
+          ECOSYSTEM: ${{ inputs.ecosystem }}
+        run: |
+          echo "::error::No adapter for the ecosystem '$ECOSYSTEM'. Only uv is supported so far."
+          exit 1
+
+      # One step per ecosystem. Only the one that matches runs. A later
+      # language adds its action here, one line per job.
+      - name: What is newer than uv.lock pins
+        if: inputs.ecosystem == 'uv'
+        uses: benethos-hub/.github/actions/python/freshness-outdated@main
+        with:
+          findings: ${{ runner.temp }}/freshness/outdated
+
+      - name: Leave the findings for the report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: freshness-outdated
+          path: ${{ runner.temp }}/freshness/outdated
+          retention-days: 7
+
+  audit:
+    name: Known vulnerabilities
+    if: inputs.audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The ecosystem has an adapter
+        if: inputs.ecosystem != 'uv'
+        env:
+          ECOSYSTEM: ${{ inputs.ecosystem }}
+        run: |
+          echo "::error::No adapter for the ecosystem '$ECOSYSTEM'. Only uv is supported so far."
+          exit 1
+
+      - name: Known vulnerabilities of the uv.lock pins
+        if: inputs.ecosystem == 'uv'
+        uses: benethos-hub/.github/actions/python/freshness-audit@main
+        with:
+          findings: ${{ runner.temp }}/freshness/audit
+          ignore-vulns: ${{ inputs.ignore-vulns }}
+
+      - name: Leave the findings for the report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: freshness-audit
+          path: ${{ runner.temp }}/freshness/audit
+          retention-days: 7
+
+  images:
+    name: Container images
+    if: inputs.images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Ask the registries
+        uses: benethos-hub/.github/actions/freshness/images@main
+        with:
+          findings: ${{ runner.temp }}/freshness/images
+          platforms: ${{ inputs.platforms }}
+          files: ${{ inputs.image-files }}
+
+      - name: Leave the findings for the report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: freshness-images
+          path: ${{ runner.temp }}/freshness/images
+          retention-days: 7
+
+  actions:
+    name: Pinned actions
+    if: inputs.actions
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Ask GitHub for the newest releases
+        uses: benethos-hub/.github/actions/freshness/actions@main
+        with:
+          findings: ${{ runner.temp }}/freshness/actions
+
+      - name: Leave the findings for the report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: freshness-actions
+          path: ${{ runner.temp }}/freshness/actions
+          retention-days: 7
+
+  # Runs whatever happened before, since a failed job must reach the report
+  # as a line and not as an empty issue.
+  report:
+    name: Freshness report
+    needs: [outdated, audit, images, actions]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # A job that failed before its upload left nothing. The report names
+      # it, so a download with nothing to download must not stop the job.
+      - name: Collect the findings
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          pattern: freshness-*
+          path: ${{ runner.temp }}/freshness
+
+      - name: Which jobs must have a result
+        id: expected
+        env:
+          OUTDATED: ${{ inputs.outdated }}
+          AUDIT: ${{ inputs.audit }}
+          IMAGES: ${{ inputs.images }}
+          ACTIONS: ${{ inputs.actions }}
+        run: |
+          expected=""
+          [ "$OUTDATED" = true ] && expected="$expected outdated"
+          [ "$AUDIT" = true ] && expected="$expected audit"
+          [ "$IMAGES" = true ] && expected="$expected images"
+          [ "$ACTIONS" = true ] && expected="$expected actions"
+          echo "jobs=${expected# }" >> "$GITHUB_OUTPUT"
+
+      - name: Write the report
+        uses: benethos-hub/.github/actions/freshness/report@main
+        with:
+          results: ${{ runner.temp }}/freshness
+          expected: ${{ steps.expected.outputs.jobs }}
+          ignore: ${{ inputs.ignore }}
+          dev: ${{ inputs.dev }}
+          report: ${{ runner.temp }}/report.md
+
+      - name: Keep the issue
+        uses: benethos-hub/.github/actions/report-issue@main
+        with:
+          title: ${{ inputs.issue-title }}
+          report: ${{ runner.temp }}/report.md
+          resolved: ${{ inputs.resolved }}

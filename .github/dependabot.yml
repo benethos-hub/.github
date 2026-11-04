@@ -24,6 +24,7 @@ updates:
       - "/actions/publish/mcp-registry"
       - "/actions/publish/mcpb"
       - "/actions/publish/pypi"
+      - "/actions/python/freshness-audit"
       - "/actions/python/freshness-outdated"
       - "/actions/python/pip-audit"
       - "/actions/release/ci-passed"
