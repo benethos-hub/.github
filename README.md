@@ -19,7 +19,7 @@ The repositories call the workflows and actions here at `main`. A project needs 
 | [.github/workflows/](.github/workflows/) | The reusable workflows, the two weekly reports and the CI of this repository |
 | [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/`, `publish/`, and `coverage-badge/` and `report-issue/` for every language |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
-| [.github/dependabot.yml](.github/dependabot.yml) | Weekly updates for every pinned action and every lockfile here |
+| [.github/dependabot.yml](.github/dependabot.yml) | Daily updates for every pinned action and every lockfile here |
 | [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see |
 | [docs/](docs/) | How the shared process works and how a repository adopts it, one page per topic |
 | [tests/](tests/) | Tests for the scripts of the actions and for how the workflows wire them |
