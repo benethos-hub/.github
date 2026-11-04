@@ -18,7 +18,7 @@ name: Freshness
 #              repository, for the alarm issue
 #
 # The first two depend on the package tool of the repository and run through
-# an adapter chosen by ecosystem. The last two are the same for every
+# an adapter chosen by ecosystem, once per folder in projects. The last two are the same for every
 # language. A repository calls it on a schedule, with the cron and the
 # permission to write issues of its own:
 #
@@ -101,6 +101,10 @@ on:
         description: The package tool of the repository, as Dependabot names it. Decides the adapter of the outdated and audit jobs. Only uv so far.
         type: string
         default: uv
+      projects:
+        description: The folders with a lockfile of their own, relative to the repository, as a JSON list in a string. The outdated and audit jobs run once per folder. A workspace is one folder.
+        type: string
+        default: '["."]'
       outdated:
         description: Run the outdated job.
         type: boolean
@@ -121,10 +125,10 @@ on:
         description: Run the index job, which installs the published package from the index and checks it. Its result addresses the alarm issue.
         type: boolean
         default: false
-      index-package:
-        description: The distribution the index job installs. Empty takes the name of the project in pyproject.toml.
+      index-packages:
+        description: The distributions the index job installs, one run each, as a JSON list in a string. An empty name takes the project in pyproject.toml.
         type: string
-        default: ""
+        default: '[""]'
       index-check:
         description: The command the index job runs from the checkout against the installed package, with FRESHNESS_PYTHON set. Empty asks the console script for its version.
         type: string
@@ -175,10 +179,25 @@ jobs:
     if: inputs.outdated
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(inputs.projects) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Name the artifact
+        id: artifact
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          suffix=""
+          if [ "$PROJECT" != . ]; then
+            suffix="-$(printf '%s' "$PROJECT" | tr -c 'A-Za-z0-9\n' '-')"
+          fi
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
 
       - name: The ecosystem has an adapter
         if: inputs.ecosystem != 'uv'
@@ -195,11 +214,12 @@ jobs:
         uses: benethos-hub/.github/actions/python/freshness-outdated@main
         with:
           findings: ${{ runner.temp }}/freshness/outdated
+          directory: ${{ matrix.project }}
 
       - name: Leave the findings for the report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: freshness-outdated
+          name: freshness-outdated${{ steps.artifact.outputs.suffix }}
           path: ${{ runner.temp }}/freshness/outdated
           retention-days: ${{ inputs.retention-days }}
 
@@ -208,10 +228,25 @@ jobs:
     if: inputs.audit
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(inputs.projects) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Name the artifact
+        id: artifact
+        env:
+          PROJECT: ${{ matrix.project }}
+        run: |
+          suffix=""
+          if [ "$PROJECT" != . ]; then
+            suffix="-$(printf '%s' "$PROJECT" | tr -c 'A-Za-z0-9\n' '-')"
+          fi
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
 
       - name: The ecosystem has an adapter
         if: inputs.ecosystem != 'uv'
@@ -226,12 +261,13 @@ jobs:
         uses: benethos-hub/.github/actions/python/freshness-audit@main
         with:
           findings: ${{ runner.temp }}/freshness/audit
+          directory: ${{ matrix.project }}
           ignore-vulns: ${{ inputs.ignore-vulns }}
 
       - name: Leave the findings for the report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: freshness-audit
+          name: freshness-audit${{ steps.artifact.outputs.suffix }}
           path: ${{ runner.temp }}/freshness/audit
           retention-days: ${{ inputs.retention-days }}
 
@@ -287,10 +323,25 @@ jobs:
     if: inputs.index
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    strategy:
+      fail-fast: false
+      matrix:
+        package: ${{ fromJSON(inputs.index-packages) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Name the artifact
+        id: artifact
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          suffix=""
+          if [ -n "$PACKAGE" ]; then
+            suffix="-$(printf '%s' "$PACKAGE" | tr -c 'A-Za-z0-9\n' '-')"
+          fi
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
 
       - name: The ecosystem has an adapter
         if: inputs.ecosystem != 'uv'
@@ -305,14 +356,14 @@ jobs:
         uses: benethos-hub/.github/actions/python/freshness-index@main
         with:
           findings: ${{ runner.temp }}/freshness/index
-          package: ${{ inputs.index-package }}
+          package: ${{ matrix.package }}
           check: ${{ inputs.index-check }}
           python: ${{ inputs.index-python }}
 
       - name: Leave the findings for the report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: freshness-index
+          name: freshness-index${{ steps.artifact.outputs.suffix }}
           path: ${{ runner.temp }}/freshness/index
           retention-days: ${{ inputs.retention-days }}
 
@@ -345,14 +396,29 @@ jobs:
           IMAGES: ${{ inputs.images }}
           ACTIONS: ${{ inputs.actions }}
           INDEX: ${{ inputs.index }}
+          PROJECTS: ${{ inputs.projects }}
+          INDEX_PACKAGES: ${{ inputs.index-packages }}
           EXTRA_JOBS: ${{ inputs.extra-jobs }}
+        # The names match the artifacts of the jobs above: a suffix per
+        # project and per package, none for the root and the one project.
         run: |
+          slug() { printf '%s' "$1" | tr -c 'A-Za-z0-9\n' '-'; }
           expected=""
-          [ "$OUTDATED" = true ] && expected="$expected outdated"
-          [ "$AUDIT" = true ] && expected="$expected audit"
+          for project in $(echo "$PROJECTS" | jq -r '.[]'); do
+            suffix=""
+            [ "$project" != . ] && suffix="-$(slug "$project")"
+            [ "$OUTDATED" = true ] && expected="$expected outdated$suffix"
+            [ "$AUDIT" = true ] && expected="$expected audit$suffix"
+          done
           [ "$IMAGES" = true ] && expected="$expected images"
           [ "$ACTIONS" = true ] && expected="$expected actions"
-          [ "$INDEX" = true ] && expected="$expected index"
+          if [ "$INDEX" = true ]; then
+            for package in $(echo "$INDEX_PACKAGES" | jq -r '.[] | if . == "" then "." else . end'); do
+              suffix=""
+              [ "$package" != . ] && suffix="-$(slug "$package")"
+              expected="$expected index$suffix"
+            done
+          fi
           expected="$expected $EXTRA_JOBS"
           echo "jobs=$(echo $expected)" >> "$GITHUB_OUTPUT"
 

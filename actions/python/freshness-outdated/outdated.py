@@ -22,7 +22,9 @@ pyproject.toml. An exact pin is compared with the newest release on PyPI, an
 unpinned backend floats and is left out.
 
 LOCKFILE, UPGRADE and OUTDATED name the three files, FINDINGS the folder to
-write, ROOT the repository (default the working directory). Standard library
+write, ROOT the repository (default the working directory). LOCKFILE is
+relative to ROOT and names the project, a folder beneath it with a lockfile of
+its own is left to its own run. Standard library
 only.
 """
 
@@ -273,12 +275,19 @@ def package_findings(
     return findings
 
 
-def pyproject_files(root: Path) -> list[Path]:
-    return sorted(
-        p
-        for p in root.rglob("pyproject.toml")
-        if not SKIPPED_FOLDERS & set(p.relative_to(root).parts)
-    )
+def pyproject_files(project: Path) -> list[Path]:
+    """Every pyproject.toml of the project. A folder beneath it with a uv.lock
+    of its own is a project of its own and is left to its own run."""
+    found = []
+    for path in sorted(project.rglob("pyproject.toml")):
+        parts = path.relative_to(project).parts
+        if SKIPPED_FOLDERS & set(parts):
+            continue
+        parents = [project.joinpath(*parts[:n]) for n in range(1, len(parts))]
+        if any((parent / "uv.lock").is_file() for parent in parents):
+            continue
+        found.append(path)
+    return found
 
 
 def pinned_backends(
@@ -344,7 +353,9 @@ def write(
 
 def main() -> int:
     root = Path(os.environ.get("ROOT") or Path.cwd())
-    lockfile = Path(os.environ.get("LOCKFILE") or root / "uv.lock")
+    lockfile = Path(os.environ.get("LOCKFILE") or "uv.lock")
+    if not lockfile.is_absolute():
+        lockfile = root / lockfile
     findings_folder = Path(os.environ["FINDINGS"])
     try:
         lock = load_lock(lockfile.read_text("utf-8"))
@@ -353,9 +364,9 @@ def main() -> int:
             return 1
         upgrade = parse_upgrade(Path(os.environ["UPGRADE"]).read_text("utf-8"))
         outdated = parse_outdated(Path(os.environ["OUTDATED"]).read_text("utf-8"))
-        where = lockfile.name if lockfile.is_absolute() else lockfile.as_posix()
+        where = Path(os.path.normpath(lockfile.relative_to(root))).as_posix()
         findings = package_findings(lock, upgrade, outdated, where)
-        pins = pinned_backends(root, pyproject_files(root))
+        pins = pinned_backends(root, pyproject_files(lockfile.parent))
         findings += backend_findings(pins, fetch_url)
     except (OSError, ValueError, KeyError, urllib.error.URLError) as error:
         print(f"::error::Could not read what is pinned: {error}", file=sys.stderr)

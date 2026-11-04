@@ -221,7 +221,10 @@ def test_the_action_installs_into_a_fresh_environment_and_hands_it_to_the_check(
     assert 'uv pip install --python "$venv" "$package" || install_exit=$?' in script
     assert 'uv pip freeze --python "$venv"' in script
     assert 'uv pip show --python "$venv" "$package"' in script
+    assert 'if [ -x "$venv/bin/$package" ]; then' in script
     assert 'check="\\"$venv/bin/$package\\" --version"' in script
+    assert "import importlib.metadata as m; print(m.version('$package'))" in script
+    assert 'export FRESHNESS_PACKAGE="$package"' in script
     assert 'export FRESHNESS_PYTHON="$venv/bin/python"' in script
     assert 'bash -c "$check" || check_exit=$?' in script
     assert '"$GITHUB_ACTION_PATH/index.py" name' in script

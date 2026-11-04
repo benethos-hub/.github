@@ -1,8 +1,8 @@
 name: Outdated pins of a uv project
 description: Finds what is newer than the versions uv.lock and the build backends pin, as findings for the freshness report.
 
-# The uv adapter of freshness.yml. It reads the uv.lock in the root of the
-# repository, a single project or a workspace, and the [build-system] of
+# The uv adapter of freshness.yml. It reads the uv.lock in directory, the
+# root by default, a single project or a workspace, and the [build-system] of
 # every pyproject.toml. Nothing is written to the repository: the upgrade is
 # a dry run inside the runner. The result is the folder named in findings,
 # with findings.jsonl and status.json as FORMAT.md of the report action
@@ -20,6 +20,10 @@ inputs:
   findings:
     description: The folder to write findings.jsonl and status.json into. It is created.
     required: true
+  directory:
+    description: The folder with the uv.lock, relative to the repository. A repository with several independent lockfiles runs the action once per folder.
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -38,20 +42,21 @@ runs:
       shell: bash
       env:
         WORK: ${{ runner.temp }}/freshness-outdated-work
+        DIRECTORY: ${{ inputs.directory }}
       run: |
         set -euo pipefail
-        if [ ! -s uv.lock ]; then
-          echo "::error file=uv.lock::Missing uv.lock in the root of the repository, there is nothing to check."
+        if [ ! -s "$DIRECTORY/uv.lock" ]; then
+          echo "::error::Missing uv.lock in $DIRECTORY, there is nothing to check."
           exit 1
         fi
         mkdir -p "$WORK"
-        uv lock --upgrade --dry-run > /dev/null 2> "$WORK/upgrade.txt"
-        uv tree --frozen --outdated --universal > "$WORK/outdated.txt"
+        uv lock --upgrade --dry-run --directory "$DIRECTORY" > /dev/null 2> "$WORK/upgrade.txt"
+        uv tree --frozen --outdated --universal --directory "$DIRECTORY" > "$WORK/outdated.txt"
 
     - name: Write the findings
       shell: bash
       env:
-        LOCKFILE: uv.lock
+        LOCKFILE: ${{ inputs.directory }}/uv.lock
         UPGRADE: ${{ runner.temp }}/freshness-outdated-work/upgrade.txt
         OUTDATED: ${{ runner.temp }}/freshness-outdated-work/outdated.txt
         FINDINGS: ${{ inputs.findings }}
