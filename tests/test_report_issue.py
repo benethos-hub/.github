@@ -18,7 +18,10 @@ ACTION = yaml.safe_load(
 
 FAKE_GH = r"""#!/bin/bash
 case "$*" in
-  "issue list"*) echo "$OPEN_ISSUE" ;;
+  "issue list"*)
+    printf '%s\n' "$*" >> "$GH_LIST_LOG"
+    echo "$OPEN_ISSUE"
+    ;;
   issue*) printf 'gh %s\n' "$*" >> "$GH_LOG" ;;
 esac
 """
@@ -36,6 +39,7 @@ def _run(
     report: str,
     open_issue: str,
     *,
+    title: str = TITLE,
     repository: str = "benethos-hub/.github",
     workflow: str = "Brand report",
     workflow_file: str = "brand-report.yml",
@@ -54,7 +58,7 @@ def _run(
     script.write_text(step["run"])
     env = {
         "PATH": f"{bin_dir}:/usr/bin:/bin",
-        "TITLE": TITLE,
+        "TITLE": title,
         "REPORT": str(tmp_path / "report.md"),
         "RESOLVED": "All repositories meet the brand rules.",
         "WORKFLOW": workflow,
@@ -63,6 +67,7 @@ def _run(
         ),
         "OPEN_ISSUE": open_issue,
         "GH_LOG": str(log),
+        "GH_LIST_LOG": str(tmp_path / "gh-list.log"),
         "GITHUB_STEP_SUMMARY": str(summary),
         "GITHUB_SERVER_URL": "https://github.com",
         "GITHUB_REPOSITORY": repository,
@@ -118,6 +123,15 @@ def test_the_link_points_to_the_calling_repository(tmp_path):
         "[Daily check](https://github.com/benethos-hub/example"
         "/actions/workflows/daily-check.yml)"
     ) in log
+
+
+def test_a_quote_in_the_title_stays_out_of_the_filter(tmp_path):
+    title = 'Pins "really" need an update'
+    log, _ = _run(tmp_path, "A report", "", title=title)
+    listing = (tmp_path / "gh-list.log").read_text()
+    assert "select(.title == env.TITLE)" in listing
+    assert "really" not in listing
+    assert log.startswith(f"gh issue create --title {title} --body ")
 
 
 def test_the_step_gets_its_inputs_and_the_calling_workflow():
