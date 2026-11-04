@@ -16,7 +16,14 @@ WORKFLOW = yaml.safe_load(
 )
 INPUTS = WORKFLOW[True]["workflow_call"]["inputs"]
 JOBS = WORKFLOW["jobs"]
-MEASURING = ("outdated", "audit", "images", "actions")
+MEASURING = ("outdated", "audit", "images", "actions", "index")
+ON_BY_DEFAULT = {
+    "outdated": True,
+    "audit": True,
+    "images": True,
+    "actions": True,
+    "index": False,
+}
 IMAGES_ACTION = yaml.safe_load(
     (ROOT / "actions" / "freshness" / "images" / "action.yml").read_text("utf-8")
 )
@@ -39,11 +46,9 @@ def test_the_issue_title_has_no_default_and_the_switches_are_on():
     assert INPUTS["issue-title"]["required"] is True
     assert "default" not in INPUTS["issue-title"]
     for job in MEASURING:
-        assert INPUTS[job] == {
-            "description": f"Run the {job} job.",
-            "type": "boolean",
-            "default": True,
-        }
+        assert INPUTS[job]["type"] == "boolean"
+        assert INPUTS[job]["default"] is ON_BY_DEFAULT[job]
+        assert INPUTS[job]["description"].startswith(f"Run the {job} job")
     assert INPUTS["ecosystem"]["default"] == "uv"
     assert INPUTS["dev"]["default"] is False
     assert (
@@ -73,7 +78,11 @@ def test_each_measuring_job_runs_on_its_switch_and_leaves_its_artifact(job):
 
 @pytest.mark.parametrize(
     ("job", "action"),
-    [("outdated", "freshness-outdated"), ("audit", "freshness-audit")],
+    [
+        ("outdated", "freshness-outdated"),
+        ("audit", "freshness-audit"),
+        ("index", "freshness-index"),
+    ],
 )
 def test_the_ecosystem_picks_the_adapter_and_an_unknown_one_fails(job, action):
     adapter = _step(job, f"benethos-hub/.github/actions/python/{action}@main")
@@ -96,6 +105,16 @@ def test_the_language_neutral_jobs_know_no_ecosystem():
     assert actions["with"] == {
         "findings": "${{ runner.temp }}/freshness/actions",
         "files": "${{ inputs.action-files }}",
+    }
+
+
+def test_the_index_job_passes_the_package_the_check_and_the_python():
+    adapter = _step("index", "benethos-hub/.github/actions/python/freshness-index@main")
+    assert adapter["with"] == {
+        "findings": "${{ runner.temp }}/freshness/index",
+        "package": "${{ inputs.index-package }}",
+        "check": "${{ inputs.index-check }}",
+        "python": "${{ inputs.index-python }}",
     }
 
 

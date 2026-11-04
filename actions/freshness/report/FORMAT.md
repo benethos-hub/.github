@@ -22,6 +22,7 @@ One object that says whether the job has a result.
 | `checked` | How many pins the job looked at. Informational. |
 | `packages` | Optional. The packages of the repository, for a job that knows them. The report shows a packages column once more than one is named. |
 | `issue` | Optional. `report`, the default, or `alarm`. The findings and the section of an `alarm` job go to the alarm issue, which the caller names with `alarm-title`. |
+| `summary` | Optional. One sentence about what the job checked, names and versions allowed, no log. The report lists it under Checks, whatever issue the job addresses, and appends it to the line of an inconclusive job as the reason. A summary alone never opens the issue. |
 
 A job that is expected and leaves no artifact, or leaves a status other than `ok`, is reported as a job without a result. The report is then never empty, so a run that proved nothing cannot close an open issue. A job the caller switched off is not expected and leaves nothing. A job of the calling repository is expected once the caller lists it in `extra-jobs`.
 
@@ -64,6 +65,8 @@ Markdown the report takes over as it is, under a heading with the name of the jo
 The kind compares the numbers in `current` and `newest`, a leading `v` or a suffix like `-slim` is ignored. A different first number is `major`, a different second number is `minor`, any other difference is `patch`. A version that looks like a date, with a first number of four digits or any number of eight digits, is `unknown`, so a new `2026.5.4` never reads as a minor. A digest or a commit, hexadecimal, is `unknown` as well, and so are two values without numbers.
 
 ## What the report lists
+
+After the tables, a block Checks lists the summary of every job that has one, so the pins issue says that a check passed on the newest versions the same day. Then the sections of prose.
 
 Named one by one: every vulnerability, image and action, every build backend, every direct runtime package and every major of a runtime package. Only counted: transitive runtime packages that moved by a minor, a patch or an unknown kind. They do not open the issue by themselves. Packages with scope `dev` are hidden and counted, unless the caller asks for them. A finding whose name matches a pattern of the caller's `ignore` input is dropped and counted. Every section is named.
 

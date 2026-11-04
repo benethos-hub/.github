@@ -13,6 +13,9 @@ name: Freshness
 #              registry, as a rebuild of a platform or a newer tag of the
 #              same form
 #   actions    every uses: pinned to a commit, against its newest release
+#   index      off by default: the package as a user installs it today, from
+#              the index into a fresh environment, with a check of the
+#              repository, for the alarm issue
 #
 # The first two depend on the package tool of the repository and run through
 # an adapter chosen by ecosystem. The last two are the same for every
@@ -114,6 +117,22 @@ on:
         description: Run the actions job.
         type: boolean
         default: true
+      index:
+        description: Run the index job, which installs the published package from the index and checks it. Its result addresses the alarm issue.
+        type: boolean
+        default: false
+      index-package:
+        description: The distribution the index job installs. Empty takes the name of the project in pyproject.toml.
+        type: string
+        default: ""
+      index-check:
+        description: The command the index job runs from the checkout against the installed package, with FRESHNESS_PYTHON set. Empty asks the console script for its version.
+        type: string
+        default: ""
+      index-python:
+        description: The Python version of the environment the index job installs into, empty for the one uv picks.
+        type: string
+        default: ""
       platforms:
         description: The platforms a changed image digest counts for, separated by spaces or commas.
         type: string
@@ -263,11 +282,45 @@ jobs:
           path: ${{ runner.temp }}/freshness/actions
           retention-days: ${{ inputs.retention-days }}
 
+  index:
+    name: Installed from the index
+    if: inputs.index
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: The ecosystem has an adapter
+        if: inputs.ecosystem != 'uv'
+        env:
+          ECOSYSTEM: ${{ inputs.ecosystem }}
+        run: |
+          echo "::error::No adapter for the ecosystem '$ECOSYSTEM'. Only uv is supported so far."
+          exit 1
+
+      - name: The package as users install it
+        if: inputs.ecosystem == 'uv'
+        uses: benethos-hub/.github/actions/python/freshness-index@main
+        with:
+          findings: ${{ runner.temp }}/freshness/index
+          package: ${{ inputs.index-package }}
+          check: ${{ inputs.index-check }}
+          python: ${{ inputs.index-python }}
+
+      - name: Leave the findings for the report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: freshness-index
+          path: ${{ runner.temp }}/freshness/index
+          retention-days: ${{ inputs.retention-days }}
+
   # Runs whatever happened before, since a failed job must reach the report
   # as a line and not as an empty issue.
   report:
     name: Freshness report
-    needs: [outdated, audit, images, actions]
+    needs: [outdated, audit, images, actions, index]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -291,6 +344,7 @@ jobs:
           AUDIT: ${{ inputs.audit }}
           IMAGES: ${{ inputs.images }}
           ACTIONS: ${{ inputs.actions }}
+          INDEX: ${{ inputs.index }}
           EXTRA_JOBS: ${{ inputs.extra-jobs }}
         run: |
           expected=""
@@ -298,6 +352,7 @@ jobs:
           [ "$AUDIT" = true ] && expected="$expected audit"
           [ "$IMAGES" = true ] && expected="$expected images"
           [ "$ACTIONS" = true ] && expected="$expected actions"
+          [ "$INDEX" = true ] && expected="$expected index"
           expected="$expected $EXTRA_JOBS"
           echo "jobs=$(echo $expected)" >> "$GITHUB_OUTPUT"
 
