@@ -65,6 +65,7 @@ def test_each_measuring_job_runs_on_its_switch_and_leaves_its_artifact(job):
     upload = _step(job, "actions/upload-artifact@")
     assert upload["with"]["name"] == f"freshness-{job}"
     assert upload["with"]["path"] == f"${{{{ runner.temp }}}}/freshness/{job}"
+    assert upload["with"]["retention-days"] == "${{ inputs.retention-days }}"
     checkout = _step(job, "actions/checkout@")
     assert checkout["with"]["persist-credentials"] is False
     assert JOBS[job]["timeout-minutes"] == "${{ inputs.timeout-minutes }}"

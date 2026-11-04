@@ -49,6 +49,7 @@ jobs:
 | `image-files` | Patterns of the files the `images` job reads. Empty reads every `Dockerfile*` and every `yml` or `yaml` file of the repository, the workflows included, where the container or a service of a job is a pin like any other. |
 | `action-files` | Patterns of the files the `actions` job reads. Empty reads the workflows and every `action.yml`. |
 | `timeout-minutes` | The time each measuring job may take. Default 15. |
+| `retention-days` | How long the findings of a run stay as artifacts, for a look at what the report was made of. Default 7. |
 | `ignore` | Names of pins the repository keeps on purpose, as shell patterns, for example `example/server` for the image of a test server. Matching findings are dropped and counted. |
 | `ignore-vulns` | Vulnerability IDs to waive, as in the CI. |
 | `dev` | Show packages that are only needed in development. They are hidden and counted otherwise. |

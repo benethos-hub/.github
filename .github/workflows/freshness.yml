@@ -91,6 +91,10 @@ on:
         description: The time each measuring job may take.
         type: number
         default: 15
+      retention-days:
+        description: How long the findings of a run stay as artifacts, for a look at what the report was made of.
+        type: number
+        default: 7
       ignore:
         description: Names of pins the repository keeps on purpose, as shell patterns separated by spaces. Matching findings are dropped and counted.
         type: string
@@ -139,7 +143,7 @@ jobs:
         with:
           name: freshness-outdated
           path: ${{ runner.temp }}/freshness/outdated
-          retention-days: 7
+          retention-days: ${{ inputs.retention-days }}
 
   audit:
     name: Known vulnerabilities
@@ -171,7 +175,7 @@ jobs:
         with:
           name: freshness-audit
           path: ${{ runner.temp }}/freshness/audit
-          retention-days: 7
+          retention-days: ${{ inputs.retention-days }}
 
   images:
     name: Container images
@@ -195,7 +199,7 @@ jobs:
         with:
           name: freshness-images
           path: ${{ runner.temp }}/freshness/images
-          retention-days: 7
+          retention-days: ${{ inputs.retention-days }}
 
   actions:
     name: Pinned actions
@@ -218,7 +222,7 @@ jobs:
         with:
           name: freshness-actions
           path: ${{ runner.temp }}/freshness/actions
-          retention-days: 7
+          retention-days: ${{ inputs.retention-days }}
 
   # Runs whatever happened before, since a failed job must reach the report
   # as a line and not as an empty issue.
