@@ -1,0 +1,144 @@
+name: Freshness report
+
+# The report of freshness.yml as a workflow of its own: downloads every
+# artifact freshness-* of the run, writes the Markdown of the issue
+# (actions/freshness/report, its FORMAT.md describes the files) and keeps
+# the issue and, with alarm-title, the alarm issue. freshness.yml calls it at
+# the end of a run with report on, which is the default. A repository whose
+# own jobs should run beside the measuring jobs and not before them calls
+# the two apart: freshness.yml with report off, which then only measures
+# and gives the jobs it ran in its output expected, and this workflow after
+# both, with needs on each:
+#
+#   jobs:
+#     newest:
+#       ...
+#       steps:
+#         - ...
+#         - uses: actions/upload-artifact@<sha> # vX
+#           with:
+#             name: freshness-newest
+#             path: ${{ runner.temp }}/freshness/newest
+#     measure:
+#       uses: benethos-hub/.github/.github/workflows/freshness.yml@main
+#       with:
+#         report: false
+#     report:
+#       needs: [newest, measure]
+#       if: ${{ !cancelled() }}
+#       uses: benethos-hub/.github/.github/workflows/freshness-report.yml@main
+#       permissions:
+#         contents: read
+#         issues: write
+#       with:
+#         issue-title: Pinned versions have newer releases
+#         expected: ${{ needs.measure.outputs.expected }}
+#         extra-jobs: newest
+#         alarm-title: Newest dependency versions break the server
+#
+# An expected job without an artifact is a line in the issue, so a run that
+# proved nothing never closes it. An empty expected is an error and writes
+# nothing: it means the output of the measuring call was lost, or that no
+# job measured, and either way the issue has to stay as it was.
+
+on:
+  workflow_call:
+    inputs:
+      issue-title:
+        description: The title of the issue that carries the report. Unique per repository.
+        type: string
+        required: true
+      resolved:
+        description: The sentence that closes the issue when there is nothing to report.
+        type: string
+        default: Every pin is current and nothing is known against it.
+      expected:
+        description: The measuring jobs that must have left an artifact freshness-<job>, separated by spaces, as the output expected of freshness.yml gives them.
+        type: string
+        required: true
+      extra-jobs:
+        description: Jobs of the calling workflow that leave an artifact freshness-<job> for the report, separated by spaces. Each must have a result, or the report says so.
+        type: string
+        default: ""
+      alarm-title:
+        description: The title of a second issue, for the jobs whose status names the alarm. Empty keeps everything in the one issue.
+        type: string
+        default: ""
+      alarm-resolved:
+        description: The sentence that closes the alarm issue when nothing is alarming any more.
+        type: string
+        default: The checks pass again on the newest versions allowed.
+      ignore:
+        description: Names of pins the repository keeps on purpose, as shell patterns separated by spaces. Matching findings are dropped and counted.
+        type: string
+        default: ""
+      dev:
+        description: Show packages that are only needed in development. They are hidden and counted otherwise.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: Freshness report
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      # Without an expected job the report could be empty for the wrong
+      # reason and close the issue. Better no report than a wrong one.
+      - name: Something is expected
+        env:
+          EXPECTED: ${{ inputs.expected }}
+        run: |
+          if [ -z "$(echo $EXPECTED)" ]; then
+            echo "::error::expected is empty. freshness.yml gives it in its output expected, and a call that measures nothing has nothing to report."
+            exit 1
+          fi
+
+      # A job that failed before its upload left nothing. The report names
+      # it, so a download with nothing to download must not stop the job.
+      - name: Collect the findings
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          pattern: freshness-*
+          path: ${{ runner.temp }}/freshness
+
+      - name: Write the report
+        id: report
+        uses: benethos-hub/.github/actions/freshness/report@main
+        with:
+          results: ${{ runner.temp }}/freshness
+          expected: ${{ inputs.expected }} ${{ inputs.extra-jobs }}
+          ignore: ${{ inputs.ignore }}
+          dev: ${{ inputs.dev }}
+          report: ${{ runner.temp }}/report.md
+          alarm: ${{ runner.temp }}/alarm.md
+
+      - name: Keep the issue
+        uses: benethos-hub/.github/actions/report-issue@main
+        with:
+          title: ${{ inputs.issue-title }}
+          report: ${{ runner.temp }}/report.md
+          resolved: ${{ inputs.resolved }}
+
+      # Only when every job was conclusive. A run that proved nothing must
+      # neither open nor close the alarm issue.
+      - name: Keep the alarm issue
+        if: inputs.alarm-title != '' && steps.report.outputs.alarm == 'ready'
+        uses: benethos-hub/.github/actions/report-issue@main
+        with:
+          title: ${{ inputs.alarm-title }}
+          report: ${{ runner.temp }}/alarm.md
+          resolved: ${{ inputs.alarm-resolved }}
+
+      - name: Say that the alarm issue was left as it was
+        if: inputs.alarm-title != '' && steps.report.outputs.alarm != 'ready'
+        run: |
+          echo "A job could not prove anything, so the alarm issue was left as it was." \
+            >> "$GITHUB_STEP_SUMMARY"
