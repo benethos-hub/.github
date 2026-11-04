@@ -21,7 +21,7 @@ name: Freshness
 
 on:
   schedule:
-    - cron: "30 5 * * *"
+    - cron: "30 4 * * *"
   workflow_dispatch:
 
 permissions:
