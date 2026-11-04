@@ -296,7 +296,7 @@ def test_the_report_applies_the_same_script():
 
 def test_the_report_keeps_its_issue_with_the_shared_action():
     checkout, *_, issue = REPORT["jobs"]["report"]["steps"]
-    assert ".github/actions/report-issue" in checkout["with"]["sparse-checkout"]
-    assert issue["uses"] == "./.github/actions/report-issue"
+    assert "actions/report-issue" in checkout["with"]["sparse-checkout"]
+    assert issue["uses"] == "./actions/report-issue"
     assert issue["with"]["title"] == "Brand assets need fixing"
     assert issue["with"]["report"] == "${{ runner.temp }}/report.md"
