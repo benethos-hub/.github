@@ -4,7 +4,8 @@ description: Checks the images a repository pins in Dockerfiles and YAML files a
 # The same for every language. Every FROM and every image: with a tag that
 # has digits is a pin, the container or a service of a workflow job as
 # well. One with a digest is compared with the digest its tag points to
-# now, and counts as a rebuild only when a platform in platforms changed. Every tag is compared with the newest tag of the same form, so
+# now, and counts as a rebuild only when a platform in platforms changed.
+# Every tag is compared with the newest tag of the same form, so
 # python:3.15-slim learns of 3.16-slim and v0.16 of v0.17. A reference with
 # a variable, a stage name or a tag without digits floats on purpose and is
 # left out. images.py next to this file holds the logic.

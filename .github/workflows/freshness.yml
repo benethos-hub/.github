@@ -1,10 +1,11 @@
 name: Freshness
 
 # Reusable report of what a repository pins and what is newer, kept in one
-# issue. Four jobs measure, each leaves its findings as an artifact, and the
-# report job turns them into the Markdown of the issue (actions/freshness/
-# report, its FORMAT.md describes the files). Nothing here writes to the
-# repository, and the issue is public, so only names and versions go in.
+# issue. Five jobs measure, four by default, each leaves its findings as an
+# artifact, and the report job turns them into the Markdown of the issue
+# (actions/freshness/report, its FORMAT.md describes the files). Nothing
+# here writes to the repository, and the issue is public, so only names and
+# versions go in.
 #
 #   outdated   what is newer than the lockfile pins, inside the bounds the
 #              repository allows and beyond them, and the build backends
@@ -17,10 +18,11 @@ name: Freshness
 #              the index into a fresh environment, with a check of the
 #              repository, for the alarm issue
 #
-# The first two depend on the package tool of the repository and run through
-# an adapter chosen by ecosystem, once per folder in projects. The last two are the same for every
-# language. A repository calls it on a schedule, with the cron and the
-# permission to write issues of its own:
+# outdated, audit and index depend on the package tool of the repository and
+# run through an adapter chosen by ecosystem, the first two once per folder
+# in projects, index once per package in index-packages. images and actions
+# are the same for every language. A repository calls it on a schedule, with
+# the cron and the permission to write issues of its own:
 #
 #   on:
 #     schedule:

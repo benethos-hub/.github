@@ -570,7 +570,11 @@ def test_the_action_takes_the_results_and_writes_the_report():
     }
     assert ACTION["inputs"]["alarm"]["default"] == ""
     assert ACTION["outputs"]["alarm"]["value"] == "${{ steps.write.outputs.alarm }}"
-    (run,) = [s for s in ACTION["runs"]["steps"] if "run" in s]
+    uv, run = ACTION["runs"]["steps"]
+    assert uv["uses"].startswith("astral-sh/setup-uv@")
+    # The report job has no checkout, so the empty working directory is no
+    # news.
+    assert uv["with"] == {"enable-cache": False, "ignore-empty-workdir": True}
     assert '"$GITHUB_ACTION_PATH/report.py"' in run["run"]
     assert run["id"] == "write"
     assert set(run["env"]) == {

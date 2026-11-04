@@ -60,10 +60,13 @@ runs:
   steps:
     # The cache belongs to the job. An action that saved it as well would
     # race the job for the same key. uv still uses the job's cache folder.
+    # The report job has no checkout, so its working directory is empty on
+    # purpose and setup-uv must not warn about it.
     - name: Install uv
       uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
       with:
         enable-cache: false
+        ignore-empty-workdir: true
 
     - name: Write the report
       id: write
