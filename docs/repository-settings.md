@@ -111,19 +111,34 @@ gh api -X POST repos/benethos-hub/<repo>/environments/<environment>/deployment-b
 
 Settings, Advanced Security:
 
-- Dependabot alerts and Dependabot security updates on.
+- Dependency graph on. Dependabot finds vulnerable packages through it.
+- Dependabot alerts, malware alerts and Dependabot security updates on.
+- CodeQL analysis with the default setup. It needs no file in the repository and is not a required check.
 - Secret scanning and push protection on.
 - Private vulnerability reporting on. The [security policy](../SECURITY.md) asks for reports through it, and the button only appears when it is on.
+
+The dependency graph and malware alerts are switched on this page, the rest also through these calls:
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/vulnerability-alerts
 gh api -X PUT repos/benethos-hub/<repo>/automated-security-fixes
 gh api -X PUT repos/benethos-hub/<repo>/private-vulnerability-reporting
+gh api -X PATCH repos/benethos-hub/<repo>/code-scanning/default-setup -f state=configured
 gh api -X PATCH repos/benethos-hub/<repo> --input - <<'EOF'
 {"security_and_analysis": {"secret_scanning": {"status": "enabled"},
  "secret_scanning_push_protection": {"status": "enabled"}}}
 EOF
 ```
+
+Check the dependency graph on its own. It can be off while the calls for alerts and security updates report success, and then no alert ever comes. This call answers 404 as long as it is off:
+
+```sh
+gh api repos/benethos-hub/<repo>/dependency-graph/sbom --jq '.sbom.packages | length'
+```
+
+The graph reads the lockfiles and the actions, not the base images of a Dockerfile. Those stay with the `docker` entry of [Dependabot](#dependabot).
+
+A security update can fail when another package holds the vulnerable version back. The Dependabot run then ends in red with `security_update_not_possible`, which is no defect here. Report it to the project that holds the version. If the vulnerable code cannot be reached here, dismiss the alert with the reason in its comment, so that a new alert stands out.
 
 ## Actions
 
@@ -144,6 +159,10 @@ Every repository has a `.github/dependabot.yml` with one entry per ecosystem it 
         patterns: ["*"]
         update-types: ["minor", "patch"]
 ```
+
+Every `uv` entry also sets `versioning-strategy: increase-if-necessary`, so a release the range in `pyproject.toml` allows changes `uv.lock` only. Left to itself, Dependabot can raise the lower bound as well, which reaches everyone who installs the package although nothing asks for it. The lower bounds stay what `lowest-versions` tests, and that job says when one has become too low.
+
+The standard for `open-pull-requests-limit` is 5, and 10 is the most an entry sets. This repository sets 10.
 
 This repository runs every entry daily. The repositories call its workflows and actions at `main`, so an update here reaches all of them on the same day, and only the Dependabot of this repository keeps those pins current.
 
