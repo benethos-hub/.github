@@ -10,8 +10,9 @@ releases of that repository.
 The newest release of each repository is asked from the GitHub API, or the
 newest version tag where a repository publishes no releases. Its tag is
 resolved to a commit, through the tag object when the tag is annotated, and
-compared with the pin. ROOT names the repository, FINDINGS the folder to
-write, GH_TOKEN the token for the API. Standard library only.
+compared with the pin. ROOT names the repository, FILES the patterns of the
+files to read (empty for the workflows and every action.yml), FINDINGS the
+folder to write, GH_TOKEN the token for the API. Standard library only.
 """
 
 from __future__ import annotations
@@ -30,7 +31,7 @@ from typing import Any
 
 API = "https://api.github.com"
 SKIPPED_FOLDERS = {".git", ".venv", "node_modules", "__pycache__"}
-FILES = (
+DEFAULT_FILES = (
     ".github/workflows/*.yml",
     ".github/workflows/*.yaml",
     "**/action.yml",
@@ -66,10 +67,10 @@ def pins_in(text: str) -> list[Pin]:
     return found
 
 
-def files_to_read(root: Path) -> list[Path]:
+def files_to_read(root: Path, patterns: Iterable[str]) -> list[Path]:
     found = {
         path
-        for pattern in FILES
+        for pattern in patterns or DEFAULT_FILES
         for path in root.glob(pattern)
         if path.is_file() and not SKIPPED_FOLDERS & set(path.relative_to(root).parts)
     }
@@ -180,9 +181,10 @@ def write(folder: Path, findings: list[dict[str, Any]], checked: int) -> None:
 
 def main() -> int:
     root = Path(os.environ.get("ROOT") or Path.cwd())
+    patterns = os.environ.get("FILES", "").split()
     api = Api(fetch_url)
     try:
-        pins = collect(root, files_to_read(root))
+        pins = collect(root, files_to_read(root, patterns))
         findings = []
         for pin, files in sorted(
             pins.items(), key=lambda p: (p[0].repository, p[0].commit)

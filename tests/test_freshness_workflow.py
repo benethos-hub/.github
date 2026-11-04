@@ -67,6 +67,7 @@ def test_each_measuring_job_runs_on_its_switch_and_leaves_its_artifact(job):
     assert upload["with"]["path"] == f"${{{{ runner.temp }}}}/freshness/{job}"
     checkout = _step(job, "actions/checkout@")
     assert checkout["with"]["persist-credentials"] is False
+    assert JOBS[job]["timeout-minutes"] == "${{ inputs.timeout-minutes }}"
 
 
 @pytest.mark.parametrize(
@@ -91,7 +92,10 @@ def test_the_language_neutral_jobs_know_no_ecosystem():
     assert images["with"]["platforms"] == "${{ inputs.platforms }}"
     assert images["with"]["files"] == "${{ inputs.image-files }}"
     actions = _step("actions", "benethos-hub/.github/actions/freshness/actions@main")
-    assert actions["with"] == {"findings": "${{ runner.temp }}/freshness/actions"}
+    assert actions["with"] == {
+        "findings": "${{ runner.temp }}/freshness/actions",
+        "files": "${{ inputs.action-files }}",
+    }
 
 
 def test_the_waivers_reach_the_audit():

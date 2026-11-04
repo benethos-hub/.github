@@ -6,7 +6,7 @@
 | --- | --- |
 | `outdated` | Every package the lockfile pins that has a newer release, how far it may move within the bounds the repository allows, and the newest release beyond them. Every build backend pinned to an exact version. |
 | `audit` | Every known vulnerability of a pinned version, through the same [pip-audit](../actions/python/pip-audit/action.yml) action and the same waivers as the CI. |
-| `images` | Every `FROM` of a Dockerfile and every `image:` of a YAML file with a digit in its tag. A pinned digest that moved for one of the platforms asked for is a rebuild. A tag with a newer tag of the same form, `3.15-slim` beside `3.16-slim` or `v0.16` beside `v0.17`, is a newer release. |
+| `images` | Every `FROM` of a Dockerfile and every `image:` of a YAML file with a digit in its tag, the workflows included. A pinned digest that moved for one of the platforms asked for is a rebuild. A tag with a newer tag of the same form, `3.15-slim` beside `3.16-slim` or `v0.16` beside `v0.17`, is a newer release. |
 | `actions` | Every `uses:` pinned to a commit, against the newest release of its action. |
 
 Nothing is written to the repository. The upgrade of the lockfile is a dry run inside the runner. The issue is public, so the report holds names, versions and the result of a job, and no log.
@@ -46,7 +46,9 @@ jobs:
 | `ecosystem` | The package tool of the repository, named as Dependabot names it. Decides the adapter of the `outdated` and `audit` jobs. `uv` is the default and the only value so far. |
 | `outdated`, `audit`, `images`, `actions` | One switch per job, all on by default. A job that is switched off is left out of the report. |
 | `platforms` | The platforms a changed image digest counts for. Default `linux/amd64 linux/arm64`. A rebuild of another architecture moves the digest of the image as well and is nobody's news. |
-| `image-files` | Patterns of the files the `images` job reads. Empty reads every `Dockerfile*` and every `yml` or `yaml` file outside `.github/workflows`. |
+| `image-files` | Patterns of the files the `images` job reads. Empty reads every `Dockerfile*` and every `yml` or `yaml` file of the repository, the workflows included, where the container or a service of a job is a pin like any other. |
+| `action-files` | Patterns of the files the `actions` job reads. Empty reads the workflows and every `action.yml`. |
+| `timeout-minutes` | The time each measuring job may take. Default 15. |
 | `ignore` | Names of pins the repository keeps on purpose, as shell patterns, for example `example/server` for the image of a test server. Matching findings are dropped and counted. |
 | `ignore-vulns` | Vulnerability IDs to waive, as in the CI. |
 | `dev` | Show packages that are only needed in development. They are hidden and counted otherwise. |

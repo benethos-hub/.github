@@ -110,7 +110,11 @@ def test_the_same_commit_in_two_files_is_one_pin_with_the_version_of_either(tmp_
     (tmp_path / "node_modules" / "x" / "action.yml").write_text(
         f"uses: a/b@{OLDER}\n", "utf-8"
     )
-    pins = actions.collect(tmp_path, actions.files_to_read(tmp_path))
+    pins = actions.collect(tmp_path, actions.files_to_read(tmp_path, []))
+    chosen = actions.files_to_read(tmp_path, ["actions/**/action.yml"])
+    assert [p.relative_to(tmp_path).as_posix() for p in chosen] == [
+        "actions/own/action.yml"
+    ]
     assert pins == {
         actions.Pin("example/tool", OLDER, "v1.2.0"): [
             ".github/workflows/ci.yml",
@@ -210,8 +214,8 @@ def test_the_script_writes_the_status_without_pins(tmp_path):
 
 
 def test_the_action_passes_the_token_and_the_folder():
-    assert set(ACTION["inputs"]) == {"findings", "token"}
+    assert set(ACTION["inputs"]) == {"findings", "files", "token"}
     assert ACTION["inputs"]["token"]["default"] == "${{ github.token }}"
     (run,) = [s for s in ACTION["runs"]["steps"] if "run" in s]
     assert '"$GITHUB_ACTION_PATH/actions.py"' in run["run"]
-    assert set(run["env"]) == {"GH_TOKEN", "FINDINGS"}
+    assert set(run["env"]) == {"FILES", "GH_TOKEN", "FINDINGS"}

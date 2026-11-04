@@ -80,9 +80,17 @@ on:
         type: string
         default: linux/amd64 linux/arm64
       image-files:
-        description: Patterns of the files the images job reads, separated by spaces. Empty reads every Dockerfile and every yml or yaml file outside .github/workflows.
+        description: Patterns of the files the images job reads, separated by spaces. Empty reads every Dockerfile and every yml or yaml file of the repository.
         type: string
         default: ""
+      action-files:
+        description: Patterns of the files the actions job reads, separated by spaces. Empty reads the workflows and every action.yml.
+        type: string
+        default: ""
+      timeout-minutes:
+        description: The time each measuring job may take.
+        type: number
+        default: 15
       ignore:
         description: Names of pins the repository keeps on purpose, as shell patterns separated by spaces. Matching findings are dropped and counted.
         type: string
@@ -104,7 +112,7 @@ jobs:
     name: Outdated packages
     if: inputs.outdated
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -137,7 +145,7 @@ jobs:
     name: Known vulnerabilities
     if: inputs.audit
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -169,7 +177,7 @@ jobs:
     name: Container images
     if: inputs.images
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -193,7 +201,7 @@ jobs:
     name: Pinned actions
     if: inputs.actions
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -203,6 +211,7 @@ jobs:
         uses: benethos-hub/.github/actions/freshness/actions@main
         with:
           findings: ${{ runner.temp }}/freshness/actions
+          files: ${{ inputs.action-files }}
 
       - name: Leave the findings for the report
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

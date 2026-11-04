@@ -18,6 +18,10 @@ inputs:
   findings:
     description: The folder to write findings.jsonl and status.json into. It is created.
     required: true
+  files:
+    description: Patterns of the files to read, relative to the repository and separated by spaces. Empty reads the workflows and every action.yml.
+    required: false
+    default: ""
   token:
     description: The token for the GitHub API.
     required: false
@@ -36,6 +40,7 @@ runs:
     - name: Ask GitHub for the newest releases
       shell: bash
       env:
+        FILES: ${{ inputs.files }}
         GH_TOKEN: ${{ inputs.token }}
         FINDINGS: ${{ inputs.findings }}
       run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/actions.py"
