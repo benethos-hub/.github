@@ -1,0 +1,57 @@
+name: Known vulnerabilities of a uv project
+description: Audits every version a uv.lock pins and writes the known vulnerabilities as findings for the freshness report.
+
+# The uv adapter of the audit job of freshness.yml. It exports every version
+# pinned in uv.lock, all workspace members, all extras and all dependency
+# groups, for every platform and Python version, and hands them to the
+# pip-audit action with findings set, so a vulnerability is a finding for
+# the report and no failure. The rules and the pip-audit version are those
+# of python/pip-audit, the same as in every audit of the organisation.
+#
+#   - uses: benethos-hub/.github/actions/python/freshness-audit@main
+#     with:
+#       findings: ${{ runner.temp }}/freshness/audit
+#       ignore-vulns: GHSA-xxxx-xxxx-xxxx
+
+inputs:
+  findings:
+    description: The folder to write findings.jsonl and status.json into. It is created.
+    required: true
+  ignore-vulns:
+    description: Vulnerability IDs to waive, separated by spaces.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    # Markers stay in the export and are dropped by the audit, so the pins
+    # of every platform and Python version are audited, not only those that
+    # apply to this runner.
+    - name: List the locked versions
+      shell: bash
+      env:
+        LOCKED: ${{ runner.temp }}/freshness-audit-locked.txt
+      run: |
+        set -euo pipefail
+        if [ ! -s uv.lock ]; then
+          echo "::error file=uv.lock::Missing uv.lock in the root of the repository, there is nothing to audit."
+          exit 1
+        fi
+        uv export --frozen --no-hashes --no-annotate --no-header --no-emit-workspace \
+          --all-packages --all-extras --all-groups > "$LOCKED"
+
+    - name: Audit against PyPI and OSV
+      uses: benethos-hub/.github/actions/python/pip-audit@main
+      with:
+        requirements: ${{ runner.temp }}/freshness-audit-locked.txt
+        ignore-vulns: ${{ inputs.ignore-vulns }}
+        findings: ${{ inputs.findings }}
+        pinned-in: uv.lock

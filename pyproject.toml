@@ -34,6 +34,11 @@ files = [
     "actions/publish/mcpb/check_packed.py",
     "actions/publish/pypi/check_dist.py",
     "actions/coverage-badge/badge.py",
+    "actions/freshness/actions/actions.py",
+    "actions/freshness/images/images.py",
+    "actions/freshness/report/report.py",
+    "actions/python/freshness-outdated/outdated.py",
+    "actions/python/pip-audit/findings.py",
     "actions/publish/pypi/on_pypi.py",
     ".github/scripts/download_pins.py",
 ]

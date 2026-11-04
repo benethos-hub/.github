@@ -1,0 +1,58 @@
+name: Outdated pins of a uv project
+description: Finds what is newer than the versions uv.lock and the build backends pin, as findings for the freshness report.
+
+# The uv adapter of freshness.yml. It reads the uv.lock in the root of the
+# repository, a single project or a workspace, and the [build-system] of
+# every pyproject.toml. Nothing is written to the repository: the upgrade is
+# a dry run inside the runner. The result is the folder named in findings,
+# with findings.jsonl and status.json as FORMAT.md of the report action
+# describes. outdated.py holds the logic.
+#
+#   - uses: benethos-hub/.github/actions/python/freshness-outdated@main
+#     with:
+#       findings: ${{ runner.temp }}/freshness/outdated
+#
+# within_bounds is measured for the resolution of the whole lockfile. A
+# single package of a workspace installed with uvx sees only its own bounds
+# and may resolve differently.
+
+inputs:
+  findings:
+    description: The folder to write findings.jsonl and status.json into. It is created.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    # The dry run writes nothing and prints each move to stderr. The tree is
+    # universal, so a package pinned in two versions for different markers
+    # shows both, not only the one of this runner.
+    - name: Ask uv what is newer
+      shell: bash
+      env:
+        WORK: ${{ runner.temp }}/freshness-outdated-work
+      run: |
+        set -euo pipefail
+        if [ ! -s uv.lock ]; then
+          echo "::error file=uv.lock::Missing uv.lock in the root of the repository, there is nothing to check."
+          exit 1
+        fi
+        mkdir -p "$WORK"
+        uv lock --upgrade --dry-run > /dev/null 2> "$WORK/upgrade.txt"
+        uv tree --frozen --outdated --universal > "$WORK/outdated.txt"
+
+    - name: Write the findings
+      shell: bash
+      env:
+        LOCKFILE: uv.lock
+        UPGRADE: ${{ runner.temp }}/freshness-outdated-work/upgrade.txt
+        OUTDATED: ${{ runner.temp }}/freshness-outdated-work/outdated.txt
+        FINDINGS: ${{ inputs.findings }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/outdated.py"

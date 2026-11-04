@@ -1,0 +1,61 @@
+name: Freshness report
+description: Writes the Markdown of the freshness issue from the findings the other jobs left as artifacts.
+
+# The last job of freshness.yml downloads every artifact named freshness-*
+# into one folder and calls this. It knows only the two files each job leaves,
+# FORMAT.md next to this file describes them. A job for another language
+# writes the same files and needs no change here. report.py holds the logic.
+#
+#   - uses: actions/download-artifact@<sha> # vX
+#     with:
+#       pattern: freshness-*
+#       path: ${{ runner.temp }}/freshness
+#   - uses: benethos-hub/.github/actions/freshness/report@main
+#     with:
+#       results: ${{ runner.temp }}/freshness
+#       expected: outdated audit images actions
+#       report: ${{ runner.temp }}/report.md
+#
+# An expected job without a result is a line in the report, so a run that
+# proved nothing never closes the issue. An empty report means there is
+# nothing to say, and report-issue closes the issue.
+
+inputs:
+  results:
+    description: The folder with one subfolder per artifact, freshness-<job>, each holding findings.jsonl and status.json.
+    required: true
+  expected:
+    description: The jobs that must have left a result, separated by spaces. A job the caller switched off is not listed.
+    required: false
+    default: ""
+  ignore:
+    description: Names of pins the repository keeps on purpose, as shell patterns separated by spaces. Matching findings are dropped and counted.
+    required: false
+    default: ""
+  dev:
+    description: Show packages that are only needed in development. They are hidden and counted otherwise.
+    required: false
+    default: "false"
+  report:
+    description: Where to write the Markdown. The folder is created. The file stays empty when there is nothing to report.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    - name: Write the report
+      shell: bash
+      env:
+        RESULTS: ${{ inputs.results }}
+        EXPECTED: ${{ inputs.expected }}
+        IGNORE: ${{ inputs.ignore }}
+        DEV: ${{ inputs.dev }}
+        REPORT: ${{ inputs.report }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/report.py"

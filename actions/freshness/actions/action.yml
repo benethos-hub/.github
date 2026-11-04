@@ -1,0 +1,46 @@
+name: Outdated pinned actions
+description: Compares every action a repository pins by commit with the newest release of that action, as findings for the freshness report.
+
+# The same for every language. Every uses: in a workflow or a composite
+# action that names a commit is a pin, and the comment beside it, # v7.0.1,
+# is the version it stands for. A reference to a tag or a branch, a local
+# path or a container floats on purpose and is left out. The same commit in
+# several files is one finding. actions.py next to this file holds the logic.
+#
+#   - uses: benethos-hub/.github/actions/freshness/actions@main
+#     with:
+#       findings: ${{ runner.temp }}/freshness/actions
+#
+# The newest release comes from the GitHub API with the token of the
+# workflow, which needs no permission beyond reading public repositories.
+
+inputs:
+  findings:
+    description: The folder to write findings.jsonl and status.json into. It is created.
+    required: true
+  files:
+    description: Patterns of the files to read, relative to the repository and separated by spaces. Empty reads the workflows and every action.yml.
+    required: false
+    default: ""
+  token:
+    description: The token for the GitHub API.
+    required: false
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    - name: Ask GitHub for the newest releases
+      shell: bash
+      env:
+        FILES: ${{ inputs.files }}
+        GH_TOKEN: ${{ inputs.token }}
+        FINDINGS: ${{ inputs.findings }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/actions.py"

@@ -7,6 +7,7 @@ need no network and no real vulnerability.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -24,16 +25,33 @@ ACTION = yaml.safe_load((ACTION_DIR / "action.yml").read_text("utf-8"))
 UV_STEP, STEP = ACTION["runs"]["steps"]
 
 FAKE_UV = r"""#!/bin/bash
+# The call of findings.py is forwarded to the real script.
+case "$*" in *findings.py) exec python3 "${@: -1}" ;; esac
 echo "CALL $* ENV $UV_PROJECT_ENVIRONMENT" >> "$UV_LOG"
 file="${@: -1}"
 sed 's/^/PIN /' "$file" >> "$UV_LOG"
-if grep -q '^bad==' "$file"; then exit 1; fi
+# With --output, pip-audit writes JSON and exits 1 on a vulnerability. A
+# package named broken cannot be audited at all and leaves no file.
+out=""
+for ((i = 1; i < $#; i++)); do
+  if [ "${!i}" = --output ]; then j=$((i + 1)); out="${!j}"; fi
+done
+if grep -q '^broken==' "$file"; then exit 1; fi
+if grep -q '^bad==' "$file"; then
+  if [ -n "$out" ]; then
+    vulns='[{"id": "GHSA-bad0-bad0-bad0", "fix_versions": ["1.1"]}]'
+    bad='{"name": "bad", "version": "1.0", "vulns": '"$vulns"'}'
+    echo '{"dependencies": ['"$bad"'], "fixes": []}' > "$out"
+  fi
+  exit 1
+fi
+if [ -n "$out" ]; then echo '{"dependencies": [], "fixes": []}' > "$out"; fi
 exit 0
 """
 
 
 def _audit(
-    tmp_path: Path, requirements: str, ignore: str = ""
+    tmp_path: Path, requirements: str, ignore: str = "", findings: str = ""
 ) -> tuple[int, str, list[list[str]]]:
     """Run the action's script. Returns the exit code, the output, and for
     every pip-audit call its arguments followed by the pins it got."""
@@ -53,6 +71,8 @@ def _audit(
         "UV_LOG": str(log),
         "REQUIREMENTS": str(req),
         "IGNORE_VULNS": ignore,
+        "FINDINGS": findings,
+        "PINNED_IN": "uv.lock",
         "GITHUB_ACTION_PATH": str(ACTION_DIR),
         "RUNNER_TEMP": str(tmp_path),
     }
@@ -77,6 +97,7 @@ def test_every_pin_is_audited_against_pypi_and_osv(tmp_path):
     ]
     for call in calls:
         assert "--strict --no-deps --disable-pip" in call[0]
+        assert "--format json" not in call[0]
         assert call[1:] == ["idna==3.15", "requests==2.33.1"]
 
 
@@ -135,6 +156,31 @@ def test_each_waiver_reaches_pip_audit(tmp_path):
 def test_a_finding_fails_the_audit_after_every_call(tmp_path):
     code, _, calls = _audit(tmp_path, "bad==1.0\n")
     assert code == 1 and len(calls) == 2
+
+
+def test_with_findings_a_vulnerability_is_written_and_fails_nothing(tmp_path):
+    """The audit job of freshness.yml reports instead of failing."""
+    out = tmp_path / "findings"
+    code, _, calls = _audit(tmp_path, "bad==1.0\nidna==3.15\n", findings=str(out))
+    assert code == 0
+    assert len(calls) == 2
+    for call in calls:
+        assert "--format json --output " in call[0]
+    lines = (out / "findings.jsonl").read_text().splitlines()
+    assert [json.loads(line)["vulnerability"] for line in lines] == [
+        "GHSA-bad0-bad0-bad0"
+    ]
+    assert json.loads((out / "status.json").read_text()) == {
+        "result": "ok",
+        "checked": 1,
+    }
+
+
+def test_with_findings_a_package_that_cannot_be_audited_still_fails(tmp_path):
+    out = tmp_path / "findings"
+    code, _, _ = _audit(tmp_path, "broken==1.0\n", findings=str(out))
+    assert code == 1
+    assert not out.exists()
 
 
 @pytest.mark.parametrize("requirements", ["", "# only a comment\n"])

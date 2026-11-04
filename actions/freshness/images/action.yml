@@ -1,0 +1,48 @@
+name: Outdated container images
+description: Checks the images a repository pins in Dockerfiles and YAML files against their registry, as findings for the freshness report.
+
+# The same for every language. Every FROM and every image: with a tag that
+# has digits is a pin, the container or a service of a workflow job as
+# well. One with a digest is compared with the digest its tag points to
+# now, and counts as a rebuild only when a platform in platforms changed. Every tag is compared with the newest tag of the same form, so
+# python:3.15-slim learns of 3.16-slim and v0.16 of v0.17. A reference with
+# a variable, a stage name or a tag without digits floats on purpose and is
+# left out. images.py next to this file holds the logic.
+#
+#   - uses: benethos-hub/.github/actions/freshness/images@main
+#     with:
+#       findings: ${{ runner.temp }}/freshness/images
+#
+# Registries are read anonymously, as docker pull does. The registry of
+# Docker Hub counts those reads against the address of the runner.
+
+inputs:
+  findings:
+    description: The folder to write findings.jsonl and status.json into. It is created.
+    required: true
+  platforms:
+    description: The platforms a changed digest counts for, separated by spaces or commas.
+    required: false
+    default: linux/amd64 linux/arm64
+  files:
+    description: Patterns of the files to read, relative to the repository and separated by spaces. Empty reads every Dockerfile and every yml or yaml file of the repository, the workflows included.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    - name: Ask the registries
+      shell: bash
+      env:
+        FILES: ${{ inputs.files }}
+        PLATFORMS: ${{ inputs.platforms }}
+        FINDINGS: ${{ inputs.findings }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/images.py"
