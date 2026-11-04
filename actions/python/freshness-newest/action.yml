@@ -1,0 +1,131 @@
+name: Tests on the newest versions allowed
+description: Upgrades the lockfile inside the runner to the newest versions the bounds allow, runs the tests and a check on them, and leaves the result for the freshness report.
+
+# A job of the repository for freshness.yml, ready made for a uv project.
+# uv lock --upgrade moves every package as far as pyproject.toml allows,
+# which is what an installation without the lockfile gets. The tests and an
+# optional check of the repository run on those versions, after the same
+# check on the locked ones, and the result goes to the alarm issue. Nothing
+# is committed, the upgraded lockfile stays in the runner.
+#
+#   newest:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@<sha> # vX
+#       - uses: benethos-hub/.github/actions/python/freshness-newest@main
+#         with:
+#           findings: ${{ runner.temp }}/freshness/newest
+#           extras: dev
+#           check: uv run --frozen python tests/smoke.py --pause 1
+#       - uses: actions/upload-artifact@<sha> # vX
+#         with:
+#           name: freshness-newest
+#           path: ${{ runner.temp }}/freshness/newest
+#
+# Exit code rate-limit-exit-code of the check is a rate limit and no
+# verdict. A failure of the check on the locked versions says nothing about
+# the newest ones either, and so does a failure when nothing moved. Each of
+# those is inconclusive and leaves the alarm issue as it was. newest.py next
+# to this file holds the logic.
+
+inputs:
+  findings:
+    description: The folder to write status.json and, on a failure, section.md into. It is created.
+    required: true
+  extras:
+    description: The extras to sync, separated by spaces, such as the one that holds the test tools.
+    required: false
+    default: ""
+  groups:
+    description: The dependency groups to sync, separated by spaces.
+    required: false
+    default: ""
+  tests:
+    description: The command that runs the tests.
+    required: false
+    default: uv run --frozen pytest -q
+  check:
+    description: A command run on the locked versions first and on the newest ones after, such as a smoke run against a live service. Empty runs the tests alone.
+    required: false
+    default: ""
+  rate-limit-exit-code:
+    description: The exit code of the check that means a rate limit and no verdict.
+    required: false
+    default: "3"
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    - name: Test the newest versions allowed
+      shell: bash
+      env:
+        EXTRAS: ${{ inputs.extras }}
+        GROUPS: ${{ inputs.groups }}
+        TESTS_COMMAND: ${{ inputs.tests }}
+        CHECK_COMMAND: ${{ inputs.check }}
+        RATE_LIMIT_EXIT: ${{ inputs.rate-limit-exit-code }}
+        FINDINGS: ${{ inputs.findings }}
+        WORK: ${{ runner.temp }}/freshness-newest-work
+      run: |
+        set -euo pipefail
+        mkdir -p "$WORK"
+        sync=(uv sync --frozen)
+        for extra in $EXTRAS; do
+          sync+=(--extra "$extra")
+        done
+        for group in $GROUPS; do
+          sync+=(--group "$group")
+        done
+
+        # The outcome of the check as a word. Its output goes to the log.
+        check() {
+          if [ -z "$CHECK_COMMAND" ]; then
+            echo skipped
+            return
+          fi
+          local code=0
+          bash -c "$CHECK_COMMAND" >&2 || code=$?
+          if [ "$code" = 0 ]; then
+            echo success
+          elif [ "$code" = "$RATE_LIMIT_EXIT" ]; then
+            echo rate-limited
+          else
+            echo failure
+          fi
+        }
+
+        echo "::group::The check on the locked versions"
+        "${sync[@]}"
+        locked=$(check)
+        echo "::endgroup::"
+        echo "Locked versions: $locked"
+
+        echo "::group::Install the newest versions allowed"
+        cp uv.lock "$WORK/uv.lock.before"
+        uv lock --upgrade
+        "${sync[@]}"
+        echo "::endgroup::"
+
+        # Each outcome goes into the artifact, so a red step must not stop
+        # the job before it gets there.
+        echo "::group::Tests on the newest versions"
+        tests=success
+        bash -c "$TESTS_COMMAND" || tests=failure
+        echo "::endgroup::"
+        echo "Tests: $tests"
+
+        echo "::group::The check on the newest versions"
+        newest=$(check)
+        echo "::endgroup::"
+        echo "Newest versions: $newest"
+
+        export BEFORE="$WORK/uv.lock.before" AFTER=uv.lock
+        export LOCKED="$locked" TESTS="$tests" CHECK="$newest"
+        uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/newest.py"

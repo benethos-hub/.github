@@ -115,6 +115,25 @@ jobs:
 
 A job says in one sentence what it checked through `summary` in its status, such as which versions its tests passed on. The pins report lists those sentences under Checks, after the tables, so the issue that names a newer pandas also says that the tests passed on it the same day. A job that says something alarming, such as tests that fail on the newest versions allowed, sets `"issue": "alarm"` in its status. Its findings and its section then go to the second issue named by `alarm-title`, and the pins report stays what it is. The alarm issue is touched only when every job was conclusive. A job that ran but could not prove anything, after a rate limit, say, sets `"result": "inconclusive"`: that is a line in the pins report, and the alarm issue is left as it was. Without `alarm-title` everything goes to the one issue as before.
 
+For a uv project the job is ready made: [python/freshness-newest](../actions/python/freshness-newest/action.yml) upgrades the lockfile inside the runner, runs the tests and an optional check on the newest versions allowed, after the same check on the locked ones, and leaves the artifact with `issue: alarm`, a summary of what passed and what moved, and a section when a step failed. A failure of the check on the locked versions, a rate limit or a failure without a move is inconclusive.
+
+```yaml
+  newest:
+    name: Newest versions allowed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha> # vX
+      - uses: benethos-hub/.github/actions/python/freshness-newest@main
+        with:
+          findings: ${{ runner.temp }}/freshness/newest
+          extras: dev
+          check: uv run --frozen python tests/smoke.py --pause 1
+      - uses: actions/upload-artifact@<sha> # vX
+        with:
+          name: freshness-newest
+          path: ${{ runner.temp }}/freshness/newest
+```
+
 The `needs` delays the pins report by the time the repository's job takes. A form in which both run side by side would need the report in a workflow of its own, called after both, two files here and two calls in every repository. That is not built.
 
 ## Another language
@@ -128,6 +147,7 @@ The actions behind the jobs, each usable on its own:
 | [python/freshness-outdated](../actions/python/freshness-outdated/action.yml) | `uv.lock`, `pyproject.toml`, `uv lock --upgrade --dry-run` and `uv tree --outdated --universal` |
 | [python/freshness-audit](../actions/python/freshness-audit/action.yml) | `uv export` and the pip-audit action with `findings` |
 | [python/freshness-index](../actions/python/freshness-index/action.yml) | `uv venv`, `uv pip install` from the index, `uv pip freeze` and the check of the repository |
+| [python/freshness-newest](../actions/python/freshness-newest/action.yml) | `uv lock --upgrade` in the runner, `uv sync`, the tests and the check of the repository. A job of the repository, not of the workflow. |
 | [freshness/images](../actions/freshness/images/action.yml) | Dockerfiles, YAML files and the registry API, read anonymously as `docker pull` does |
 | [freshness/actions](../actions/freshness/actions/action.yml) | `uses:` lines and the GitHub API |
 | [freshness/report](../actions/freshness/report/action.yml) | Only the two files per job |

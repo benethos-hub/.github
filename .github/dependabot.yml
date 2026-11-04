@@ -26,6 +26,7 @@ updates:
       - "/actions/publish/pypi"
       - "/actions/python/freshness-audit"
       - "/actions/python/freshness-index"
+      - "/actions/python/freshness-newest"
       - "/actions/python/freshness-outdated"
       - "/actions/python/pip-audit"
       - "/actions/release/ci-passed"
