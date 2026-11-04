@@ -238,6 +238,12 @@ Update mcp v2.3.0 -> v2.3.2
 Update numpy v2.4.6 -> v2.4.7
 """
 
+# As uv prints a package pinned in two versions, measured on a real lockfile.
+FORKED_UPGRADE = """\
+Update soupsieve v2.10, v4.0 -> v2.10, v4.0.1
+Update numpy v2.4.6, v2.5.4 -> v2.4.7
+"""
+
 TREE = """\
 example v1.0.0
 ├── mcp v2.3.0 (latest: v2.4.0)
@@ -254,6 +260,10 @@ def test_the_dry_run_gives_the_newest_within_bounds():
         ("mcp", "2.3.0"): "2.3.2",
         ("numpy", "2.4.6"): "2.4.7",
     }
+
+
+def test_a_package_in_two_versions_is_matched_by_position():
+    assert outdated.parse_upgrade(FORKED_UPGRADE) == {("soupsieve", "4.0"): "4.0.1"}
 
 
 def test_the_tree_gives_the_latest_release_without_the_extras():
@@ -280,6 +290,15 @@ def test_a_move_the_tree_does_not_mention_is_within_bounds():
     found = _scopes(LOCK, {("mcp", "2.3.0"): "2.3.2"}, {})
     assert found[("mcp", "2.3.0")]["newest"] == "2.3.2"
     assert found[("mcp", "2.3.0")]["within_bounds"] is True
+
+
+def test_a_fork_the_tree_does_not_mention_has_unknown_bounds():
+    """The tree names no latest release for a package pinned twice, so the
+    dry run is the only source and the bounds stay unknown."""
+    found = _scopes(LOCK, {("numpy", "2.4.6"): "2.4.7"}, {})
+    assert found[("numpy", "2.4.6")]["newest"] == "2.4.7"
+    assert "within_bounds" not in found[("numpy", "2.4.6")]
+    assert ("numpy", "2.5.4") not in found
 
 
 def test_a_date_version_passes_through_unchanged():

@@ -12,9 +12,10 @@ The lockfile says which packages the repository names itself (direct), which
 it needs at runtime and which only in development, and which of its own
 packages need a finding. The graph is followed through extras as well, a
 dependency entry with ``extra`` leads to the target's optional dependencies.
-A package pinned in two versions for different markers is two findings. The
-repository's own packages, the workspace members or the one project, are
-never a finding.
+A package pinned in two versions for different markers is two findings, with
+one dry-run line for both and no latest release in the tree, so whether the
+bounds allow its newest release stays unknown. The repository's own packages,
+the workspace members or the one project, are never a finding.
 
 The build backends come from ``[build-system] requires`` of every
 pyproject.toml. An exact pin is compared with the newest release on PyPI, an
@@ -34,7 +35,7 @@ import sys
 import tomllib
 import urllib.error
 import urllib.request
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -44,7 +45,7 @@ Fetch = Callable[[str], bytes]
 PYPI = "https://pypi.org/pypi"
 SKIPPED_FOLDERS = {".git", ".venv", "node_modules", "__pycache__"}
 
-_UPGRADE = re.compile(r"^\s*Updated?\s+(\S+)\s+v?(\S+)\s+->\s+v?(\S+)\s*$")
+_UPGRADE = re.compile(r"^\s*Updated?\s+(\S+)\s+(.+?)\s+->\s+(.+?)\s*$")
 _OUTDATED = re.compile(
     r"([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[[^\]]*\])? v(\S+) .*\(latest: v([^)]+)\)"
 )
@@ -184,13 +185,29 @@ def direct_names(lock: Lock) -> set[str]:
     return names - {r.name for r in lock.roots}
 
 
+def _versions(text: str) -> list[str]:
+    return [v.strip().removeprefix("v") for v in text.split(",")]
+
+
 def parse_upgrade(text: str) -> dict[tuple[str, str], str]:
-    """``(name, current) -> newest within bounds`` from the dry run."""
+    """``(name, current) -> newest within bounds`` from the dry run.
+
+    A package pinned in two versions for different markers is one line with
+    two versions on each side, ``v2.10, v4.0 -> v2.10, v4.0.1``, matched by
+    position. A position that did not move is no move. A line whose sides
+    differ in length pairs nothing, the forks changed, and is left out.
+    """
     moves = {}
     for line in text.splitlines():
         match = _UPGRADE.match(line)
-        if match:
-            moves[(normalized(match[1]), match[2])] = match[3]
+        if not match:
+            continue
+        before, after = _versions(match[2]), _versions(match[3])
+        if len(before) != len(after):
+            continue
+        for old, new in zip(before, after, strict=True):
+            if old != new:
+                moves[(normalized(match[1]), old)] = new
     return moves
 
 
@@ -220,6 +237,14 @@ def package_findings(
         for root in lock.roots:
             for key in reach(lock, [(root, ())]):
                 needed_by[key].append(root.name)
+    # The tree names no latest release for a package pinned in several
+    # versions, so for one of those the dry run is the only source and
+    # whether the bounds allow the newest release stays unknown.
+    forks = {
+        name
+        for name, count in Counter(p.name for p in lock.packages).items()
+        if count > 1
+    }
     findings = []
     for package in lock.packages:
         if package.root or not package.version:
@@ -235,12 +260,13 @@ def package_findings(
             "where": [where],
             "current": package.version,
             "newest": newest,
-            "within_bounds": within is not None and newest == within,
             "direct": package.name in direct,
             "scope": "runtime"
             if package.key in runtime or package.key not in dev
             else "dev",
         }
+        if latest is not None or package.name not in forks:
+            finding["within_bounds"] = within is not None and newest == within
         if needed_by:
             finding["packages"] = sorted(needed_by.get(package.key, []))
         findings.append(finding)
