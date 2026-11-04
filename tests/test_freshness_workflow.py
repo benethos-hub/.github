@@ -121,20 +121,56 @@ def test_the_report_runs_whatever_happened_and_knows_the_expected_jobs():
             f'[ "${job.upper()}" = true ] && expected="$expected {job}"'
             in expected["run"]
         )
+    assert expected["env"]["EXTRA_JOBS"] == "${{ inputs.extra-jobs }}"
+    assert 'expected="$expected $EXTRA_JOBS"' in expected["run"]
     writer = _step("report", "benethos-hub/.github/actions/freshness/report@main")
+    assert writer["id"] == "report"
     assert writer["with"] == {
         "results": "${{ runner.temp }}/freshness",
         "expected": "${{ steps.expected.outputs.jobs }}",
         "ignore": "${{ inputs.ignore }}",
         "dev": "${{ inputs.dev }}",
         "report": "${{ runner.temp }}/report.md",
+        "alarm": "${{ runner.temp }}/alarm.md",
     }
-    issue = _step("report", "benethos-hub/.github/actions/report-issue@main")
+    issue, _alarm = _issue_steps()
+    assert "if" not in issue
     assert issue["with"] == {
         "title": "${{ inputs.issue-title }}",
         "report": "${{ runner.temp }}/report.md",
         "resolved": "${{ inputs.resolved }}",
     }
+
+
+def _issue_steps() -> list[dict]:
+    return [
+        s
+        for s in JOBS["report"]["steps"]
+        if str(s.get("uses", "")).startswith(
+            "benethos-hub/.github/actions/report-issue@"
+        )
+    ]
+
+
+def test_the_alarm_issue_is_kept_only_with_a_title_and_a_conclusive_run():
+    _issue, alarm = _issue_steps()
+    assert alarm["if"] == (
+        "inputs.alarm-title != '' && steps.report.outputs.alarm == 'ready'"
+    )
+    assert alarm["with"] == {
+        "title": "${{ inputs.alarm-title }}",
+        "report": "${{ runner.temp }}/alarm.md",
+        "resolved": "${{ inputs.alarm-resolved }}",
+    }
+    (note,) = [
+        s for s in JOBS["report"]["steps"] if "left as it was" in s.get("run", "")
+    ]
+    assert note["if"] == (
+        "inputs.alarm-title != '' && steps.report.outputs.alarm != 'ready'"
+    )
+    assert INPUTS["alarm-title"]["default"] == ""
+    assert INPUTS["extra-jobs"]["default"] == ""
+    assert "default" in INPUTS["alarm-resolved"]
 
 
 def test_the_audit_adapter_exports_like_the_dependency_audit_and_asks_for_findings():

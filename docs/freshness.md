@@ -53,6 +53,9 @@ jobs:
 | `ignore` | Names of pins the repository keeps on purpose, as shell patterns, for example `example/server` for the image of a test server. Matching findings are dropped and counted. |
 | `ignore-vulns` | Vulnerability IDs to waive, as in the CI. |
 | `dev` | Show packages that are only needed in development. They are hidden and counted otherwise. |
+| `extra-jobs` | Jobs of the calling workflow that leave an artifact for the report, separated by spaces. See below. |
+| `alarm-title` | The title of a second issue for the jobs whose status names the alarm. Empty keeps everything in the one issue. |
+| `alarm-resolved` | The sentence that closes the alarm issue when nothing is alarming any more. |
 
 The job names are `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions` and `Freshness report`. None of them is a required check, the workflow runs on a schedule.
 
@@ -75,6 +78,40 @@ Dependabot covers part of this, the direct packages of the lockfile, the actions
 ## Workspaces
 
 In a uv workspace the roots of the graph are the members in `manifest.members` of the lockfile. The members themselves are never a finding. `within_bounds` is measured for the resolution of the whole workspace. A single package installed on its own with `uvx` sees only its own bounds and can resolve differently. Build backends are read from every `pyproject.toml`, not only the root.
+
+## A job of the repository
+
+A repository adds a check of its own without a change here. A job of the calling workflow runs first and leaves an artifact `freshness-<job>` with the files of [FORMAT.md](../actions/freshness/report/FORMAT.md): `status.json`, and `findings.jsonl` or `section.md` or both. The call follows with `needs` and names the job in `extra-jobs`, so a job that dies before its upload is a line in the issue and not a silent gap. The report takes a section over as it is, under a heading with the name of the job, after the tables.
+
+```yaml
+jobs:
+  newest:
+    name: Newest versions allowed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha> # vX
+      - name: Test on the newest versions the bounds allow
+        run: ./newest.sh "$RUNNER_TEMP/freshness/newest"
+      - uses: actions/upload-artifact@<sha> # vX
+        with:
+          name: freshness-newest
+          path: ${{ runner.temp }}/freshness/newest
+
+  freshness:
+    needs: newest
+    uses: benethos-hub/.github/.github/workflows/freshness.yml@main
+    permissions:
+      contents: read
+      issues: write
+    with:
+      issue-title: Pinned versions have newer releases
+      extra-jobs: newest
+      alarm-title: Newest dependency versions break the server
+```
+
+A job that says something alarming, such as tests that fail on the newest versions allowed, sets `"issue": "alarm"` in its status. Its findings and its section then go to the second issue named by `alarm-title`, and the pins report stays what it is. The alarm issue is touched only when every job was conclusive. A job that ran but could not prove anything, after a rate limit, say, sets `"result": "inconclusive"`: that is a line in the pins report, and the alarm issue is left as it was. Without `alarm-title` everything goes to the one issue as before.
+
+The `needs` delays the pins report by the time the repository's job takes. A form in which both run side by side would need the report in a workflow of its own, called after both, two files here and two calls in every repository. That is not built.
 
 ## Another language
 

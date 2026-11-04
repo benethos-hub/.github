@@ -43,6 +43,33 @@ name: Freshness
 # the same issue and close or overwrite it for each other. A job the caller
 # switches off is left out of the report, a job that fails is a line in it,
 # so a run that proved nothing never closes the issue.
+#
+# A repository adds checks of its own without a change here: a job of the
+# calling workflow runs first, leaves an artifact freshness-<job> with the
+# files of actions/freshness/report/FORMAT.md, and the call follows with
+# needs and names the job in extra-jobs. A job whose status names the alarm
+# addresses a second issue, alarm-title, which is only touched when every
+# job was conclusive.
+#
+#   jobs:
+#     newest:
+#       ...
+#       steps:
+#         - ...
+#         - uses: actions/upload-artifact@<sha> # vX
+#           with:
+#             name: freshness-newest
+#             path: ${{ runner.temp }}/freshness/newest
+#     freshness:
+#       needs: newest
+#       uses: benethos-hub/.github/.github/workflows/freshness.yml@main
+#       permissions:
+#         contents: read
+#         issues: write
+#       with:
+#         issue-title: Pinned versions have newer releases
+#         extra-jobs: newest
+#         alarm-title: Newest dependency versions break the server
 
 on:
   workflow_call:
@@ -55,6 +82,18 @@ on:
         description: The sentence that closes the issue when there is nothing to report.
         type: string
         default: Every pin is current and nothing is known against it.
+      extra-jobs:
+        description: Jobs of the calling workflow that leave an artifact freshness-<job> for the report, separated by spaces. Each must have a result, or the report says so.
+        type: string
+        default: ""
+      alarm-title:
+        description: The title of a second issue, for the jobs whose status names the alarm. Empty keeps everything in the one issue.
+        type: string
+        default: ""
+      alarm-resolved:
+        description: The sentence that closes the alarm issue when nothing is alarming any more.
+        type: string
+        default: The checks pass again on the newest versions allowed.
       ecosystem:
         description: The package tool of the repository, as Dependabot names it. Decides the adapter of the outdated and audit jobs. Only uv so far.
         type: string
@@ -252,15 +291,18 @@ jobs:
           AUDIT: ${{ inputs.audit }}
           IMAGES: ${{ inputs.images }}
           ACTIONS: ${{ inputs.actions }}
+          EXTRA_JOBS: ${{ inputs.extra-jobs }}
         run: |
           expected=""
           [ "$OUTDATED" = true ] && expected="$expected outdated"
           [ "$AUDIT" = true ] && expected="$expected audit"
           [ "$IMAGES" = true ] && expected="$expected images"
           [ "$ACTIONS" = true ] && expected="$expected actions"
-          echo "jobs=${expected# }" >> "$GITHUB_OUTPUT"
+          expected="$expected $EXTRA_JOBS"
+          echo "jobs=$(echo $expected)" >> "$GITHUB_OUTPUT"
 
       - name: Write the report
+        id: report
         uses: benethos-hub/.github/actions/freshness/report@main
         with:
           results: ${{ runner.temp }}/freshness
@@ -268,6 +310,7 @@ jobs:
           ignore: ${{ inputs.ignore }}
           dev: ${{ inputs.dev }}
           report: ${{ runner.temp }}/report.md
+          alarm: ${{ runner.temp }}/alarm.md
 
       - name: Keep the issue
         uses: benethos-hub/.github/actions/report-issue@main
@@ -275,3 +318,19 @@ jobs:
           title: ${{ inputs.issue-title }}
           report: ${{ runner.temp }}/report.md
           resolved: ${{ inputs.resolved }}
+
+      # Only when every job was conclusive. A run that proved nothing must
+      # neither open nor close the alarm issue.
+      - name: Keep the alarm issue
+        if: inputs.alarm-title != '' && steps.report.outputs.alarm == 'ready'
+        uses: benethos-hub/.github/actions/report-issue@main
+        with:
+          title: ${{ inputs.alarm-title }}
+          report: ${{ runner.temp }}/alarm.md
+          resolved: ${{ inputs.alarm-resolved }}
+
+      - name: Say that the alarm issue was left as it was
+        if: inputs.alarm-title != '' && steps.report.outputs.alarm != 'ready'
+        run: |
+          echo "A job could not prove anything, so the alarm issue was left as it was." \
+            >> "$GITHUB_STEP_SUMMARY"
