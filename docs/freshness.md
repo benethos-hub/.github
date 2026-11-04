@@ -109,7 +109,7 @@ jobs:
       alarm-title: Newest dependency versions break the server
 ```
 
-A job that says something alarming, such as tests that fail on the newest versions allowed, sets `"issue": "alarm"` in its status. Its findings and its section then go to the second issue named by `alarm-title`, and the pins report stays what it is. The alarm issue is touched only when every job was conclusive. A job that ran but could not prove anything, after a rate limit, say, sets `"result": "inconclusive"`: that is a line in the pins report, and the alarm issue is left as it was. Without `alarm-title` everything goes to the one issue as before.
+A job says in one sentence what it checked through `summary` in its status, such as which versions its tests passed on. The pins report lists those sentences under Checks, after the tables, so the issue that names a newer pandas also says that the tests passed on it the same day. A job that says something alarming, such as tests that fail on the newest versions allowed, sets `"issue": "alarm"` in its status. Its findings and its section then go to the second issue named by `alarm-title`, and the pins report stays what it is. The alarm issue is touched only when every job was conclusive. A job that ran but could not prove anything, after a rate limit, say, sets `"result": "inconclusive"`: that is a line in the pins report, and the alarm issue is left as it was. Without `alarm-title` everything goes to the one issue as before.
 
 The `needs` delays the pins report by the time the repository's job takes. A form in which both run side by side would need the report in a workflow of its own, called after both, two files here and two calls in every repository. That is not built.
 

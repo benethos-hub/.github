@@ -300,6 +300,59 @@ def test_a_section_is_taken_over_after_the_tables_under_the_name_of_the_job(tmp_
     assert text.index("### newest") < text.index("Versions are measured")
 
 
+def test_the_summary_of_every_job_is_listed_under_checks_after_the_tables(tmp_path):
+    _ok(tmp_path, "outdated", _finding())
+    _job(
+        tmp_path,
+        "newest",
+        None,
+        {
+            "result": "ok",
+            "checked": 4,
+            "issue": "alarm",
+            "summary": (
+                "tests and the live run passed on the newest versions\n"
+                " allowed (pandas 3.1.1)"
+            ),
+        },
+        "Prose.",
+    )
+    text = _render(tmp_path, "outdated newest")
+    checks = (
+        "### Checks\n\n- `newest`: tests and the live run passed on the newest "
+        "versions allowed (pandas 3.1.1)\n"
+    )
+    assert checks in text
+    assert text.index("### Packages") < text.index("### Checks")
+    assert "Checks" not in _render(tmp_path, "outdated newest", issue="alarm")
+
+
+def test_a_summary_alone_opens_no_issue(tmp_path):
+    _job(tmp_path, "newest", None, {"result": "ok", "summary": "All fine."})
+    assert _render(tmp_path, "newest") == ""
+
+
+def test_the_summary_of_an_inconclusive_job_is_its_reason(tmp_path):
+    _job(
+        tmp_path,
+        "newest",
+        None,
+        {"result": "inconclusive", "summary": "the live run hit a rate limit"},
+    )
+    text = _render(tmp_path, "newest")
+    assert (
+        "ran but could not prove anything, so its part of this report is "
+        "missing. It says: the live run hit a rate limit" in text
+    )
+    assert "### Checks" not in text
+
+
+def test_a_summary_that_is_no_string_is_an_error(tmp_path):
+    _job(tmp_path, "newest", None, {"result": "ok", "summary": ["x"]})
+    with pytest.raises(ValueError):
+        report.load_results(tmp_path, ["newest"])
+
+
 def test_a_section_alone_opens_the_issue(tmp_path):
     _job(tmp_path, "newest", None, {"result": "ok", "checked": 1}, "Something.\n")
     text = _render(tmp_path, "newest")
@@ -533,5 +586,13 @@ def test_the_action_takes_the_results_and_writes_the_report():
 def test_the_format_documents_every_field():
     for field in report.Finding.__dataclass_fields__:
         assert f"`{field}`" in FORMAT, field
-    for key in ("result", "checked", "packages", "issue", "inconclusive", "section.md"):
+    for key in (
+        "result",
+        "checked",
+        "packages",
+        "issue",
+        "inconclusive",
+        "section.md",
+        "summary",
+    ):
         assert f"`{key}`" in FORMAT

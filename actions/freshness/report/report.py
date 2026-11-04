@@ -60,6 +60,8 @@ class Result:
     findings: tuple[Finding, ...]
     issue: str = "report"
     section: str = ""
+    summary: str = ""
+    """One sentence of the job about what it checked, for the report."""
 
 
 _HEX = re.compile(r"(sha\d+:)?[0-9a-f]*[a-f][0-9a-f]*")
@@ -166,6 +168,9 @@ def _read_result(job: str, folder: Path) -> Result:
     if not isinstance(checked, int):
         raise ValueError(f"checked in {status_file} is not a number")
     result = status.get("result")
+    summary = status.get("summary", "")
+    if not isinstance(summary, str):
+        raise ValueError(f"summary in {status_file} is not a string")
     return Result(
         job=job,
         state=result if result in ("ok", "inconclusive") else "failed",
@@ -174,6 +179,7 @@ def _read_result(job: str, folder: Path) -> Result:
         findings=findings,
         issue=_one_of(status.get("issue", "report"), "issue", ISSUES),
         section=section,
+        summary=re.sub(r"\s+", " ", summary).strip(),
     )
 
 
@@ -334,9 +340,10 @@ def render(
     if without_result:
         for result in without_result:
             run = f" See [the run]({run_url})." if run_url else ""
+            why = f" It says: {result.summary}" if result.summary else ""
             lines.append(
                 f"- The job {_code(result.job)} {_WHAT[result.state]}, so its "
-                f"part of this report is missing.{run}"
+                f"part of this report is missing.{run}{why}"
             )
         lines.append("")
 
@@ -360,6 +367,14 @@ def render(
             header = ["Name", "Pinned", "Newest", "Kind", "Where"]
             rows = _pin_rows(findings)
         lines += _table(header, rows)
+        lines.append("")
+
+    # What each job checked, in one sentence, whatever issue it addresses.
+    # It is context for the pins, not a finding, so it never opens the issue.
+    checks = [r for r in results if r.summary and r.state == "ok"]
+    if checks and issue == "report":
+        lines += ["### Checks", ""]
+        lines += [f"- {_code(r.job)}: {r.summary}" for r in checks]
         lines.append("")
 
     # The prose of a job comes after the tables, under the name of the job.
