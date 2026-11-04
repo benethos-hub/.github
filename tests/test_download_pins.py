@@ -184,7 +184,7 @@ def test_the_workflow_runs_the_script_from_the_lockfile():
 
 def test_the_workflow_keeps_its_issue_with_the_shared_action():
     issue = WORKFLOW["jobs"]["report"]["steps"][-1]
-    assert issue["uses"] == "./.github/actions/report-issue"
+    assert issue["uses"] == "./actions/report-issue"
     assert issue["with"]["title"] == "Pinned downloads need an update"
     assert issue["with"]["report"] == "${{ runner.temp }}/report.md"
 

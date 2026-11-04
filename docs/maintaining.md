@@ -38,4 +38,4 @@ Every action in a workflow or action here is pinned to a commit, with its versio
 
 A tool downloaded directly, pinned by version and checksum like the `mcp-publisher` of `publish/mcp-registry`, is invisible to Dependabot. It gets an entry in [.github/download-pins.yml](../.github/download-pins.yml) instead. `download-pins-report.yml` checks every entry each Monday against the releases of its upstream and lists a newer release, with the version and checksum to paste, in the issue [Pinned downloads need an update](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Pinned+downloads+need+an+update%22).
 
-Both weekly reports keep their issue through [.github/actions/report-issue](../.github/actions/report-issue/action.yml): one open issue per report, updated on every run and closed once nothing is left to report.
+Both weekly reports keep their issue through [actions/report-issue](reports.md): one open issue per report, updated on every run and closed once nothing is left to report.

@@ -40,7 +40,7 @@ jobs:
         run: uv run --frozen .github/scripts/download_pins.py > "$RUNNER_TEMP/report.md"
 
       - name: Update the issue
-        uses: ./.github/actions/report-issue
+        uses: ./actions/report-issue
         with:
           title: Pinned downloads need an update
           report: ${{ runner.temp }}/report.md

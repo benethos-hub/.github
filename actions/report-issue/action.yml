@@ -1,14 +1,17 @@
 name: Keep the report issue
 description: Opens, updates or closes the one issue that carries the report of a scheduled workflow.
 
-# Used by the scheduled reports of this repository, brand-report.yml and
-# download-pins-report.yml, by local path after the checkout:
+# Used by a scheduled workflow that reports to an issue, in any repository
+# and for any language:
 #
-#   - uses: ./.github/actions/report-issue
+#   - uses: benethos-hub/.github/actions/report-issue@main
 #     with:
 #       title: Brand assets need fixing
 #       report: ${{ runner.temp }}/report.md
 #       resolved: All repositories meet the brand rules.
+#
+# brand-report.yml and download-pins-report.yml of this repository call it by
+# local path after the checkout, ./actions/report-issue.
 #
 # An empty report closes the open issue with that title, if there is one.
 # Any other report becomes its body, or the body of a new issue. The job

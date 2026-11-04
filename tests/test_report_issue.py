@@ -13,7 +13,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 ACTION = yaml.safe_load(
-    (ROOT / ".github" / "actions" / "report-issue" / "action.yml").read_text("utf-8")
+    (ROOT / "actions" / "report-issue" / "action.yml").read_text("utf-8")
 )
 
 FAKE_GH = r"""#!/bin/bash
@@ -31,7 +31,15 @@ FOOTER = (
 )
 
 
-def _run(tmp_path: Path, report: str, open_issue: str) -> tuple[str, str]:
+def _run(
+    tmp_path: Path,
+    report: str,
+    open_issue: str,
+    *,
+    repository: str = "benethos-hub/.github",
+    workflow: str = "Brand report",
+    workflow_file: str = "brand-report.yml",
+) -> tuple[str, str]:
     (step,) = ACTION["runs"]["steps"]
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
@@ -49,15 +57,15 @@ def _run(tmp_path: Path, report: str, open_issue: str) -> tuple[str, str]:
         "TITLE": TITLE,
         "REPORT": str(tmp_path / "report.md"),
         "RESOLVED": "All repositories meet the brand rules.",
-        "WORKFLOW": "Brand report",
+        "WORKFLOW": workflow,
         "WORKFLOW_REF": (
-            "benethos-hub/.github/.github/workflows/brand-report.yml@refs/heads/main"
+            f"{repository}/.github/workflows/{workflow_file}@refs/heads/main"
         ),
         "OPEN_ISSUE": open_issue,
         "GH_LOG": str(log),
         "GITHUB_STEP_SUMMARY": str(summary),
         "GITHUB_SERVER_URL": "https://github.com",
-        "GITHUB_REPOSITORY": "benethos-hub/.github",
+        "GITHUB_REPOSITORY": repository,
     }
     done = subprocess.run(
         ["bash", str(script)], env=env, capture_output=True, text=True, check=False
@@ -97,8 +105,24 @@ def test_an_empty_report_without_an_open_issue_does_nothing(tmp_path):
     assert _run(tmp_path, "", "")[0] == ""
 
 
+def test_the_link_points_to_the_calling_repository(tmp_path):
+    log, _ = _run(
+        tmp_path,
+        "A report",
+        "",
+        repository="benethos-hub/example",
+        workflow="Daily check",
+        workflow_file="daily-check.yml",
+    )
+    assert (
+        "[Daily check](https://github.com/benethos-hub/example"
+        "/actions/workflows/daily-check.yml)"
+    ) in log
+
+
 def test_the_step_gets_its_inputs_and_the_calling_workflow():
     (step,) = ACTION["runs"]["steps"]
+    assert step["env"]["GH_REPO"] == "${{ github.repository }}"
     assert step["env"]["WORKFLOW_REF"] == "${{ github.workflow_ref }}"
     assert step["env"]["GH_TOKEN"] == "${{ inputs.token }}"
     assert ACTION["inputs"]["token"]["default"] == "${{ github.token }}"

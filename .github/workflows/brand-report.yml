@@ -32,7 +32,7 @@ jobs:
         with:
           sparse-checkout: |
             actions/brand/assets
-            .github/actions/report-issue
+            actions/report-issue
 
       # The script needs the standard library only, so there is nothing to
       # cache, and the sparse checkout has no uv.lock to key a cache on.
@@ -45,7 +45,7 @@ jobs:
         run: uv run --no-project --python ">=3.11" actions/brand/assets/brand_assets.py report > "$RUNNER_TEMP/report.md"
 
       - name: Update the issue
-        uses: ./.github/actions/report-issue
+        uses: ./actions/report-issue
         with:
           title: Brand assets need fixing
           report: ${{ runner.temp }}/report.md
