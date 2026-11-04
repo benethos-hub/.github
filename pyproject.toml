@@ -37,6 +37,7 @@ files = [
     "actions/freshness/actions/actions.py",
     "actions/freshness/images/images.py",
     "actions/freshness/report/report.py",
+    "actions/python/freshness-index/index.py",
     "actions/python/freshness-outdated/outdated.py",
     "actions/python/pip-audit/findings.py",
     "actions/publish/pypi/on_pypi.py",

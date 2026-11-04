@@ -1,0 +1,102 @@
+name: The package as users install it
+description: Installs the published package from the index into a fresh environment, runs a check with its interpreter and leaves the result for the freshness report.
+
+# The uv adapter of the index job of freshness.yml. The auto-update bundles
+# and uvx install the published wheel with its own metadata, not the
+# checkout, so this is the path a user takes today. A fresh virtual
+# environment in the runner's temporary folder keeps the checkout out of
+# it: uv run --with from the repository root would import the checkout from
+# src/ when a project environment is active.
+#
+#   - uses: benethos-hub/.github/actions/python/freshness-index@main
+#     with:
+#       findings: ${{ runner.temp }}/freshness/index
+#       check: $FRESHNESS_PYTHON tests/smoke.py --pause 1
+#
+# The check runs from the checkout with FRESHNESS_PYTHON, the interpreter of
+# the environment, and FRESHNESS_VENV, its folder. Without a check the
+# console script of the package answers --version. Exit code
+# rate-limit-exit-code of the check is a rate limit and leaves the alarm
+# issue as it was, every other failure and a failed installation is a
+# finding for the alarm issue. index.py next to this file holds the logic.
+
+inputs:
+  findings:
+    description: The folder to write status.json and, on a failure, section.md into. It is created.
+    required: true
+  package:
+    description: The distribution to install from the index. Empty takes the name of the project in pyproject.toml, which a workspace root does not have.
+    required: false
+    default: ""
+  check:
+    description: A command run from the checkout against the installed package, with FRESHNESS_PYTHON and FRESHNESS_VENV set. Empty asks the console script named like the package for its version.
+    required: false
+    default: ""
+  rate-limit-exit-code:
+    description: The exit code of the check that means a rate limit and no verdict.
+    required: false
+    default: "3"
+  python:
+    description: The Python version of the environment, empty for the one uv picks.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    - name: Install the package from the index and check it
+      shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+        CHECK: ${{ inputs.check }}
+        RATE_LIMIT_EXIT: ${{ inputs.rate-limit-exit-code }}
+        PYTHON: ${{ inputs.python }}
+        FINDINGS: ${{ inputs.findings }}
+        WORK: ${{ runner.temp }}/freshness-index-work
+      run: |
+        set -euo pipefail
+        rm -rf "$WORK"
+        mkdir -p "$WORK"
+        package="$PACKAGE"
+        if [ -z "$package" ]; then
+          package=$(uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/index.py" name)
+        fi
+        venv="$WORK/venv"
+        python=()
+        if [ -n "$PYTHON" ]; then
+          python=(--python "$PYTHON")
+        fi
+        uv venv --quiet ${python[@]+"${python[@]}"} "$venv"
+
+        # A failed installation is a finding, so it must not stop the job.
+        echo "::group::Install $package from the index"
+        install_exit=0
+        uv pip install --python "$venv" "$package" || install_exit=$?
+        echo "::endgroup::"
+
+        check="$CHECK"
+        check_exit=""
+        if [ "$install_exit" = 0 ]; then
+          uv pip freeze --python "$venv" > "$WORK/freeze.txt"
+          uv pip show --python "$venv" "$package" > "$WORK/show.txt"
+          if [ -z "$check" ]; then
+            check="\"$venv/bin/$package\" --version"
+          fi
+          echo "::group::Check: $check"
+          export FRESHNESS_PYTHON="$venv/bin/python"
+          export FRESHNESS_VENV="$venv"
+          check_exit=0
+          bash -c "$check" || check_exit=$?
+          echo "::endgroup::"
+        fi
+
+        export PACKAGE="$package" INSTALL_EXIT="$install_exit" CHECK="$check" CHECK_EXIT="$check_exit"
+        export FREEZE="$WORK/freeze.txt" SHOW="$WORK/show.txt"
+        uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/index.py" write

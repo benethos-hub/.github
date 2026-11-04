@@ -8,6 +8,7 @@
 | `audit` | Every known vulnerability of a pinned version, through the same [pip-audit](../actions/python/pip-audit/action.yml) action and the same waivers as the CI. |
 | `images` | Every `FROM` of a Dockerfile and every `image:` of a YAML file with a digit in its tag, the workflows included. A pinned digest that moved for one of the platforms asked for is a rebuild. A tag with a newer tag of the same form, `3.15-slim` beside `3.16-slim` or `v0.16` beside `v0.17`, is a newer release. |
 | `actions` | Every `uses:` pinned to a commit, against the newest release of its action. |
+| `index` | Off by default. The package as a user installs it today: from the index into a fresh environment, then a check of the repository against it, with the interpreter of that environment. A bound that is not released yet, a build that fails or an installation that does not resolve shows here and nowhere else. Its result addresses the alarm issue. |
 
 Nothing is written to the repository. The upgrade of the lockfile is a dry run inside the runner. The issue is public, so the report holds names, versions and the result of a job, and no log.
 
@@ -44,7 +45,10 @@ jobs:
 | `issue-title` | The title of the issue. Required and without a default, because two workflows with the same title would keep the same issue and close or overwrite it for each other. |
 | `resolved` | The sentence that closes the issue when there is nothing to report. |
 | `ecosystem` | The package tool of the repository, named as Dependabot names it. Decides the adapter of the `outdated` and `audit` jobs. `uv` is the default and the only value so far. |
-| `outdated`, `audit`, `images`, `actions` | One switch per job, all on by default. A job that is switched off is left out of the report. |
+| `outdated`, `audit`, `images`, `actions`, `index` | One switch per job. The first four are on by default, `index` is off. A job that is switched off is left out of the report. |
+| `index-package` | The distribution the `index` job installs. Empty takes the name of the project in `pyproject.toml`, which a workspace root does not have. |
+| `index-check` | The command the `index` job runs from the checkout against the installed package, with `FRESHNESS_PYTHON` and `FRESHNESS_VENV` set, for example `$FRESHNESS_PYTHON tests/smoke.py --pause 1`. Empty asks the console script named like the package for its version. An exit code of 3 is a rate limit and no verdict, every other failure and a failed installation is a finding for the alarm issue. |
+| `index-python` | The Python version of the environment the `index` job installs into. Empty takes the one uv picks. |
 | `platforms` | The platforms a changed image digest counts for. Default `linux/amd64 linux/arm64`. A rebuild of another architecture moves the digest of the image as well and is nobody's news. |
 | `image-files` | Patterns of the files the `images` job reads. Empty reads every `Dockerfile*` and every `yml` or `yaml` file of the repository, the workflows included, where the container or a service of a job is a pin like any other. |
 | `action-files` | Patterns of the files the `actions` job reads. Empty reads the workflows and every `action.yml`. |
@@ -57,7 +61,7 @@ jobs:
 | `alarm-title` | The title of a second issue for the jobs whose status names the alarm. Empty keeps everything in the one issue. |
 | `alarm-resolved` | The sentence that closes the alarm issue when nothing is alarming any more. |
 
-The job names are `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions` and `Freshness report`. None of them is a required check, the workflow runs on a schedule.
+The job names are `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions`, `Installed from the index` and `Freshness report`. None of them is a required check, the workflow runs on a schedule.
 
 ## What the report says
 
@@ -123,6 +127,7 @@ The actions behind the jobs, each usable on its own:
 | --- | --- |
 | [python/freshness-outdated](../actions/python/freshness-outdated/action.yml) | `uv.lock`, `pyproject.toml`, `uv lock --upgrade --dry-run` and `uv tree --outdated --universal` |
 | [python/freshness-audit](../actions/python/freshness-audit/action.yml) | `uv export` and the pip-audit action with `findings` |
+| [python/freshness-index](../actions/python/freshness-index/action.yml) | `uv venv`, `uv pip install` from the index, `uv pip freeze` and the check of the repository |
 | [freshness/images](../actions/freshness/images/action.yml) | Dockerfiles, YAML files and the registry API, read anonymously as `docker pull` does |
 | [freshness/actions](../actions/freshness/actions/action.yml) | `uses:` lines and the GitHub API |
 | [freshness/report](../actions/freshness/report/action.yml) | Only the two files per job |
