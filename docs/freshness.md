@@ -45,8 +45,9 @@ jobs:
 | `issue-title` | The title of the issue. Required and without a default, because two workflows with the same title would keep the same issue and close or overwrite it for each other. |
 | `resolved` | The sentence that closes the issue when there is nothing to report. |
 | `ecosystem` | The package tool of the repository, named as Dependabot names it. Decides the adapter of the `outdated` and `audit` jobs. `uv` is the default and the only value so far. |
+| `projects` | The folders with a lockfile of their own, as a JSON list in a string, such as `'[".", "tools/audit"]'`. The `outdated` and `audit` jobs run once per folder. The default is the root alone. See below. |
 | `outdated`, `audit`, `images`, `actions`, `index` | One switch per job. The first four are on by default, `index` is off. A job that is switched off is left out of the report. |
-| `index-package` | The distribution the `index` job installs. Empty takes the name of the project in `pyproject.toml`, which a workspace root does not have. |
+| `index-packages` | The distributions the `index` job installs, one run each, as a JSON list in a string, such as `'["example-mcp", "example-service"]'`. The default `'[""]'` is one run with the project in `pyproject.toml`, which a workspace root does not have. |
 | `index-check` | The command the `index` job runs from the checkout against the installed package, with `FRESHNESS_PYTHON` and `FRESHNESS_VENV` set, for example `$FRESHNESS_PYTHON tests/smoke.py --pause 1`. Empty asks the console script named like the package for its version. An exit code of 3 is a rate limit and no verdict, every other failure and a failed installation is a finding for the alarm issue. |
 | `index-python` | The Python version of the environment the `index` job installs into. Empty takes the one uv picks. |
 | `platforms` | The platforms a changed image digest counts for. Default `linux/amd64 linux/arm64`. A rebuild of another architecture moves the digest of the image as well and is nobody's news. |
@@ -61,7 +62,7 @@ jobs:
 | `alarm-title` | The title of a second issue for the jobs whose status names the alarm. Empty keeps everything in the one issue. |
 | `alarm-resolved` | The sentence that closes the alarm issue when nothing is alarming any more. |
 
-The job names are `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions`, `Installed from the index` and `Freshness report`. None of them is a required check, the workflow runs on a schedule.
+The job names are `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions`, `Installed from the index` and `Freshness report`. The first two carry the folder and the fifth the package in parentheses, as GitHub names a run of a matrix. None of them is a required check, the workflow runs on a schedule.
 
 ## What the report says
 
@@ -135,6 +136,22 @@ For a uv project the job is ready made: [python/freshness-newest](../actions/pyt
 ```
 
 The `needs` delays the pins report by the time the repository's job takes. A form in which both run side by side would need the report in a workflow of its own, called after both, two files here and two calls in every repository. That is not built.
+
+## Several projects in one repository
+
+A uv workspace is one project: one `uv.lock`, several packages. The `outdated` and `audit` jobs read all of it, the report names the packages a finding is needed by, and the `index` job runs once per published package when `index-packages` names them. A library without a console script shows its installed version as the default check, and `index-check` can tell the packages apart through `FRESHNESS_PACKAGE`.
+
+A repository with several independent lockfiles names their folders in `projects`. The `outdated` and `audit` jobs run once per folder, each with its own artifact, and the report shows the folder in `where`. A folder beneath a project with a lockfile of its own belongs to its own run, so its build backend is counted once. The `images` and `actions` jobs read the whole repository either way. A lockfile of another package tool, such as `package-lock.json`, has no adapter yet.
+
+```yaml
+    with:
+      issue-title: Pinned versions have newer releases
+      projects: '[".", "tools/audit"]'
+      index: true
+      index-packages: '["example-mcp", "example-service"]'
+```
+
+Each run leaves its own artifact, `freshness-outdated-tools-audit` or `freshness-index-example-mcp`, and the report expects each of them. The root and the one project keep the plain names, so nothing changes for a repository that names neither.
 
 ## Another language
 

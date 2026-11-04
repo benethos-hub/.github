@@ -17,6 +17,7 @@ WORKFLOW = yaml.safe_load(
 INPUTS = WORKFLOW[True]["workflow_call"]["inputs"]
 JOBS = WORKFLOW["jobs"]
 MEASURING = ("outdated", "audit", "images", "actions", "index")
+MATRIX = {"outdated": "project", "audit": "project", "index": "package"}
 ON_BY_DEFAULT = {
     "outdated": True,
     "audit": True,
@@ -68,7 +69,8 @@ def test_the_workflow_itself_only_reads_and_the_report_writes_issues():
 def test_each_measuring_job_runs_on_its_switch_and_leaves_its_artifact(job):
     assert JOBS[job]["if"] == f"inputs.{job}"
     upload = _step(job, "actions/upload-artifact@")
-    assert upload["with"]["name"] == f"freshness-{job}"
+    suffix = "${{ steps.artifact.outputs.suffix }}" if job in MATRIX else ""
+    assert upload["with"]["name"] == f"freshness-{job}{suffix}"
     assert upload["with"]["path"] == f"${{{{ runner.temp }}}}/freshness/{job}"
     assert upload["with"]["retention-days"] == "${{ inputs.retention-days }}"
     checkout = _step(job, "actions/checkout@")
@@ -88,6 +90,8 @@ def test_the_ecosystem_picks_the_adapter_and_an_unknown_one_fails(job, action):
     adapter = _step(job, f"benethos-hub/.github/actions/python/{action}@main")
     assert adapter["if"] == "inputs.ecosystem == 'uv'"
     assert adapter["with"]["findings"] == f"${{{{ runner.temp }}}}/freshness/{job}"
+    if job != "index":
+        assert adapter["with"]["directory"] == "${{ matrix.project }}"
     (guard,) = [
         s for s in JOBS[job]["steps"] if s.get("if") == "inputs.ecosystem != 'uv'"
     ]
@@ -108,11 +112,43 @@ def test_the_language_neutral_jobs_know_no_ecosystem():
     }
 
 
+@pytest.mark.parametrize("job", sorted(MATRIX))
+def test_a_job_with_several_runs_names_its_artifact_per_run(job):
+    key = MATRIX[job]
+    source = "projects" if key == "project" else "index-packages"
+    assert JOBS[job]["strategy"] == {
+        "fail-fast": False,
+        "matrix": {key: f"${{{{ fromJSON(inputs.{source}) }}}}"},
+    }
+    (named,) = [s for s in JOBS[job]["steps"] if s.get("id") == "artifact"]
+    assert named["env"] == {key.upper(): f"${{{{ matrix.{key} }}}}"}
+    assert "tr -c 'A-Za-z0-9\\n' '-'" in named["run"]
+    assert 'echo "suffix=$suffix" >> "$GITHUB_OUTPUT"' in named["run"]
+
+
+def test_the_default_lists_are_the_root_and_the_one_project():
+    assert INPUTS["projects"]["default"] == '["."]'
+    assert INPUTS["index-packages"]["default"] == '[""]'
+    assert "index-package" not in INPUTS
+
+
+def test_the_expected_jobs_carry_the_same_suffixes():
+    (expected,) = [s for s in JOBS["report"]["steps"] if s.get("id") == "expected"]
+    assert expected["env"]["PROJECTS"] == "${{ inputs.projects }}"
+    assert expected["env"]["INDEX_PACKAGES"] == "${{ inputs.index-packages }}"
+    run = expected["run"]
+    assert "slug() { printf '%s' \"$1\" | tr -c 'A-Za-z0-9\\n' '-'; }" in run
+    assert 'expected="$expected outdated$suffix"' in run
+    assert 'expected="$expected audit$suffix"' in run
+    assert 'expected="$expected index$suffix"' in run
+    assert 'jq -r \'.[] | if . == "" then "." else . end\'' in run
+
+
 def test_the_index_job_passes_the_package_the_check_and_the_python():
     adapter = _step("index", "benethos-hub/.github/actions/python/freshness-index@main")
     assert adapter["with"] == {
         "findings": "${{ runner.temp }}/freshness/index",
-        "package": "${{ inputs.index-package }}",
+        "package": "${{ matrix.package }}",
         "check": "${{ inputs.index-check }}",
         "python": "${{ inputs.index-python }}",
     }
@@ -136,6 +172,7 @@ def test_the_report_runs_whatever_happened_and_knows_the_expected_jobs():
     (expected,) = [s for s in report["steps"] if s.get("id") == "expected"]
     for job in MEASURING:
         assert expected["env"][job.upper()] == f"${{{{ inputs.{job} }}}}"
+    for job in ("images", "actions"):
         assert (
             f'[ "${job.upper()}" = true ] && expected="$expected {job}"'
             in expected["run"]
@@ -211,6 +248,7 @@ def test_the_audit_adapter_exports_like_the_dependency_audit_and_asks_for_findin
         .split("uv export", 1)[1]
         .split(">")[0]
         .replace("\\\n", "")
+        .replace('--directory "$DIRECTORY"', "")
         .split()
     )
     assert adapter_command == command
@@ -221,10 +259,13 @@ def test_the_audit_adapter_exports_like_the_dependency_audit_and_asks_for_findin
         if "pip-audit@" in str(s.get("uses", ""))
     ]
     assert audit["with"]["findings"] == "${{ inputs.findings }}"
-    assert audit["with"]["pinned-in"] == "uv.lock"
+    assert audit["with"]["pinned-in"] == "${{ steps.export.outputs.pinned }}"
+    assert adapter_export["id"] == "export"
+    assert 'pinned="${DIRECTORY#./}/uv.lock"' in adapter_export["run"]
     assert audit["with"]["ignore-vulns"] == "${{ inputs.ignore-vulns }}"
     assert audit["with"]["requirements"] == adapter_export["env"]["LOCKED"]
-    assert set(AUDIT_ACTION["inputs"]) == {"findings", "ignore-vulns"}
+    assert set(AUDIT_ACTION["inputs"]) == {"findings", "ignore-vulns", "directory"}
+    assert AUDIT_ACTION["inputs"]["directory"]["default"] == "."
 
 
 def test_the_documentation_names_every_input_and_is_linked():

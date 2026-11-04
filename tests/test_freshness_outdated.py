@@ -345,6 +345,21 @@ def test_the_same_backend_pin_in_two_files_is_one_finding(tmp_path):
     }
 
 
+def test_a_folder_with_a_lockfile_of_its_own_is_left_to_its_own_run(tmp_path):
+    _pyproject(tmp_path, '"hatchling==1.33.0"')
+    _pyproject(tmp_path / "packages" / "a", '"hatchling==1.33.0"')
+    _pyproject(tmp_path / "tools" / "audit", '"hatchling==1.0.0"')
+    (tmp_path / "tools" / "audit" / "uv.lock").write_text("", "utf-8")
+    pins = outdated.pinned_backends(tmp_path, outdated.pyproject_files(tmp_path))
+    assert pins == {
+        ("hatchling", "1.33.0"): ["packages/a/pyproject.toml", "pyproject.toml"]
+    }
+    own = outdated.pyproject_files(tmp_path / "tools" / "audit")
+    assert [p.relative_to(tmp_path).as_posix() for p in own] == [
+        "tools/audit/pyproject.toml"
+    ]
+
+
 def test_an_unpinned_backend_floats_and_is_left_out(tmp_path):
     _pyproject(tmp_path, '"hatchling", "setuptools>=70"')
     assert outdated.pinned_backends(tmp_path, outdated.pyproject_files(tmp_path)) == {}
@@ -394,6 +409,16 @@ def test_the_script_writes_the_findings_and_the_status(tmp_path):
     assert "11 pins checked, 3 findings." in run.stdout
 
 
+def test_a_lockfile_in_a_folder_names_the_folder(tmp_path):
+    folder = tmp_path / "tools" / "audit"
+    folder.mkdir(parents=True)
+    (folder / "uv.lock").write_text(PROJECT, "utf-8")
+    run = _run(tmp_path, LOCKFILE="tools/audit/uv.lock")
+    assert run.returncode == 0, run.stderr
+    lines = (tmp_path / "out" / "findings.jsonl").read_text("utf-8").splitlines()
+    assert {json.loads(line)["where"][0] for line in lines} == {"tools/audit/uv.lock"}
+
+
 def test_a_lockfile_without_a_root_is_an_error(tmp_path):
     run = _run(tmp_path, lock=_package("mcp", "2.3.0"))
     assert run.returncode == 1
@@ -410,12 +435,14 @@ def test_a_missing_file_is_an_error(tmp_path):
 
 
 def test_the_action_runs_the_dry_run_and_the_universal_tree():
-    assert set(ACTION["inputs"]) == {"findings"}
+    assert set(ACTION["inputs"]) == {"findings", "directory"}
+    assert ACTION["inputs"]["directory"]["default"] == "."
     runs = [s["run"] for s in ACTION["runs"]["steps"] if "run" in s]
     uv, script = runs
-    assert "uv lock --upgrade --dry-run > /dev/null 2>" in uv
-    assert "uv tree --frozen --outdated --universal >" in uv
+    assert 'uv lock --upgrade --dry-run --directory "$DIRECTORY" > /dev/null 2>' in uv
+    assert 'uv tree --frozen --outdated --universal --directory "$DIRECTORY" >' in uv
     assert "Missing uv.lock" in uv
     assert '"$GITHUB_ACTION_PATH/outdated.py"' in script
     (step,) = [s for s in ACTION["runs"]["steps"] if "outdated.py" in s.get("run", "")]
     assert set(step["env"]) == {"LOCKFILE", "UPGRADE", "OUTDATED", "FINDINGS"}
+    assert step["env"]["LOCKFILE"] == "${{ inputs.directory }}/uv.lock"

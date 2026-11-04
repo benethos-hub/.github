@@ -21,6 +21,10 @@ inputs:
     description: Vulnerability IDs to waive, separated by spaces.
     required: false
     default: ""
+  directory:
+    description: The folder with the uv.lock, relative to the repository. A repository with several independent lockfiles runs the action once per folder.
+    required: false
+    default: "."
 
 runs:
   using: composite
@@ -36,17 +40,24 @@ runs:
     # of every platform and Python version are audited, not only those that
     # apply to this runner.
     - name: List the locked versions
+      id: export
       shell: bash
       env:
         LOCKED: ${{ runner.temp }}/freshness-audit-locked.txt
+        DIRECTORY: ${{ inputs.directory }}
       run: |
         set -euo pipefail
-        if [ ! -s uv.lock ]; then
-          echo "::error file=uv.lock::Missing uv.lock in the root of the repository, there is nothing to audit."
+        if [ ! -s "$DIRECTORY/uv.lock" ]; then
+          echo "::error::Missing uv.lock in $DIRECTORY, there is nothing to audit."
           exit 1
         fi
-        uv export --frozen --no-hashes --no-annotate --no-header --no-emit-workspace \
+        uv export --directory "$DIRECTORY" --frozen --no-hashes --no-annotate --no-header --no-emit-workspace \
           --all-packages --all-extras --all-groups > "$LOCKED"
+        pinned=uv.lock
+        if [ "$DIRECTORY" != . ]; then
+          pinned="${DIRECTORY#./}/uv.lock"
+        fi
+        echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
 
     - name: Audit against PyPI and OSV
       uses: benethos-hub/.github/actions/python/pip-audit@main
@@ -54,4 +65,4 @@ runs:
         requirements: ${{ runner.temp }}/freshness-audit-locked.txt
         ignore-vulns: ${{ inputs.ignore-vulns }}
         findings: ${{ inputs.findings }}
-        pinned-in: uv.lock
+        pinned-in: ${{ steps.export.outputs.pinned }}

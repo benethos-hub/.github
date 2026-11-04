@@ -14,8 +14,10 @@ description: Installs the published package from the index into a fresh environm
 #       check: $FRESHNESS_PYTHON tests/smoke.py --pause 1
 #
 # The check runs from the checkout with FRESHNESS_PYTHON, the interpreter of
-# the environment, and FRESHNESS_VENV, its folder. Without a check the
-# console script of the package answers --version. Exit code
+# the environment, FRESHNESS_VENV, its folder, and FRESHNESS_PACKAGE, the
+# package, so one command serves several packages. Without a check the
+# console script of the package answers --version, a library without one
+# shows its installed version. Exit code
 # rate-limit-exit-code of the check is a rate limit and leaves the alarm
 # issue as it was, every other failure and a failed installation is a
 # finding for the alarm issue. index.py next to this file holds the logic.
@@ -29,7 +31,7 @@ inputs:
     required: false
     default: ""
   check:
-    description: A command run from the checkout against the installed package, with FRESHNESS_PYTHON and FRESHNESS_VENV set. Empty asks the console script named like the package for its version.
+    description: A command run from the checkout against the installed package, with FRESHNESS_PYTHON, FRESHNESS_VENV and FRESHNESS_PACKAGE set. Empty asks the console script named like the package for its version, or a library for its installed version.
     required: false
     default: ""
   rate-limit-exit-code:
@@ -86,12 +88,19 @@ runs:
         if [ "$install_exit" = 0 ]; then
           uv pip freeze --python "$venv" > "$WORK/freeze.txt"
           uv pip show --python "$venv" "$package" > "$WORK/show.txt"
+          # A console script named like the package answers --version. A
+          # library has none, its installed version is read instead.
           if [ -z "$check" ]; then
-            check="\"$venv/bin/$package\" --version"
+            if [ -x "$venv/bin/$package" ]; then
+              check="\"$venv/bin/$package\" --version"
+            else
+              check="\"$venv/bin/python\" -c \"import importlib.metadata as m; print(m.version('$package'))\""
+            fi
           fi
           echo "::group::Check: $check"
           export FRESHNESS_PYTHON="$venv/bin/python"
           export FRESHNESS_VENV="$venv"
+          export FRESHNESS_PACKAGE="$package"
           check_exit=0
           bash -c "$check" || check_exit=$?
           echo "::endgroup::"
