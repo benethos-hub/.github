@@ -35,6 +35,7 @@ files = [
     "actions/publish/pypi/check_dist.py",
     "actions/coverage-badge/badge.py",
     "actions/freshness/report/report.py",
+    "actions/python/freshness-outdated/outdated.py",
     "actions/publish/pypi/on_pypi.py",
     ".github/scripts/download_pins.py",
 ]
