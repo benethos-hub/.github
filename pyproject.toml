@@ -34,6 +34,7 @@ files = [
     "actions/publish/mcpb/check_packed.py",
     "actions/publish/pypi/check_dist.py",
     "actions/coverage-badge/badge.py",
+    "actions/freshness/actions/actions.py",
     "actions/freshness/images/images.py",
     "actions/freshness/report/report.py",
     "actions/python/freshness-outdated/outdated.py",
