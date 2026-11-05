@@ -65,7 +65,7 @@ jobs:
 
 ## Check names
 
-The checks are named after the calling job and the job inside the workflow: `lint / lint`, `test / Python 3.15`, `lowest-versions / Python 3.11`, `audit / Dependency audit`, `brand / Brand assets` and `codeql / CodeQL`. The first five are the names the branch protection requires, see [Repository settings](repository-settings.md#branch-protection). A project names its Python versions in `with:` even where they equal the defaults, so that a changed default here never moves its tests without a word.
+The checks are named after the calling job and the job inside the workflow: `lint / lint`, `test / Python 3.15`, `lowest-versions / Python 3.11`, `audit / Dependency audit`, `brand / Brand assets` and `codeql / CodeQL`. The first five are the names the branch protection requires, see [Repository settings](repository-settings.md#branch-protection). `codeql / CodeQL` is not a required check in any repository, and neither is the code scanning check its upload adds to a pull request. Its findings are read in the Security tab, a merge never waits for them. A project names its Python versions in `with:` even where they equal the defaults, so that a changed default here never moves its tests without a word.
 
 Coverage is measured on one version only, because it slows the older ones down noticeably. A required check on `test / Python 3.15` is what makes the floor block a merge.
 
