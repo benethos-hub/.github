@@ -47,6 +47,8 @@ jobs:
 
 The `workflow_run` trigger runs it once more when the publishing workflow has finished, named as its `name:` reads. The `index` job installs the package from the index, so its answer changes at that moment and at no other, and a release that does not install or does not start shows in the alarm issue within minutes instead of at the next schedule. The index can show a fresh version a minute late, then the run measures the version before once and the schedule corrects it. A publishing run that failed leaves the index as it was, so the run after it repeats the day before. A repository without a publishing workflow leaves the trigger out.
 
+The weekly [CodeQL run](codeql.md#calling-it) starts half an hour later, at 05:00 UTC, so that the two do not fall together.
+
 The concurrency group lets one run at a time. A second run waits and starts when the first has finished, a third replaces the one waiting, and the running one is never cancelled, so no report reads the artifacts of another run and no two runs write the issue at once.
 
 | Input | What it does |
