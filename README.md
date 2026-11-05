@@ -17,7 +17,7 @@ The repositories call the workflows and actions here at `main`. A project needs 
 | Path | What it holds |
 | --- | --- |
 | [.github/workflows/](.github/workflows/) | The reusable workflows, the two weekly reports and the CI of this repository |
-| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/`, `publish/`, and `checkov/`, `codeql/`, `coverage-badge/`, `dockerfile-lint/`, `freshness/`, `report-issue/`, `sarif-report/` and `trivy-config/` for every language |
+| [actions/](actions/) | The composite actions: `brand/`, `node/`, `python/`, `release/`, `publish/`, and `checkov/`, `codeql/`, `coverage-badge/`, `dockerfile-lint/`, `freshness/`, `report-issue/`, `sarif-report/` and `trivy-config/` for every language |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
 | [.github/dependabot.yml](.github/dependabot.yml) | Daily updates for every pinned action and every lockfile here |
 | [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see |
