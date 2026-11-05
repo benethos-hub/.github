@@ -26,6 +26,13 @@ description: Analyses the checkout with CodeQL, the security and the quality que
 # rejects the upload of a language it analyses itself, the repository leaves
 # it first, see docs/codeql.md. Most repositories call this through the
 # reusable workflow codeql.yml, which adds the job around it.
+#
+# The query actions/unpinned-tag reports a call of an action at a tag or a
+# branch unless it trusts the owner. The organisation's own actions and
+# workflows are called at main, so the action writes a CodeQL model pack
+# naming the trusted owners into .github/codeql/extensions/ of the checkout
+# before the analysis. CodeQL finds it there by itself, and nothing is
+# committed.
 
 inputs:
   languages:
@@ -56,6 +63,10 @@ inputs:
     description: The name code scanning files the analysis under. Two analyses of one commit need two names, and the runs of one repository share one so that each refreshes the last.
     required: false
     default: codeql
+  trusted-owners:
+    description: Owners whose actions and workflows may be called at a tag or a branch without an alert from actions/unpinned-tag, separated by spaces. Empty takes the owner of the repository, so calls of the organisation's own actions at main pass. none writes no model. An owner with a leading ! is distrusted, also actions, github and advanced-security, which CodeQL trusts by default.
+    required: false
+    default: ""
   upload:
     description: always, failure-only or never. A pull request from a fork gets never whatever is set, since its token may not upload.
     required: false
@@ -96,6 +107,40 @@ outputs:
 runs:
   using: composite
   steps:
+    # The model pack with the trusted owners, in the folder CodeQL reads
+    # model packs from. Only the actions language has the query, so the pack
+    # is written only when actions is analysed.
+    - name: Trust the owners' actions
+      if: inputs.trusted-owners != 'none' && contains(inputs.languages, 'actions')
+      shell: bash
+      env:
+        OWNERS: ${{ inputs.trusted-owners || github.repository_owner }}
+        PACK_SCOPE: ${{ github.repository_owner }}
+      run: |
+        set -euo pipefail
+        dir=.github/codeql/extensions/trusted-owners
+        mkdir -p "$dir/models"
+        {
+          echo "extensions:"
+          echo "  - addsTo:"
+          echo "      pack: codeql/actions-all"
+          echo "      extensible: trustedActionsOwnerDataModel"
+          echo "    data:"
+          for owner in $OWNERS; do
+            echo "      - [\"$owner\"]"
+          done
+        } > "$dir/models/trusted-owners.model.yml"
+        {
+          echo "name: ${PACK_SCOPE,,}/trusted-owners"
+          echo "version: 0.0.0"
+          echo "library: true"
+          echo "extensionTargets:"
+          echo "  codeql/actions-all: '*'"
+          echo "dataExtensions:"
+          echo "  - models/**/*.yml"
+        } > "$dir/codeql-pack.yml"
+        echo "Trusted owners for actions/unpinned-tag: $OWNERS"
+
     # An empty input reads as unset to github/codeql-action, so every input
     # can go through as it is.
     - name: Prepare the analysis

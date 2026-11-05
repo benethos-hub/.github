@@ -34,6 +34,7 @@ INIT_INPUTS = (
     "token",
 )
 ANALYZE_INPUTS = ("category", "upload", "upload-database", "ram", "threads", "token")
+OWN_INPUTS = ("trusted-owners",)
 WORKFLOW_ONLY = ("runs-on", "timeout-minutes")
 
 
@@ -43,7 +44,7 @@ def _step(name: str) -> dict:
 
 
 def test_every_input_has_a_description_and_a_default():
-    assert set(INPUTS) == {*INIT_INPUTS, *ANALYZE_INPUTS}
+    assert set(INPUTS) == {*INIT_INPUTS, *ANALYZE_INPUTS, *OWN_INPUTS}
     for name, spec in INPUTS.items():
         assert spec["description"], name
         assert spec["required"] is False, name
@@ -63,6 +64,7 @@ def test_every_input_has_a_description_and_a_default():
         "tools",
         "ram",
         "threads",
+        "trusted-owners",
     ):
         assert INPUTS[name]["default"] == "", name
 
@@ -70,7 +72,8 @@ def test_every_input_has_a_description_and_a_default():
 def test_init_and_analyze_are_the_same_release_and_get_every_input():
     init = _step("Prepare the analysis")
     analyze = _step("Analyse and upload")
-    assert list(ACTION["runs"]["steps"]) == [init, analyze]
+    trust = _step("Trust the owners' actions")
+    assert list(ACTION["runs"]["steps"]) == [trust, init, analyze]
     init_ref = init["uses"].removeprefix("github/codeql-action/init@")
     analyze_ref = analyze["uses"].removeprefix("github/codeql-action/analyze@")
     assert re.fullmatch(r"[0-9a-f]{40}", init_ref)
@@ -86,6 +89,26 @@ def test_init_and_analyze_are_the_same_release_and_get_every_input():
         if name != "upload":
             assert analyze["with"][name] == f"${{{{ inputs.{name} }}}}", name
     assert set(analyze["with"]) == set(ANALYZE_INPUTS)
+
+
+def test_the_trusted_owners_become_a_model_pack_in_the_checkout():
+    trust = _step("Trust the owners' actions")
+    assert trust["if"] == (
+        "inputs.trusted-owners != 'none' && contains(inputs.languages, 'actions')"
+    )
+    assert trust["env"] == {
+        "OWNERS": "${{ inputs.trusted-owners || github.repository_owner }}",
+        "PACK_SCOPE": "${{ github.repository_owner }}",
+    }
+    run = trust["run"]
+    assert "dir=.github/codeql/extensions/trusted-owners" in run
+    assert "extensible: trustedActionsOwnerDataModel" in run
+    assert "pack: codeql/actions-all" in run
+    assert "for owner in $OWNERS; do" in run
+    assert "codeql/actions-all: '*'" in run
+    assert "library: true" in run
+    assert "models/**/*.yml" in run
+    assert "set -euo pipefail" in run
 
 
 def test_a_pull_request_from_a_fork_never_uploads():
