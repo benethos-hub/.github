@@ -113,7 +113,7 @@ Settings, Advanced Security:
 
 - Dependency graph on. Dependabot finds vulnerable packages through it.
 - Dependabot alerts, malware alerts and Dependabot security updates on.
-- CodeQL analysis with the default setup. It needs no file in the repository and is not a required check.
+- CodeQL analysis. The default setup needs no file in the repository and runs the security queries. A repository that runs [codeql.yml](codeql.md) for the quality queries as well switches to the advanced setup instead, since the default setup rejects its upload. Neither is a required check.
 - Secret scanning and push protection on.
 - Private vulnerability reporting on. The [security policy](../SECURITY.md) asks for reports through it, and the button only appears when it is on.
 

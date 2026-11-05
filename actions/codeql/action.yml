@@ -1,0 +1,127 @@
+name: CodeQL
+description: Analyses the checkout with CodeQL, the security and the quality queries by default, and uploads the findings to code scanning.
+
+# CodeQL in one step of a job, for the languages that need no build between
+# the two halves of the analysis: Python, JavaScript and TypeScript, and the
+# workflows themselves. Every input goes through to github/codeql-action, so
+# a repository tunes the analysis in its own job and nothing is decided here.
+# A job of a repository's CI:
+#
+#   codeql:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       security-events: write
+#     steps:
+#       - uses: actions/checkout@<sha> # vX
+#       - uses: benethos-hub/.github/actions/codeql@main
+#         with:
+#           languages: python,actions
+#
+# The job checks out the repository first and grants security-events: write.
+# Findings go to the Security tab and never fail the step. Whether a finding
+# fails the code scanning check of a pull request is a setting of the
+# repository. A pull request from a fork has no token that may upload, so the
+# analysis then runs without the upload. The default setup of code scanning
+# rejects the upload of a language it analyses itself, the repository leaves
+# it first, see docs/codeql.md. Most repositories call this through the
+# reusable workflow codeql.yml, which adds the job around it.
+
+inputs:
+  languages:
+    description: The languages to analyse, comma separated, as CodeQL names them, such as python, javascript-typescript and actions.
+    required: false
+    default: python,actions
+  queries:
+    description: The query suites or queries to run, comma separated. security-and-quality adds the maintainability and reliability queries to the security ones, security-extended adds more security queries. Empty runs the default suite.
+    required: false
+    default: security-and-quality
+  packs:
+    description: CodeQL packs to run as well, comma separated, as scope/name or scope/name@version.
+    required: false
+    default: ""
+  config-file:
+    description: The path of a CodeQL configuration file in the repository, for paths to leave out and queries to filter.
+    required: false
+    default: ""
+  config:
+    description: The same configuration as YAML in the call, for a repository without a file of its own. Takes precedence over config-file.
+    required: false
+    default: ""
+  build-mode:
+    description: none or autobuild. Empty lets CodeQL choose, which is none for the languages this action is for. manual is not possible here, a build between the two halves needs the two actions in the job itself.
+    required: false
+    default: ""
+  category:
+    description: The name code scanning files the analysis under. Two analyses of one commit need two names, and the runs of one repository share one so that each refreshes the last.
+    required: false
+    default: codeql
+  upload:
+    description: always, failure-only or never. A pull request from a fork gets never whatever is set, since its token may not upload.
+    required: false
+    default: always
+  upload-database:
+    description: Upload the CodeQL database as well, for debugging queries against it. Costs time on every run.
+    required: false
+    default: "false"
+  tools:
+    description: A fixed CodeQL bundle, as a URL or a version, instead of the one the action brings.
+    required: false
+    default: ""
+  ram:
+    description: The memory in MB CodeQL may use. Empty takes what the runner has.
+    required: false
+    default: ""
+  threads:
+    description: The threads CodeQL may use. Empty takes the cores of the runner.
+    required: false
+    default: ""
+  debug:
+    description: Debug mode of CodeQL, with its artifacts.
+    required: false
+    default: "false"
+  token:
+    description: The token for the upload. The default is the token of the workflow, which needs security-events write.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  sarif:
+    description: The folder with the SARIF files of the analysis.
+    value: ${{ steps.analyze.outputs.sarif-output }}
+  sarif-id:
+    description: The id of the upload, empty when nothing was uploaded.
+    value: ${{ steps.analyze.outputs.sarif-id }}
+
+runs:
+  using: composite
+  steps:
+    # An empty input reads as unset to github/codeql-action, so every input
+    # can go through as it is.
+    - name: Prepare the analysis
+      uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      with:
+        languages: ${{ inputs.languages }}
+        queries: ${{ inputs.queries }}
+        packs: ${{ inputs.packs }}
+        config-file: ${{ inputs.config-file }}
+        config: ${{ inputs.config }}
+        build-mode: ${{ inputs.build-mode }}
+        tools: ${{ inputs.tools }}
+        ram: ${{ inputs.ram }}
+        threads: ${{ inputs.threads }}
+        debug: ${{ inputs.debug }}
+        token: ${{ inputs.token }}
+
+    # The token of a pull request from a fork may not write security events,
+    # so the upload is turned off there and the analysis still runs.
+    - name: Analyse and upload
+      id: analyze
+      uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      with:
+        category: ${{ inputs.category }}
+        upload: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'never' || inputs.upload }}
+        upload-database: ${{ inputs.upload-database }}
+        ram: ${{ inputs.ram }}
+        threads: ${{ inputs.threads }}
+        token: ${{ inputs.token }}
