@@ -16,7 +16,7 @@ The report is a workflow of its own, [freshness-report.yml](../.github/workflows
 
 ## Calling it
 
-The schedule, the concurrency group and the permission to write issues belong to the calling repository:
+The schedule, the run after a release, the concurrency group and the permission to write issues belong to the calling repository:
 
 ```yaml
 name: Freshness
@@ -24,6 +24,9 @@ name: Freshness
 on:
   schedule:
     - cron: "30 4 * * *"
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -41,6 +44,10 @@ jobs:
     with:
       issue-title: Pinned versions have newer releases
 ```
+
+The `workflow_run` trigger runs it once more when the publishing workflow has finished, named as its `name:` reads. The `index` job installs the package from the index, so its answer changes at that moment and at no other, and a release that does not install or does not start shows in the alarm issue within minutes instead of at the next schedule. The index can show a fresh version a minute late, then the run measures the version before once and the schedule corrects it. A publishing run that failed leaves the index as it was, so the run after it repeats the day before. A repository without a publishing workflow leaves the trigger out.
+
+The concurrency group lets one run at a time. A second run waits and starts when the first has finished, a third replaces the one waiting, and the running one is never cancelled, so no report reads the artifacts of another run and no two runs write the issue at once.
 
 | Input | What it does |
 | --- | --- |
