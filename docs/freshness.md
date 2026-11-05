@@ -92,7 +92,7 @@ A job that fails is a line in the report, so a run that proved nothing never clo
 
 - A pin that floats on purpose: a tag without digits such as `caddy:2`, a tag built from a variable, a reference to `main` or to a version tag of an action, an unpinned build backend such as `hatchling` without a version. The `images` job still compares a floating tag with digits against newer tags of its form, so `caddy:2` learns of a `3`.
 - A pin the caller names in `ignore`.
-- A lockfile of a package tool without an adapter, such as `package-lock.json`. The `outdated` and `audit` jobs read the `uv.lock` of each folder in `projects` and fail with a word when there is none.
+- A lockfile other than `uv.lock` in the jobs of the workflow. The `outdated` and `audit` jobs read the `uv.lock` of each folder in `projects` and fail with a word when there is none. A `package-lock.json` is measured by two actions a repository calls as jobs of its own, see [A package-lock.json](#a-package-lockjson).
 
 Dependabot covers part of this, the direct packages of the lockfile, the actions and the images of the Dockerfiles it is pointed at. The report adds the packages beneath them, the versions beyond the bounds, the build backends, the images of every YAML file, the rebuild per platform and the one place to see all of it. It opens no pull request.
 
@@ -200,6 +200,70 @@ For a uv project the job is ready made: [python/freshness-newest](../actions/pyt
 | `check` | A command run on the locked versions first and on the newest ones after, such as a smoke run against a live service. Empty runs the tests alone. |
 | `rate-limit-exit-code` | The exit code of the check that means a rate limit and no verdict. Default 3. |
 
+## A package-lock.json
+
+A repository can keep a `package-lock.json` the workflow does not read, such as a small one beside a vendored JavaScript file that records its version. Two actions measure it. `freshness.yml` has no `ecosystem: npm`, so each action is called as a job of the repository, one job per action, because each job leaves one artifact `freshness-<job>`.
+
+```yaml
+jobs:
+  npm-outdated:
+    name: Outdated npm packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha> # vX
+        with:
+          persist-credentials: false
+      - uses: benethos-hub/.github/actions/node/freshness-outdated@main
+        with:
+          findings: ${{ runner.temp }}/freshness/npm-outdated
+          directory: assets/vendor
+      - uses: actions/upload-artifact@<sha> # vX
+        with:
+          name: freshness-npm-outdated
+          path: ${{ runner.temp }}/freshness/npm-outdated
+
+  npm-audit:
+    name: Known npm vulnerabilities
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@<sha> # vX
+        with:
+          persist-credentials: false
+      - uses: benethos-hub/.github/actions/node/freshness-audit@main
+        with:
+          findings: ${{ runner.temp }}/freshness/npm-audit
+          directory: assets/vendor
+      - uses: actions/upload-artifact@<sha> # vX
+        with:
+          name: freshness-npm-audit
+          path: ${{ runner.temp }}/freshness/npm-audit
+
+  freshness:
+    needs: [npm-outdated, npm-audit]
+    if: ${{ !cancelled() }}
+    uses: benethos-hub/.github/.github/workflows/freshness.yml@main
+    permissions:
+      contents: read
+      issues: write
+    with:
+      issue-title: Pinned versions have newer releases
+      extra-jobs: npm-outdated npm-audit
+```
+
+| Input | What it does |
+| --- | --- |
+| `findings` | The folder for `status.json` and `findings.jsonl`. The upload step takes it from there. |
+| `directory` | The folder with the `package-lock.json`, relative to the repository. Default the root. The report shows it in `where`, as `assets/vendor/package-lock.json`. |
+| `ignore-vulns` | `freshness-audit` only. Vulnerability IDs to waive, separated by spaces. The input of the same name of `freshness.yml` does not reach this job. |
+
+**Newest means the highest stable version, not the dist-tag `latest`.** `latest` can be older than the pin. With `htmx.org` locked at 4.0.0 and `latest` at 2.0.11, `npm outdated` never names 4.0.1, so `freshness-outdated` does not use it. It reads the list of versions from the registry and takes the highest one that has no pre-release part and is not deprecated, compared by semver. A finding is written only when that version is higher than the locked one, so a new 2.0.12 is no finding while 4.0.1 is locked. A deprecated version never counts as newest, even when `latest` points at it. No resolver is involved, so a finding has no `within_bounds` and the report leaves that column empty.
+
+`direct` comes from the root entry of the lockfile, so what only a workspace member names counts as transitive. An entry marked `dev` has the scope `dev`, every other the scope `runtime`. Entries that do not come from `registry.npmjs.org`, such as a link, a git or file source or a package bundled inside its parent, are no finding, and the summary counts them. A package the registry does not know, unpublished or private, is a warning in the log and counted in the summary, not a finding.
+
+`freshness-audit` runs `npm audit --json --package-lock-only --include=dev` in the folder, with the npm of the runner. It reads the lockfile alone and installs nothing. Each advisory is one finding, named by its GHSA ID. `fix` is set only when the audit names a version of that same package, and left out when only a parent can move. With two affected versions of one package, each advisory is named for both, because the audit does not say which advisory hit which.
+
+Neither action runs code from a package. A registry or an audit endpoint that cannot be reached, a rate limit or a 5xx is `inconclusive` and leaves no `findings.jsonl`, so the run cannot close the issue. A vulnerability is a finding, not a failure. A missing lockfile or one without a `packages` key, which is lockfile version 1, fails the action.
+
 ## Another language
 
 The jobs `images`, `actions` and the report know no language. The jobs `outdated`, `audit` and `index` run one step per ecosystem, guarded by `if: inputs.ecosystem == 'uv'`, and fail with a word for an ecosystem without a step. A second language adds an adapter action that writes the files [FORMAT.md](../actions/freshness/report/FORMAT.md) describes, and one such step per job. The report needs no change.
@@ -212,6 +276,8 @@ The actions behind the jobs, each usable on its own:
 | [python/freshness-audit](../actions/python/freshness-audit/action.yml) | `uv export` in the folder named by `directory` and the pip-audit action with `findings` |
 | [python/freshness-index](../actions/python/freshness-index/action.yml) | `uv venv`, `uv pip install` from the index, `uv pip freeze` and the check of the repository |
 | [python/freshness-newest](../actions/python/freshness-newest/action.yml) | `uv lock --upgrade` in the runner, `uv sync`, the tests and the check of the repository. A job of the repository, not of the workflow. |
+| [node/freshness-outdated](../actions/node/freshness-outdated/action.yml) | `package-lock.json` and the list of versions on the npm registry, in the folder named by `directory`. A job of the repository, not of the workflow. |
+| [node/freshness-audit](../actions/node/freshness-audit/action.yml) | `npm audit` from the `package-lock.json` in the folder named by `directory`. A job of the repository, not of the workflow. |
 | [freshness/images](../actions/freshness/images/action.yml) | Dockerfiles, YAML files and the registry API, read anonymously as `docker pull` does |
 | [freshness/actions](../actions/freshness/actions/action.yml) | `uses:` lines and the GitHub API |
 | [freshness/report](../actions/freshness/report/action.yml) | Only the files per job |

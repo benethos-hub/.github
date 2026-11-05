@@ -41,6 +41,8 @@ files = [
     "actions/freshness/actions/actions.py",
     "actions/freshness/images/images.py",
     "actions/freshness/report/report.py",
+    "actions/node/freshness-audit/npm_audit.py",
+    "actions/node/freshness-outdated/npm_outdated.py",
     "actions/python/freshness-index/index.py",
     "actions/python/freshness-newest/newest.py",
     "actions/python/freshness-outdated/outdated.py",
