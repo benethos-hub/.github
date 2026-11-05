@@ -17,7 +17,7 @@ The repositories call the workflows and actions here at `main`. A project needs 
 | Path | What it holds |
 | --- | --- |
 | [.github/workflows/](.github/workflows/) | The reusable workflows, the two weekly reports and the CI of this repository |
-| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/`, `publish/`, and `coverage-badge/`, `freshness/` and `report-issue/` for every language |
+| [actions/](actions/) | The composite actions: `brand/`, `python/`, `release/`, `publish/`, and `codeql/`, `coverage-badge/`, `freshness/` and `report-issue/` for every language |
 | [.github/scripts/](.github/scripts/) | Scripts the workflows of this repository run themselves |
 | [.github/dependabot.yml](.github/dependabot.yml) | Daily updates for every pinned action and every lockfile here |
 | [.github/download-pins.yml](.github/download-pins.yml) | Downloads pinned by version and checksum, which Dependabot cannot see |
@@ -34,6 +34,7 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 | --- | --- |
 | [Setting up a new repository](docs/new-repository.md) | The steps that give a new repository everything the existing ones have, in order |
 | [CI of a Python project](docs/ci.md) | The `ci.yml` of a project, the reusable workflows and the names of their checks |
+| [CodeQL](docs/codeql.md) | The CodeQL analysis with the security and the quality queries, as a job of the CI and on a schedule, and the setting a repository changes for it |
 | [Badges](docs/badges.md) | The badge rows of every README, their colours and logos, and the coverage badge |
 | [Publishing a release](docs/releases.md) | The `publish.yml` of a project, the publishing actions, the release gate, release tags, trial runs and the one-time setup |
 | [Brand assets](docs/brand-assets.md) | The icon and social preview of every repository, the check in the CI and the weekly report |

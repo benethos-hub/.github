@@ -3,7 +3,7 @@
 These steps give a new repository of the organisation everything the existing ones have. They follow the order in which each step needs the one before it. The example is a Python project managed with uv. A project that publishes nothing stops after step 6.
 
 1. **Brand assets.** Add `assets/brand/icon.svg`, `icon.png` and `social-preview.png`, and upload the social preview in the settings. See [Brand assets](brand-assets.md).
-2. **CI.** Add `.github/workflows/ci.yml` with the jobs of the example in [CI of a Python project](ci.md). The brand assets have to be there first, otherwise `brand / Brand assets` fails right away.
+2. **CI.** Add `.github/workflows/ci.yml` with the jobs of the example in [CI of a Python project](ci.md). The brand assets have to be there first, otherwise `brand / Brand assets` fails right away. The `codeql` job uploads only once step 6 has switched code scanning to the advanced setup, see [CodeQL](codeql.md).
 3. **Dependabot.** Add `.github/dependabot.yml` with an entry for `uv`, `github-actions` and every Dockerfile folder. See [Repository settings](repository-settings.md#dependabot).
 4. **Freshness.** Add `.github/workflows/freshness.yml` from the example in [Freshness report](freshness.md), with an issue title of its own. It reports what Dependabot does not see, in one issue.
 5. **Badges.** Open the README with the badge rows from [Badges](badges.md). The coverage badge shows up after the first push to `main`.

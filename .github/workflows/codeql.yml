@@ -1,0 +1,120 @@
+name: CodeQL
+
+# Reusable CodeQL analysis of a repository: one job around actions/codeql,
+# the security and the quality queries by default, findings in the Security
+# tab. Call it from a repository's CI for every push and pull request:
+#
+#   codeql:
+#     uses: benethos-hub/.github/.github/workflows/codeql.yml@main
+#     permissions:
+#       contents: read
+#       security-events: write
+#     with:
+#       languages: python,actions
+#
+# and from a workflow of its own on a schedule, so that a query GitHub adds
+# later reads code nobody changed. Both runs file under the same category, so
+# each refreshes the analysis the last one left. The calling job grants
+# security-events: write, a reusable workflow never gets more than its caller.
+# The check is named after the calling job, codeql / CodeQL. Findings never
+# fail it, whether a finding fails the code scanning check of a pull request
+# is a setting of the repository. The default setup of code scanning rejects
+# the upload of a language it analyses itself, the repository leaves it first,
+# see docs/codeql.md. The inputs are those of the action, which passes them
+# through to github/codeql-action, plus the runner and the time limit.
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: The languages to analyse, comma separated, as CodeQL names them, such as python, javascript-typescript and actions.
+        type: string
+        default: python,actions
+      queries:
+        description: The query suites or queries to run, comma separated. security-and-quality adds the maintainability and reliability queries to the security ones, security-extended adds more security queries. Empty runs the default suite.
+        type: string
+        default: security-and-quality
+      packs:
+        description: CodeQL packs to run as well, comma separated, as scope/name or scope/name@version.
+        type: string
+        default: ""
+      config-file:
+        description: The path of a CodeQL configuration file in the repository, for paths to leave out and queries to filter.
+        type: string
+        default: ""
+      config:
+        description: The same configuration as YAML in the call, for a repository without a file of its own. Takes precedence over config-file.
+        type: string
+        default: ""
+      build-mode:
+        description: none or autobuild. Empty lets CodeQL choose, which is none for the languages this action is for. manual is not possible here, a build between the two halves needs the two actions in the job itself.
+        type: string
+        default: ""
+      category:
+        description: The name code scanning files the analysis under. Two analyses of one commit need two names, and the runs of one repository share one so that each refreshes the last.
+        type: string
+        default: codeql
+      upload:
+        description: always, failure-only or never. A pull request from a fork gets never whatever is set, since its token may not upload.
+        type: string
+        default: always
+      upload-database:
+        description: Upload the CodeQL database as well, for debugging queries against it. Costs time on every run.
+        type: boolean
+        default: false
+      tools:
+        description: A fixed CodeQL bundle, as a URL or a version, instead of the one the action brings.
+        type: string
+        default: ""
+      ram:
+        description: The memory in MB CodeQL may use. Empty takes what the runner has.
+        type: string
+        default: ""
+      threads:
+        description: The threads CodeQL may use. Empty takes the cores of the runner.
+        type: string
+        default: ""
+      debug:
+        description: Debug mode of CodeQL, with its artifacts.
+        type: boolean
+        default: false
+      runs-on:
+        description: The runner of the job.
+        type: string
+        default: ubuntu-latest
+      timeout-minutes:
+        description: Time limit for the job.
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  codeql:
+    name: CodeQL
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: CodeQL
+        uses: benethos-hub/.github/actions/codeql@main
+        with:
+          languages: ${{ inputs.languages }}
+          queries: ${{ inputs.queries }}
+          packs: ${{ inputs.packs }}
+          config-file: ${{ inputs.config-file }}
+          config: ${{ inputs.config }}
+          build-mode: ${{ inputs.build-mode }}
+          category: ${{ inputs.category }}
+          upload: ${{ inputs.upload }}
+          upload-database: ${{ inputs.upload-database }}
+          tools: ${{ inputs.tools }}
+          ram: ${{ inputs.ram }}
+          threads: ${{ inputs.threads }}
+          debug: ${{ inputs.debug }}

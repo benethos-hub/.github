@@ -37,6 +37,14 @@ jobs:
   audit:
     uses: benethos-hub/.github/.github/workflows/python-dependency-audit.yml@main
 
+  codeql:
+    uses: benethos-hub/.github/.github/workflows/codeql.yml@main
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      languages: python,actions
+
   coverage-badge:
     if: github.event_name == 'push'
     needs: test
@@ -52,11 +60,12 @@ jobs:
 | [python-tests.yml](../.github/workflows/python-tests.yml) | pytest on every supported Python against `uv.lock`. The newest version also measures the coverage and enforces its floor, 80 % by default. | `python-versions`, `coverage-python`, `sync-args`, `cov`, `cov-fail-under`, `badge`, `timeout-minutes` |
 | [python-lowest-versions.yml](../.github/workflows/python-lowest-versions.yml) | The tests against the lowest versions `pyproject.toml` allows, on the oldest supported Python, without the lockfile. With `audit: true`, those versions are audited too. | `python-version`, `editable`, `requirements`, `pytest-args`, `audit`, `ignore-vulns`, `timeout-minutes` |
 | [python-dependency-audit.yml](../.github/workflows/python-dependency-audit.yml) | Every version pinned in `uv.lock`, for every platform and Python, against PyPI and OSV. A vulnerability without a fix is waived by ID. | `ignore-vulns` |
+| [codeql.yml](../.github/workflows/codeql.yml) | CodeQL with the security and the quality queries, see [CodeQL](codeql.md). The repository leaves the default setup of code scanning first, and a second call on a schedule catches new queries. | `languages`, `queries`, `packs`, `config-file`, `config`, `build-mode`, `category`, `upload`, `upload-database`, `tools`, `ram`, `threads`, `debug`, `runs-on`, `timeout-minutes` |
 | [coverage-badge.yml](../.github/workflows/coverage-badge.yml) | Nothing. It publishes the coverage badge, of any language, see [Coverage badge](badges.md#coverage-badge). | `artifact`, `branch` |
 
 ## Check names
 
-The checks are named after the calling job and the job inside the workflow: `lint / lint`, `test / Python 3.15`, `lowest-versions / Python 3.11`, `audit / Dependency audit` and `brand / Brand assets`. These are the names the branch protection requires, see [Repository settings](repository-settings.md#branch-protection). A project names its Python versions in `with:` even where they equal the defaults, so that a changed default here never moves its tests without a word.
+The checks are named after the calling job and the job inside the workflow: `lint / lint`, `test / Python 3.15`, `lowest-versions / Python 3.11`, `audit / Dependency audit`, `brand / Brand assets` and `codeql / CodeQL`. The first five are the names the branch protection requires, see [Repository settings](repository-settings.md#branch-protection). A project names its Python versions in `with:` even where they equal the defaults, so that a changed default here never moves its tests without a word.
 
 Coverage is measured on one version only, because it slows the older ones down noticeably. A required check on `test / Python 3.15` is what makes the floor block a merge.
 

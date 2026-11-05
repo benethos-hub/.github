@@ -16,6 +16,7 @@ updates:
     directories:
       - "/"
       - "/actions/brand/assets"
+      - "/actions/codeql"
       - "/actions/coverage-badge"
       - "/actions/freshness/actions"
       - "/actions/freshness/images"
