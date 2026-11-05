@@ -140,6 +140,12 @@ gh api repos/benethos-hub/<repo>/dependency-graph/sbom --jq '.sbom.packages | le
 
 The graph reads the lockfiles and the actions, not the base images of a Dockerfile. Those stay with the `docker` entry of [Dependabot](#dependabot).
 
+### The code scanning check
+
+Code scanning adds a check `Code scanning results / <tool>` to every pull request that uploads findings, one per tool: CodeQL, hadolint, Trivy or Checkov. Whether a finding turns it red is one threshold for every tool, on the settings page only: Settings, Code security, Code scanning, Protection rules, Check failure. It has two halves. Security alerts are the findings that carry a security severity, which the CodeQL security queries and Trivy set. Other alerts are the rest, judged by their level, which is every finding of hadolint, of Checkov's Dockerfile checks and of the CodeQL quality queries.
+
+Set Security alerts to High or higher and Other alerts to Errors and warnings. GitHub's own default is High or higher and Errors, which lets a hadolint warning through. Do not make the check a required check, a finding is read in the Security tab and fixed or dismissed there, the merge does not wait for it. The scanners' own jobs fail on no finding unless a repository sets `failure-level`, see [Dockerfile checks](dockerfile-checks.md) and [CodeQL](codeql.md).
+
 A security update can fail when another package holds the vulnerable version back. The Dependabot run then ends in red with `security_update_not_possible`, which is no defect here. Report it to the project that holds the version. If the vulnerable code cannot be reached here, dismiss the alert with the reason in its comment, so that a new alert stands out.
 
 ## Actions

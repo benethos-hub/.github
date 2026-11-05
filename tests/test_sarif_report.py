@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 import yaml
+from scanner_wiring import assert_reports_only_by_default
 
 ROOT = Path(__file__).resolve().parent.parent
 ACTION_DIR = ROOT / "actions" / "sarif-report"
@@ -201,7 +202,7 @@ def test_the_action_reads_keeps_uploads_and_only_then_fails():
     inputs = ACTION["inputs"]
     assert inputs["sarif"]["required"] is True
     assert inputs["category"]["required"] is True
-    assert inputs["failure-level"]["default"] == "none"
+    assert_reports_only_by_default(ACTION)
     assert inputs["upload"]["default"] == "true"
     assert inputs["retention-days"]["default"] == "7"
     for name, spec in inputs.items():

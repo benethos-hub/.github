@@ -62,9 +62,9 @@ on:
         type: boolean
         default: false
       failure-level:
-        description: The level from which a finding fails the step, after the upload. none, note, warning or error.
+        description: The level from which a finding fails the step, after the upload. none, note, warning or error. none, the default, fails nothing, the code scanning check of the repository decides. A repository that wants this job red sets a level.
         type: string
-        default: error
+        default: none
       category:
         description: The name code scanning files the analysis under.
         type: string

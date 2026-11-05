@@ -14,6 +14,7 @@ from scanner_wiring import (
     assert_documented,
     assert_inputs_are_described,
     assert_installs_uv_first,
+    assert_reports_only_by_default,
     assert_reports_through_sarif_report,
     assert_workflow_mirrors_action,
     load,
@@ -148,7 +149,7 @@ def test_the_action_scans_from_the_lockfile_and_reports():
     assert_inputs_are_described(ACTION)
     assert ACTION["inputs"]["directory"]["default"] == "."
     assert ACTION["inputs"]["framework"]["default"] == "dockerfile"
-    assert ACTION["inputs"]["failure-level"]["default"] == "error"
+    assert_reports_only_by_default(ACTION)
     assert ACTION["inputs"]["category"]["default"] == "checkov"
     assert_installs_uv_first(ACTION)
     scan = step(ACTION, "Scan with Checkov")
