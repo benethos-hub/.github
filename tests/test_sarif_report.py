@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -21,6 +22,8 @@ _spec = importlib.util.spec_from_file_location(
 )
 assert _spec and _spec.loader
 sarif_report = importlib.util.module_from_spec(_spec)
+# A dataclass looks its module up in sys.modules while it is being defined.
+sys.modules["sarif_report"] = sarif_report
 _spec.loader.exec_module(sarif_report)
 
 
