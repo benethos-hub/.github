@@ -44,7 +44,7 @@ inputs:
     required: false
     default: "7"
   failure-level:
-    description: The level from which a finding fails the step, after the upload. none, note, warning or error. none never fails.
+    description: The level from which a finding fails the step, after the upload. none, note, warning or error. none, the default, fails nothing, the code scanning check of the repository decides. A repository that wants this job red sets a level.
     required: false
     default: none
   token:

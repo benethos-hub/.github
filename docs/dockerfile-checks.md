@@ -10,7 +10,7 @@ Three scanners read the Dockerfiles of a repository and judge their form, each a
 
 None of the three reads a compose file. The images a compose file names are a matter of the [freshness report](freshness.md), which reads them for their tags and digests.
 
-The findings never fail a job by themselves. Each scanner leaves a SARIF file, and [sarif-report](../actions/sarif-report/action.yml) writes a table of it to the step summary, uploads it to code scanning under the scanner's category, and only then fails the step when a finding reaches `failure-level`. So the findings are in the Security tab whether the check is red or green, and a merge waits for them only where a repository says so. None of the checks is a required check.
+The scanners report, the repository decides. Each scanner leaves a SARIF file, and [sarif-report](../actions/sarif-report/action.yml) writes a table of it to the step summary, uploads it to code scanning under the scanner's category, and fails the step only when a finding reaches `failure-level`, whose default is `none`. Whether a finding turns the code scanning check of a pull request red is the protection rule of the repository, Settings, Code security, Code scanning, Protection rules, Check failure, one threshold for every tool, see [Repository settings](repository-settings.md#the-code-scanning-check). `failure-level` is for a repository that wants the scanner's own job red regardless of that rule. The code scanning check exists on a pull request with an upload only. A run on a push or a schedule, and a pull request from a fork, ends green whatever the findings, which stay in the step summary and, once uploaded, in the Security tab. None of the checks is a required check.
 
 ## Choosing
 
@@ -51,7 +51,7 @@ Each workflow is one job, called from `ci.yml` beside the other jobs:
 
 The calling job grants `security-events: write`, a reusable workflow never gets more than its caller. The checks are named `dockerfile-lint / Dockerfile lint`, `trivy-config / Trivy config` and `checkov / Checkov`. A run on a schedule, so that a check the scanner adds later reads code nobody changed, goes into the same workflow of the repository that runs [CodeQL](codeql.md) weekly. Each run files under the scanner's category, so each refreshes the analysis the last one left.
 
-A pull request from a fork has no token that may upload. The upload is left out there, the summary still shows every finding, and `failure-level` still decides.
+A pull request from a fork has no token that may upload. The upload is left out there, so there is no code scanning check for it, the summary still shows every finding, and `failure-level` alone decides.
 
 ## The inputs
 
@@ -59,7 +59,7 @@ Every scanner takes these, and the workflows take them too, with `runs-on` and `
 
 | Input | What it does |
 | --- | --- |
-| `failure-level` | The level from which a finding fails the step, after the upload: `none`, `note`, `warning` or `error`. `none` never fails. The defaults differ by scanner, see below. |
+| `failure-level` | The level from which a finding fails the step, after the upload: `none`, `note`, `warning` or `error`. The default `none` fails nothing, the code scanning check of the repository decides. A repository that wants the job red on its own sets a level on purpose, the levels of each scanner are below. |
 | `category` | The name code scanning files the analysis under. Default the scanner's name: `dockerfile-lint`, `trivy-config`, `checkov`. Two scanners in one repository keep two categories. |
 | `upload` | Upload the findings to code scanning. Default on. Off leaves them in the summary and, with `artifact`, in an artifact. |
 | `artifact` | The name of an artifact to keep the SARIF file in. Empty keeps none. |
@@ -71,9 +71,9 @@ The levels in code scanning are the scanner's own, translated to the three SARIF
 
 | Scanner | error | warning | note | Default `failure-level` |
 | --- | --- | --- | --- | --- |
-| hadolint | its `error` rules | its `warning` rules | `info` and `style` | `warning`, the rules worth acting on |
-| Trivy | HIGH and CRITICAL | MEDIUM | LOW | `error` |
-| Checkov | every failed check | | | `error`, so any finding fails unless `none` |
+| hadolint | its `error` rules | its `warning` rules | `info` and `style` | `none`. `warning` takes the rules worth acting on |
+| Trivy | HIGH and CRITICAL | MEDIUM | LOW | `none` |
+| Checkov | every failed check | | | `none`. Any other level fails on any finding |
 
 ### dockerfile-lint
 

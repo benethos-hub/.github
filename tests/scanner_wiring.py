@@ -111,6 +111,14 @@ def assert_pinned_download(
     assert pin["sha256"] == sha_key
 
 
+def assert_reports_only_by_default(action: dict) -> None:
+    """A scanner fails nothing on its own, the code scanning check decides."""
+    spec = action["inputs"]["failure-level"]
+    assert spec["default"] == "none"
+    assert "none, the default, fails nothing" in spec["description"]
+    assert "code scanning check" in spec["description"]
+
+
 def assert_documented(action: dict, page: str, *files: str) -> None:
     for name in action["inputs"]:
         assert f"`{name}`" in page, name

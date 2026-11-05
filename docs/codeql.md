@@ -86,7 +86,7 @@ The way back is the same setting. Switching the default setup on again stops the
 
 The quality queries find something in most repositories on their first run. Each alert names the rule and the place. An alert that is right is fixed. One that does not apply is dismissed in the Security tab with the reason, so that a new alert stands out. A rule that never applies to a repository goes into its CodeQL configuration file as a `query-filters` entry with the reason beside it, and `config-file` names the file.
 
-Whether a finding fails the code scanning check of a pull request is a setting of the repository: Settings, Code security, Code scanning, Protection rules, the threshold for check failure. Its default lets only errors fail, and the quality queries report none. Neither that check nor `codeql / CodeQL` is a required check in the branch protection of any repository, a merge never waits for a finding.
+The analysis reports, the repository decides. `codeql / CodeQL` fails on no finding, and there is no input to make it. Whether a finding turns the code scanning check of a pull request red is the protection rule of the repository, Settings, Code security, Code scanning, Protection rules, Check failure, one threshold for every tool that uploads, see [Repository settings](repository-settings.md#the-code-scanning-check). The security queries carry a security severity and count as security alerts there, the quality queries carry none and count as other alerts by their level. Neither that check nor `codeql / CodeQL` is a required check in the branch protection of any repository, a merge never waits for a finding.
 
 ## A job of the repository
 

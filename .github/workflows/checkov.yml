@@ -50,9 +50,9 @@ on:
         type: string
         default: ""
       failure-level:
-        description: The level from which a finding fails the step, after the upload. none, note, warning or error. Every finding of Checkov is an error.
+        description: The level from which a finding fails the step, after the upload. none, note, warning or error. none, the default, fails nothing, the code scanning check of the repository decides. A repository that wants this job red sets a level. Every finding of Checkov is an error.
         type: string
-        default: error
+        default: none
       category:
         description: The name code scanning files the analysis under.
         type: string
