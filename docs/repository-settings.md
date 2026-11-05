@@ -43,7 +43,7 @@ The required checks are the names [CI of a Python project](ci.md#check-names) ex
 
 A changed job name or Python version changes the check names. The branch protection has to follow in the same step, otherwise it waits for a check that never comes.
 
-Not required in any repository: `codeql / CodeQL` and the code scanning check `CodeQL` that its upload adds to a pull request, see [CodeQL](codeql.md). Their findings are read in the Security tab and fixed or dismissed there, a merge never waits for them.
+Not required in any repository: `codeql / CodeQL`, the scanners of [Dockerfile checks](dockerfile-checks.md) and the code scanning checks their uploads add to a pull request, see [CodeQL](codeql.md). Their findings are read in the Security tab and fixed or dismissed there, a merge never waits for them.
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/branches/main/protection --input - <<'EOF'

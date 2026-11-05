@@ -11,6 +11,9 @@
 #   repository  the GitHub repository whose releases it comes from
 #   asset       the file name of the download in a release
 #   checksums   how the name of the release's checksums file ends
+#
+# {version} in an asset name stands for the version without its v, for a
+# release whose file names carry it.
 
 - name: mcp-publisher
   file: actions/publish/mcp-registry/action.yml
@@ -18,4 +21,20 @@
   sha256: MCP_PUBLISHER_SHA256
   repository: modelcontextprotocol/registry
   asset: mcp-publisher_linux_amd64.tar.gz
+  checksums: _checksums.txt
+
+- name: hadolint
+  file: actions/dockerfile-lint/action.yml
+  version: HADOLINT_VERSION
+  sha256: HADOLINT_SHA256
+  repository: hadolint/hadolint
+  asset: hadolint-linux-x86_64
+  checksums: checksums.sha256
+
+- name: trivy
+  file: actions/trivy-config/action.yml
+  version: TRIVY_VERSION
+  sha256: TRIVY_SHA256
+  repository: aquasecurity/trivy
+  asset: trivy_{version}_Linux-64bit.tar.gz
   checksums: _checksums.txt

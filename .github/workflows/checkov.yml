@@ -1,0 +1,110 @@
+name: Checkov
+
+# Reusable Checkov scan of a repository: one job around actions/checkov, the
+# Dockerfile checks by default, the findings in the step summary and in code
+# scanning. Call it from a repository's CI:
+#
+#   checkov:
+#     uses: benethos-hub/.github/.github/workflows/checkov.yml@main
+#     permissions:
+#       contents: read
+#       security-events: write
+#     with:
+#       directory: containers
+#
+# The calling job grants security-events: write, a reusable workflow never
+# gets more than its caller. The check is named after the calling job,
+# checkov / Checkov, and fails from failure-level on, after the upload. The
+# inputs are those of the action, plus the runner and the time limit. See
+# docs/dockerfile-checks.md.
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: The folder to scan, relative to the checkout.
+        type: string
+        default: "."
+      framework:
+        description: The frameworks to run, separated by spaces, such as dockerfile kubernetes terraform. Empty runs every one Checkov has.
+        type: string
+        default: dockerfile
+      check:
+        description: Only these check ids, separated by spaces or commas, such as CKV_DOCKER_2 CKV_DOCKER_3. Empty runs every check of the frameworks.
+        type: string
+        default: ""
+      skip-check:
+        description: Check ids not to run, separated by spaces or commas. Say why in the call.
+        type: string
+        default: ""
+      skip-path:
+        description: Path patterns to leave out, separated by spaces.
+        type: string
+        default: ""
+      config-file:
+        description: The path of a .checkov.yaml in the repository, with any option of Checkov.
+        type: string
+        default: ""
+      external-checks:
+        description: A folder of custom checks in the repository.
+        type: string
+        default: ""
+      failure-level:
+        description: The level from which a finding fails the step, after the upload. none, note, warning or error. Every finding of Checkov is an error.
+        type: string
+        default: error
+      category:
+        description: The name code scanning files the analysis under.
+        type: string
+        default: checkov
+      upload:
+        description: Upload the findings to code scanning.
+        type: boolean
+        default: true
+      artifact:
+        description: The name of an artifact to keep the SARIF file in. Empty keeps none.
+        type: string
+        default: ""
+      retention-days:
+        description: How many days the artifact is kept.
+        type: number
+        default: 7
+      runs-on:
+        description: The runner of the job.
+        type: string
+        default: ubuntu-latest
+      timeout-minutes:
+        description: Time limit for the job.
+        type: number
+        default: 15
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  checkov:
+    name: Checkov
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Checkov
+        uses: benethos-hub/.github/actions/checkov@main
+        with:
+          directory: ${{ inputs.directory }}
+          framework: ${{ inputs.framework }}
+          check: ${{ inputs.check }}
+          skip-check: ${{ inputs.skip-check }}
+          skip-path: ${{ inputs.skip-path }}
+          config-file: ${{ inputs.config-file }}
+          external-checks: ${{ inputs.external-checks }}
+          failure-level: ${{ inputs.failure-level }}
+          category: ${{ inputs.category }}
+          upload: ${{ inputs.upload }}
+          artifact: ${{ inputs.artifact }}
+          retention-days: ${{ inputs.retention-days }}

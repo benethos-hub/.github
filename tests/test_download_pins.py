@@ -132,6 +132,21 @@ def test_a_release_without_the_asset_is_an_error(tmp_path):
         )
 
 
+def test_a_version_in_the_asset_name_follows_the_release(tmp_path):
+    pin = _pin(asset="tool_{version}_linux_amd64.tar.gz")
+    assert download_pins.asset_name(pin, "v1.10.0") == "tool_1.10.0_linux_amd64.tar.gz"
+
+    def fetch(url: str) -> bytes:
+        if url.startswith("sums/"):
+            tag = url.split("/", 1)[1]
+            return f"{SHA[tag]}  tool_{tag[1:]}_linux_amd64.tar.gz\n".encode()
+        return _fetch(latest="v1.10.0")(url)
+
+    body = download_pins.report([pin], _pinned(tmp_path), fetch, BASE)
+    assert f"TOOL_SHA256: {SHA['v1.10.0']}" in body
+    assert "line for `tool_1.10.0_linux_amd64.tar.gz`" in body
+
+
 def test_the_token_goes_to_the_api_only(monkeypatch):
     seen = []
 

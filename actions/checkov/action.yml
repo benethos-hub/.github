@@ -1,0 +1,133 @@
+name: Checkov
+description: Scans the checkout with Checkov, with the findings in the step summary and in code scanning.
+
+# Checkov judges Dockerfiles and infrastructure as code against its checks,
+# the Dockerfile ones by default: a user, a health check, COPY over ADD, an
+# image with a tag, no secret in ENV. Compose files are not among its
+# frameworks. The findings go to the step summary and to code scanning under
+# one category, through sarif-report, which fails the step from failure-level
+# on, after the upload. A job of a repository's CI:
+#
+#   checkov:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       security-events: write
+#     steps:
+#       - uses: actions/checkout@<sha> # vX
+#       - uses: benethos-hub/.github/actions/checkov@main
+#         with:
+#           directory: containers
+#
+# The job checks out the repository first and grants security-events: write.
+# Checkov is a Python tool, locked in the uv.lock next to this file, the one
+# place for all repositories, and Dependabot keeps it current. It runs with
+# --skip-download, so nothing reaches the vendor's platform. Most repositories
+# call this through the reusable workflow checkov.yml, which adds the job
+# around it. Every failed check is an error in code scanning, Checkov knows
+# no other level without the vendor's platform.
+
+inputs:
+  directory:
+    description: The folder to scan, relative to the checkout.
+    required: false
+    default: "."
+  framework:
+    description: The frameworks to run, separated by spaces, such as dockerfile kubernetes terraform. Empty runs every one Checkov has.
+    required: false
+    default: dockerfile
+  check:
+    description: Only these check ids, separated by spaces or commas, such as CKV_DOCKER_2 CKV_DOCKER_3. Empty runs every check of the frameworks.
+    required: false
+    default: ""
+  skip-check:
+    description: Check ids not to run, separated by spaces or commas. Say why in the call.
+    required: false
+    default: ""
+  skip-path:
+    description: Path patterns to leave out, separated by spaces.
+    required: false
+    default: ""
+  config-file:
+    description: The path of a .checkov.yaml in the repository, with any option of Checkov.
+    required: false
+    default: ""
+  external-checks:
+    description: A folder of custom checks in the repository.
+    required: false
+    default: ""
+  failure-level:
+    description: The level from which a finding fails the step, after the upload. none, note, warning or error. Every finding of Checkov is an error.
+    required: false
+    default: error
+  category:
+    description: The name code scanning files the analysis under.
+    required: false
+    default: checkov
+  upload:
+    description: Upload the findings to code scanning.
+    required: false
+    default: "true"
+  artifact:
+    description: The name of an artifact to keep the SARIF file in. Empty keeps none.
+    required: false
+    default: ""
+  retention-days:
+    description: How many days the artifact is kept.
+    required: false
+    default: "7"
+  token:
+    description: The token for the upload. The default is the token of the workflow, which needs security-events write.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  sarif:
+    description: The SARIF file Checkov left.
+    value: ${{ runner.temp }}/checkov/results_sarif.sarif
+  findings:
+    description: How many findings there are.
+    value: ${{ steps.report.outputs.findings }}
+  highest:
+    description: The highest level found, or none.
+    value: ${{ steps.report.outputs.highest }}
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    # The environment of the lockfile goes into the runner's temporary
+    # folder, not into the action's folder.
+    - name: Scan with Checkov
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/checkov-env
+        DIRECTORY: ${{ inputs.directory }}
+        FRAMEWORK: ${{ inputs.framework }}
+        CHECK: ${{ inputs.check }}
+        SKIP_CHECK: ${{ inputs.skip-check }}
+        SKIP_PATH: ${{ inputs.skip-path }}
+        CONFIG_FILE: ${{ inputs.config-file }}
+        EXTERNAL_CHECKS: ${{ inputs.external-checks }}
+        OUT_DIR: ${{ runner.temp }}/checkov
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/checkov_scan.py"
+
+    - name: Report
+      id: report
+      uses: benethos-hub/.github/actions/sarif-report@main
+      with:
+        sarif: ${{ runner.temp }}/checkov/results_sarif.sarif
+        tool: Checkov
+        category: ${{ inputs.category }}
+        upload: ${{ inputs.upload }}
+        artifact: ${{ inputs.artifact }}
+        retention-days: ${{ inputs.retention-days }}
+        failure-level: ${{ inputs.failure-level }}
+        token: ${{ inputs.token }}
