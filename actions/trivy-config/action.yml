@@ -1,0 +1,169 @@
+name: Trivy config
+description: Scans the checkout for misconfigurations with Trivy, with the findings in the step summary and in code scanning.
+
+# The misconfiguration scan of Trivy reads Dockerfiles, Kubernetes manifests,
+# Helm charts, Terraform, CloudFormation, Azure ARM and Ansible, and judges
+# them against its checks: a root user, a secret in ENV, an image without a
+# tag, an open port. Compose files are not among its types. The findings go to
+# the step summary and to code scanning under one category, through
+# sarif-report, which fails the step from failure-level on, after the upload.
+# A job of a repository's CI:
+#
+#   trivy-config:
+#     runs-on: ubuntu-latest
+#     permissions:
+#       contents: read
+#       security-events: write
+#     steps:
+#       - uses: actions/checkout@<sha> # vX
+#       - uses: benethos-hub/.github/actions/trivy-config@main
+#         with:
+#           path: containers
+#
+# The job checks out the repository first and grants security-events: write.
+# Trivy is downloaded pinned by version and checksum, the one place for all
+# repositories, and the Download pins report (.github/download-pins.yml)
+# opens an issue once a newer release is out. The checks themselves come from
+# Trivy's registry on every run unless offline is set. Most repositories call
+# this through the reusable workflow trivy-config.yml, which adds the job
+# around it. The levels in code scanning are Trivy's: HIGH and CRITICAL as
+# error, MEDIUM as warning, LOW as note. A check that matches a name alone,
+# such as a secret in ENV judged by the variable's name, is left out through
+# a .trivyignore with the reason beside it.
+
+inputs:
+  path:
+    description: The folder to scan, relative to the checkout.
+    required: false
+    default: "."
+  scanners:
+    description: The misconfiguration scanners to run, separated by spaces, such as dockerfile kubernetes. Empty runs every one Trivy has.
+    required: false
+    default: ""
+  severity:
+    description: The severities to report, separated by spaces, from UNKNOWN LOW MEDIUM HIGH CRITICAL. Empty reports every one.
+    required: false
+    default: ""
+  skip-dirs:
+    description: Folders or glob patterns to leave out, separated by spaces.
+    required: false
+    default: ""
+  skip-files:
+    description: Files or glob patterns to leave out, separated by spaces.
+    required: false
+    default: ""
+  ignorefile:
+    description: The path of a .trivyignore with the check ids to leave out. Empty takes .trivyignore in the folder scanned, when there is one.
+    required: false
+    default: ""
+  config:
+    description: The path of a trivy.yaml with any option of Trivy.
+    required: false
+    default: ""
+  checks:
+    description: Folders of custom Rego checks, separated by spaces.
+    required: false
+    default: ""
+  namespaces:
+    description: The Rego namespaces of the custom checks, separated by spaces.
+    required: false
+    default: ""
+  offline:
+    description: Do not fetch the checks bundle, use the one in the cache.
+    required: false
+    default: "false"
+  failure-level:
+    description: The level from which a finding fails the step, after the upload. none, note, warning or error.
+    required: false
+    default: error
+  category:
+    description: The name code scanning files the analysis under.
+    required: false
+    default: trivy-config
+  upload:
+    description: Upload the findings to code scanning.
+    required: false
+    default: "true"
+  artifact:
+    description: The name of an artifact to keep the SARIF file in. Empty keeps none.
+    required: false
+    default: ""
+  retention-days:
+    description: How many days the artifact is kept.
+    required: false
+    default: "7"
+  token:
+    description: The token for the upload. The default is the token of the workflow, which needs security-events write.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  sarif:
+    description: The SARIF file Trivy left.
+    value: ${{ runner.temp }}/trivy-config/trivy.sarif
+  findings:
+    description: How many findings there are.
+    value: ${{ steps.report.outputs.findings }}
+  highest:
+    description: The highest level found, or none.
+    value: ${{ steps.report.outputs.highest }}
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    # Pinned with its checksum. Dependabot cannot see a download, so the bump
+    # is by hand, and the Download pins report opens an issue with both lines
+    # to paste once a newer release is out. The asset carries the version
+    # without its v.
+    - name: Install trivy
+      shell: bash
+      env:
+        TRIVY_VERSION: v0.76.1
+        TRIVY_SHA256: c7cbe3137fb8a48a17574bede3dd6beb16742d1e9772929940fc90082c39d9c0
+        TRIVY_DIR: ${{ runner.temp }}/trivy
+      run: |
+        set -euo pipefail
+        mkdir -p "$TRIVY_DIR"
+        curl -fsSL -o "$TRIVY_DIR/trivy.tar.gz" \
+          "https://github.com/aquasecurity/trivy/releases/download/${TRIVY_VERSION}/trivy_${TRIVY_VERSION#v}_Linux-64bit.tar.gz"
+        echo "${TRIVY_SHA256}  $TRIVY_DIR/trivy.tar.gz" | sha256sum -c -
+        tar xzf "$TRIVY_DIR/trivy.tar.gz" -C "$TRIVY_DIR" trivy
+
+    - name: Scan for misconfigurations
+      shell: bash
+      env:
+        TRIVY: ${{ runner.temp }}/trivy/trivy
+        TRIVY_NO_PROGRESS: "true"
+        SCAN_PATH: ${{ inputs.path }}
+        SCANNERS: ${{ inputs.scanners }}
+        SEVERITY: ${{ inputs.severity }}
+        SKIP_DIRS: ${{ inputs.skip-dirs }}
+        SKIP_FILES: ${{ inputs.skip-files }}
+        IGNOREFILE: ${{ inputs.ignorefile }}
+        CONFIG: ${{ inputs.config }}
+        CHECKS: ${{ inputs.checks }}
+        NAMESPACES: ${{ inputs.namespaces }}
+        OFFLINE: ${{ inputs.offline }}
+        CACHE_DIR: ${{ runner.temp }}/trivy-cache
+        OUT: ${{ runner.temp }}/trivy-config/trivy.sarif
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/trivy_config.py"
+
+    - name: Report
+      id: report
+      uses: benethos-hub/.github/actions/sarif-report@main
+      with:
+        sarif: ${{ runner.temp }}/trivy-config/trivy.sarif
+        tool: Trivy
+        category: ${{ inputs.category }}
+        upload: ${{ inputs.upload }}
+        artifact: ${{ inputs.artifact }}
+        retention-days: ${{ inputs.retention-days }}
+        failure-level: ${{ inputs.failure-level }}
+        token: ${{ inputs.token }}

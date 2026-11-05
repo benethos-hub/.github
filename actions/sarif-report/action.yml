@@ -1,0 +1,118 @@
+name: SARIF report
+description: Summarises the SARIF file of a scanner in the step summary, uploads it to code scanning and fails the step at a chosen level.
+
+# The shared tail of every scanner action here: dockerfile-lint, trivy-config
+# and checkov each leave a SARIF file and call this. It writes a table of the
+# findings to the step summary, keeps the file as an artifact when asked,
+# uploads it to code scanning under its category, and only then fails the
+# step when a finding reaches failure-level. So the findings are in the
+# Security tab whether the step is red or green. A scanner of a repository's
+# own can call it the same way:
+#
+#   - uses: benethos-hub/.github/actions/sarif-report@main
+#     with:
+#       sarif: ${{ runner.temp }}/scan.sarif
+#       category: my-scanner
+#       failure-level: error
+#
+# The job grants security-events: write for the upload. A pull request from
+# a fork has no token that may upload, so the upload is left out there and
+# the summary still shows everything. An empty SARIF is uploaded as well, it
+# closes the alerts of the category as fixed.
+
+inputs:
+  sarif:
+    description: The SARIF file the scanner left.
+    required: true
+  tool:
+    description: The name in the heading of the summary. Empty takes the name the file carries.
+    required: false
+    default: ""
+  category:
+    description: The name code scanning files the analysis under. One category per scanner, and the runs of one repository share it so that each refreshes the last.
+    required: true
+  upload:
+    description: Upload the file to code scanning.
+    required: false
+    default: "true"
+  artifact:
+    description: The name of an artifact to keep the file in. Empty keeps none.
+    required: false
+    default: ""
+  retention-days:
+    description: How many days the artifact is kept.
+    required: false
+    default: "7"
+  failure-level:
+    description: The level from which a finding fails the step, after the upload. none, note, warning or error. none never fails.
+    required: false
+    default: none
+  token:
+    description: The token for the upload. The default is the token of the workflow, which needs security-events write.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  findings:
+    description: How many findings the file holds.
+    value: ${{ steps.report.outputs.findings }}
+  errors:
+    description: How many of them are errors.
+    value: ${{ steps.report.outputs.errors }}
+  warnings:
+    description: How many of them are warnings.
+    value: ${{ steps.report.outputs.warnings }}
+  notes:
+    description: How many of them are notes.
+    value: ${{ steps.report.outputs.notes }}
+  highest:
+    description: The highest level found, or none.
+    value: ${{ steps.report.outputs.highest }}
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    - name: Read the SARIF
+      id: report
+      shell: bash
+      env:
+        SARIF: ${{ inputs.sarif }}
+        TOOL: ${{ inputs.tool }}
+        FAILURE_LEVEL: ${{ inputs.failure-level }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/sarif_report.py"
+
+    - name: Keep the SARIF as an artifact
+      if: inputs.artifact != ''
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      with:
+        name: ${{ inputs.artifact }}
+        path: ${{ inputs.sarif }}
+        retention-days: ${{ inputs.retention-days }}
+
+    # The token of a pull request from a fork may not write security events.
+    - name: Upload to code scanning
+      if: inputs.upload == 'true' && !(github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork)
+      uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      with:
+        sarif_file: ${{ inputs.sarif }}
+        category: ${{ inputs.category }}
+        token: ${{ inputs.token }}
+
+    - name: Fail at the chosen level
+      if: steps.report.outputs.fail == 'true'
+      shell: bash
+      env:
+        TOOL: ${{ inputs.tool }}
+        LEVEL: ${{ inputs.failure-level }}
+        HIGHEST: ${{ steps.report.outputs.highest }}
+        FINDINGS: ${{ steps.report.outputs.findings }}
+      run: |
+        echo "::error::${TOOL:-The scanner} left $FINDINGS findings, the highest is $HIGHEST and failure-level is $LEVEL. The step summary lists them."
+        exit 1

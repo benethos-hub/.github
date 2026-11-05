@@ -16,8 +16,10 @@ updates:
     directories:
       - "/"
       - "/actions/brand/assets"
+      - "/actions/checkov"
       - "/actions/codeql"
       - "/actions/coverage-badge"
+      - "/actions/dockerfile-lint"
       - "/actions/freshness/actions"
       - "/actions/freshness/images"
       - "/actions/freshness/report"
@@ -32,6 +34,8 @@ updates:
       - "/actions/python/pip-audit"
       - "/actions/release/ci-passed"
       - "/actions/release/tag-matches-version"
+      - "/actions/sarif-report"
+      - "/actions/trivy-config"
     schedule:
       interval: "daily"
     cooldown:
@@ -49,6 +53,7 @@ updates:
   - package-ecosystem: "uv"
     directories:
       - "/"
+      - "/actions/checkov"
       - "/actions/python/pip-audit"
     schedule:
       interval: "daily"

@@ -92,9 +92,16 @@ def _release(fetch: Fetch, repository: str, which: str) -> dict[str, Any]:
     return release
 
 
+def asset_name(pin: Pin, tag: str) -> str:
+    """The asset of ``pin`` in the release tagged ``tag``. {version} stands for
+    the tag without its v."""
+    return pin.asset.replace("{version}", tag.removeprefix("v"))
+
+
 def _checksum(fetch: Fetch, release: dict[str, Any], pin: Pin) -> tuple[str, str]:
     """The official SHA-256 of the asset in ``release``, and the URL of the file
     that lists it."""
+    asset = asset_name(pin, release["tag_name"])
     urls = [
         a["browser_download_url"]
         for a in release.get("assets", [])
@@ -106,9 +113,9 @@ def _checksum(fetch: Fetch, release: dict[str, Any], pin: Pin) -> tuple[str, str
         )
     for line in fetch(urls[0]).decode("utf-8").splitlines():
         parts = line.split()
-        if len(parts) == 2 and parts[1].lstrip("*") == pin.asset:
+        if len(parts) == 2 and parts[1].lstrip("*") == asset:
             return parts[0], urls[0]
-    raise LookupError(f"{urls[0]} lists no {pin.asset}")
+    raise LookupError(f"{urls[0]} lists no {asset}")
 
 
 def check(pin: Pin, root: Path, fetch: Fetch, base: str) -> str:
@@ -136,7 +143,8 @@ def check(pin: Pin, root: Path, fetch: Fetch, base: str) -> str:
             f"{pin.sha256}: {new_sha}",
             "```",
             "",
-            f"The checksum is the line for `{pin.asset}` in the release's "
+            f"The checksum is the line for `{asset_name(pin, latest['tag_name'])}` "
+            "in the release's "
             f"[checksums file]({new_sums}).",
         ]
     elif sha != official:

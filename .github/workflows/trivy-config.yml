@@ -1,0 +1,125 @@
+name: Trivy config
+
+# Reusable misconfiguration scan of a repository: one job around
+# actions/trivy-config, Trivy over the folder named, the findings in the step
+# summary and in code scanning. Call it from a repository's CI:
+#
+#   trivy-config:
+#     uses: benethos-hub/.github/.github/workflows/trivy-config.yml@main
+#     permissions:
+#       contents: read
+#       security-events: write
+#     with:
+#       path: containers
+#
+# The calling job grants security-events: write, a reusable workflow never
+# gets more than its caller. The check is named after the calling job,
+# trivy-config / Trivy config, and fails from failure-level on, after the
+# upload. The inputs are those of the action, plus the runner and the time
+# limit. See docs/dockerfile-checks.md.
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: The folder to scan, relative to the checkout.
+        type: string
+        default: "."
+      scanners:
+        description: The misconfiguration scanners to run, separated by spaces, such as dockerfile kubernetes. Empty runs every one Trivy has.
+        type: string
+        default: ""
+      severity:
+        description: The severities to report, separated by spaces, from UNKNOWN LOW MEDIUM HIGH CRITICAL. Empty reports every one.
+        type: string
+        default: ""
+      skip-dirs:
+        description: Folders or glob patterns to leave out, separated by spaces.
+        type: string
+        default: ""
+      skip-files:
+        description: Files or glob patterns to leave out, separated by spaces.
+        type: string
+        default: ""
+      ignorefile:
+        description: The path of a .trivyignore with the check ids to leave out. Empty takes .trivyignore in the folder scanned, when there is one.
+        type: string
+        default: ""
+      config:
+        description: The path of a trivy.yaml with any option of Trivy.
+        type: string
+        default: ""
+      checks:
+        description: Folders of custom Rego checks, separated by spaces.
+        type: string
+        default: ""
+      namespaces:
+        description: The Rego namespaces of the custom checks, separated by spaces.
+        type: string
+        default: ""
+      offline:
+        description: Do not fetch the checks bundle, use the one in the cache.
+        type: boolean
+        default: false
+      failure-level:
+        description: The level from which a finding fails the step, after the upload. none, note, warning or error.
+        type: string
+        default: error
+      category:
+        description: The name code scanning files the analysis under.
+        type: string
+        default: trivy-config
+      upload:
+        description: Upload the findings to code scanning.
+        type: boolean
+        default: true
+      artifact:
+        description: The name of an artifact to keep the SARIF file in. Empty keeps none.
+        type: string
+        default: ""
+      retention-days:
+        description: How many days the artifact is kept.
+        type: number
+        default: 7
+      runs-on:
+        description: The runner of the job.
+        type: string
+        default: ubuntu-latest
+      timeout-minutes:
+        description: Time limit for the job.
+        type: number
+        default: 10
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy-config:
+    name: Trivy config
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Trivy config
+        uses: benethos-hub/.github/actions/trivy-config@main
+        with:
+          path: ${{ inputs.path }}
+          scanners: ${{ inputs.scanners }}
+          severity: ${{ inputs.severity }}
+          skip-dirs: ${{ inputs.skip-dirs }}
+          skip-files: ${{ inputs.skip-files }}
+          ignorefile: ${{ inputs.ignorefile }}
+          config: ${{ inputs.config }}
+          checks: ${{ inputs.checks }}
+          namespaces: ${{ inputs.namespaces }}
+          offline: ${{ inputs.offline }}
+          failure-level: ${{ inputs.failure-level }}
+          category: ${{ inputs.category }}
+          upload: ${{ inputs.upload }}
+          artifact: ${{ inputs.artifact }}
+          retention-days: ${{ inputs.retention-days }}

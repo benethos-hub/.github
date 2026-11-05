@@ -1,0 +1,97 @@
+name: Dockerfile lint
+
+# Reusable lint of the Dockerfiles of a repository: one job around
+# actions/dockerfile-lint, hadolint over every file the patterns match, the
+# findings in the step summary and in code scanning. Call it from a
+# repository's CI:
+#
+#   dockerfile-lint:
+#     uses: benethos-hub/.github/.github/workflows/dockerfile-lint.yml@main
+#     permissions:
+#       contents: read
+#       security-events: write
+#     with:
+#       files: containers/**/Dockerfile
+#       trusted-registries: docker.io ghcr.io
+#
+# The calling job grants security-events: write, a reusable workflow never
+# gets more than its caller. The check is named after the calling job,
+# dockerfile-lint / Dockerfile lint, and fails from failure-level on, after
+# the upload. The inputs are those of the action, plus the runner and the
+# time limit. See docs/dockerfile-checks.md.
+
+on:
+  workflow_call:
+    inputs:
+      files:
+        description: Glob patterns of the files to lint, separated by spaces, relative to the checkout.
+        type: string
+        default: "**/Dockerfile*"
+      ignore:
+        description: Rule codes not to report, separated by spaces, such as DL3025 DL3066. Say why in the call.
+        type: string
+        default: ""
+      trusted-registries:
+        description: Registries FROM may pull from, separated by spaces, such as docker.io ghcr.io. Empty trusts every registry.
+        type: string
+        default: ""
+      config:
+        description: The path of a .hadolint.yaml in the repository. Its ignore list and trusted registries come on top of the inputs.
+        type: string
+        default: ""
+      failure-level:
+        description: The level from which a finding fails the step, after the upload. none, note, warning or error.
+        type: string
+        default: warning
+      category:
+        description: The name code scanning files the analysis under.
+        type: string
+        default: dockerfile-lint
+      upload:
+        description: Upload the findings to code scanning.
+        type: boolean
+        default: true
+      artifact:
+        description: The name of an artifact to keep the SARIF file in. Empty keeps none.
+        type: string
+        default: ""
+      retention-days:
+        description: How many days the artifact is kept.
+        type: number
+        default: 7
+      runs-on:
+        description: The runner of the job.
+        type: string
+        default: ubuntu-latest
+      timeout-minutes:
+        description: Time limit for the job.
+        type: number
+        default: 10
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  dockerfile-lint:
+    name: Dockerfile lint
+    runs-on: ${{ inputs.runs-on }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Dockerfile lint
+        uses: benethos-hub/.github/actions/dockerfile-lint@main
+        with:
+          files: ${{ inputs.files }}
+          ignore: ${{ inputs.ignore }}
+          trusted-registries: ${{ inputs.trusted-registries }}
+          config: ${{ inputs.config }}
+          failure-level: ${{ inputs.failure-level }}
+          category: ${{ inputs.category }}
+          upload: ${{ inputs.upload }}
+          artifact: ${{ inputs.artifact }}
+          retention-days: ${{ inputs.retention-days }}
