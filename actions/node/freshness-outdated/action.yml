@@ -1,0 +1,42 @@
+name: Outdated pins of a package-lock.json
+description: Finds what is newer than the versions a package-lock.json pins, as findings for the freshness report.
+
+# Reads the package-lock.json in directory, the root by default, and asks the
+# npm registry for the versions of each package. The newest version is the
+# highest stable one that is not deprecated, not the dist-tag latest, see
+# npm_outdated.py. No Node is needed and no package is installed. The result is
+# the folder named in findings, with status.json and findings.jsonl as FORMAT.md
+# of the report action describes. A registry that cannot be asked leaves the
+# status inconclusive and no findings.jsonl. A lockfile that cannot be read fails
+# the action.
+#
+#   - uses: benethos-hub/.github/actions/node/freshness-outdated@main
+#     with:
+#       findings: ${{ runner.temp }}/freshness/npm-outdated
+#       directory: assets/vendor
+
+inputs:
+  findings:
+    description: The folder to write findings.jsonl and status.json into. It is created.
+    required: true
+  directory:
+    description: The folder with the package-lock.json, relative to the repository. A repository with several independent lockfiles runs the action once per folder.
+    required: false
+    default: "."
+
+runs:
+  using: composite
+  steps:
+    # The cache belongs to the job. An action that saved it as well would
+    # race the job for the same key. uv still uses the job's cache folder.
+    - name: Install uv
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      with:
+        enable-cache: false
+
+    - name: Write the findings
+      shell: bash
+      env:
+        LOCKFILE: ${{ inputs.directory }}/package-lock.json
+        FINDINGS: ${{ inputs.findings }}
+      run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/npm_outdated.py"

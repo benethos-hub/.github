@@ -23,6 +23,7 @@ updates:
       - "/actions/freshness/actions"
       - "/actions/freshness/images"
       - "/actions/freshness/report"
+      - "/actions/node/freshness-outdated"
       - "/actions/publish/ghcr"
       - "/actions/publish/mcp-registry"
       - "/actions/publish/mcpb"
