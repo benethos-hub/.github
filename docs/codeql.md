@@ -53,6 +53,7 @@ Both file under the same category, so each run refreshes the analysis the last o
 | `config` | The same configuration as YAML in the call, for a repository without a file of its own. Takes precedence over `config-file`. |
 | `build-mode` | `none` or `autobuild`. Empty lets CodeQL choose, which is `none` for the languages here. `manual` is not possible, a build between the two halves of the analysis needs the two actions of github/codeql-action in a job of the repository itself. |
 | `category` | The name code scanning files the analysis under. Default `codeql`. Two analyses of one commit need two names. |
+| `trusted-owners` | Owners whose actions and workflows may be called at a tag or a branch without an alert from the query `actions/unpinned-tag`, separated by spaces. Empty takes the owner of the repository, so the calls of the organisation's own actions and workflows at `main` pass. `none` writes no model and reports them. An owner with a leading `!` is distrusted, also `actions`, `github` and `advanced-security`, which CodeQL trusts by default. |
 | `upload` | `always`, `failure-only` or `never`. Default `always`. A pull request from a fork gets `never` whatever is set, since its token may not upload, and the analysis still runs. |
 | `upload-database` | Upload the CodeQL database as well, for debugging queries against it. Default off, it costs time on every run. |
 | `tools` | A fixed CodeQL bundle, as a URL or a version, instead of the one the action brings. |
@@ -62,7 +63,9 @@ Both file under the same category, so each run refreshes the analysis the last o
 | `timeout-minutes` | Time limit for the job, 30 by default. Workflow only. |
 | `token` | The token for the upload. Action only, the workflow uses the token of its job. |
 
-Every input but the last three goes through to [github/codeql-action](https://github.com/github/codeql-action) unchanged, its documentation has the detail. The action leaves two outputs, `sarif` with the folder of the SARIF files and `sarif-id` of the upload, for a job that keeps the results as an artifact as well.
+Every input but `trusted-owners` and the last three goes through to [github/codeql-action](https://github.com/github/codeql-action) unchanged, its documentation has the detail.
+
+The organisation's actions and workflows are called at `main`, see [Maintaining this repository](maintaining.md), and the query `actions/unpinned-tag` reports every such call unless it trusts the owner. The action therefore writes a CodeQL model pack with the trusted owners into `.github/codeql/extensions/trusted-owners/` of the checkout before the analysis, two files that CodeQL finds there by itself. Nothing is committed, a repository needs no file of its own, and the call stays as above. The pack is written only when `actions` is among the languages. The action leaves two outputs, `sarif` with the folder of the SARIF files and `sarif-id` of the upload, for a job that keeps the results as an artifact as well.
 
 ## Leaving the default setup
 

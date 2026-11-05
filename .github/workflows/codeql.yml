@@ -21,7 +21,9 @@ name: CodeQL
 # is a setting of the repository. The default setup of code scanning rejects
 # the upload of a language it analyses itself, the repository leaves it first,
 # see docs/codeql.md. The inputs are those of the action, which passes them
-# through to github/codeql-action, plus the runner and the time limit.
+# through to github/codeql-action, plus the runner and the time limit. The
+# organisation's own actions called at main pass actions/unpinned-tag through
+# a model pack the action writes, see trusted-owners.
 
 on:
   workflow_call:
@@ -54,6 +56,10 @@ on:
         description: The name code scanning files the analysis under. Two analyses of one commit need two names, and the runs of one repository share one so that each refreshes the last.
         type: string
         default: codeql
+      trusted-owners:
+        description: Owners whose actions and workflows may be called at a tag or a branch without an alert from actions/unpinned-tag, separated by spaces. Empty takes the owner of the repository, so calls of the organisation's own actions at main pass. none writes no model. An owner with a leading ! is distrusted, also actions, github and advanced-security, which CodeQL trusts by default.
+        type: string
+        default: ""
       upload:
         description: always, failure-only or never. A pull request from a fork gets never whatever is set, since its token may not upload.
         type: string
@@ -112,6 +118,7 @@ jobs:
           config: ${{ inputs.config }}
           build-mode: ${{ inputs.build-mode }}
           category: ${{ inputs.category }}
+          trusted-owners: ${{ inputs.trusted-owners }}
           upload: ${{ inputs.upload }}
           upload-database: ${{ inputs.upload-database }}
           tools: ${{ inputs.tools }}
