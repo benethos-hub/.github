@@ -8,7 +8,10 @@ files is one finding, and an action in a folder of its repository shares the
 releases of that repository.
 
 The newest release of each repository is asked from the GitHub API, or the
-newest version tag where a repository publishes no releases. Its tag is
+newest version tag where a repository publishes no releases. A latest release
+whose tag is no version, such as the CodeQL bundles github/codeql-action
+publishes beside its own releases, gives way to the highest version among the
+newest hundred releases. The tag is
 resolved to a commit, through the tag object when the tag is annotated, and
 compared with the pin. ROOT names the repository, FILES the patterns of the
 files to read (empty for the workflows and every action.yml), FINDINGS the
@@ -40,6 +43,7 @@ DEFAULT_FILES = (
 
 _USES = re.compile(r"^\s*-?\s*uses:\s*[\"']?([^\"'\s#]+)[\"']?(?:\s*#\s*(\S+))?")
 _PIN = re.compile(r"^([\w.-]+/[\w.-]+)(?:/[^@]*)?@([0-9a-f]{40})$")
+_VERSION = re.compile(r"v?\d")
 
 Fetch = Callable[[str], tuple[int, bytes]]
 
@@ -62,7 +66,7 @@ def pins_in(text: str) -> list[Pin]:
         pin = _PIN.match(match[1])
         if pin:
             comment = match[2] or ""
-            version = comment if re.match(r"v?\d", comment) else ""
+            version = comment if _VERSION.match(comment) else ""
             found.append(Pin(pin[1], pin[2], version))
     return found
 
@@ -115,13 +119,24 @@ class Api:
         """The newest release's tag and commit, or the newest version tag
         where there are no releases, or None where there is neither."""
         release = self.get(f"repos/{repository}/releases/latest")
-        if release:
+        if release and _VERSION.match(release["tag_name"]):
             tag: str = release["tag_name"]
             return tag, self.commit_of(repository, tag)
+        if release:
+            versions = [
+                r["tag_name"]
+                for r in self.get(f"repos/{repository}/releases?per_page=100") or []
+                if not r["draft"]
+                and not r["prerelease"]
+                and _VERSION.match(r["tag_name"])
+            ]
+            if versions:
+                tag = max(versions, key=version_key)
+                return tag, self.commit_of(repository, tag)
         tags = [
             t
             for t in self.get(f"repos/{repository}/tags?per_page=100") or []
-            if re.match(r"v?\d", t["name"])
+            if _VERSION.match(t["name"])
         ]
         if not tags:
             return None

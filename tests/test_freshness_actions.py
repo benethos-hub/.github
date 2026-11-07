@@ -48,9 +48,15 @@ jobs:
 """
 
 
-def _api(releases: dict[str, str], refs: dict[str, tuple[str, str]], tags=None):
+def _api(
+    releases: dict[str, str],
+    refs: dict[str, tuple[str, str]],
+    tags=None,
+    listed=None,
+):
     """Releases as repository -> tag, refs as repository/tag -> (type, sha),
-    tags as repository -> list of names."""
+    tags as repository -> list of names, listed as repository -> list of
+    release objects."""
     calls: list[str] = []
 
     def fetch(url: str) -> tuple[int, bytes]:
@@ -63,6 +69,8 @@ def _api(releases: dict[str, str], refs: dict[str, tuple[str, str]], tags=None):
             if repository not in releases:
                 return 404, b""
             return 200, json.dumps({"tag_name": releases[repository]}).encode()
+        if rest.startswith("releases?"):
+            return 200, json.dumps((listed or {}).get(repository, [])).encode()
         if rest.startswith("tags?"):
             names = (tags or {}).get(repository, [])
             return 200, json.dumps(
@@ -177,6 +185,45 @@ def test_a_repository_without_releases_takes_its_newest_version_tag():
         {},
         {"example/tool/v1.10.0": ("commit", NEWER)},
         {"example/tool": ["v1.9.0", "v1.10.0", "latest", "v1.2.0"]},
+    )
+    finding = actions.check(actions.Pin("example/tool", OLDER, "v1.9.0"), ["f"], api)
+    assert finding and finding["newest"] == "v1.10.0"
+
+
+def _release(tag: str, draft: bool = False, prerelease: bool = False) -> dict:
+    return {"tag_name": tag, "draft": draft, "prerelease": prerelease}
+
+
+def test_a_latest_release_that_is_no_version_gives_way_to_the_highest_version():
+    """github/codeql-action marks its CodeQL bundle as the latest release."""
+    api, calls = _api(
+        {"github/codeql-action": "codeql-bundle-v2.27.4"},
+        {"github/codeql-action/v4.39.3": ("commit", CHECKOUT)},
+        listed={
+            "github/codeql-action": [
+                _release("v5.0.0", draft=True),
+                _release("v4.40.0-rc.1", prerelease=True),
+                _release("v3.39.3"),
+                _release("v4.39.3"),
+                _release("codeql-bundle-v2.27.4"),
+                _release("v4.39.2"),
+            ]
+        },
+    )
+    pin = actions.Pin("github/codeql-action", CHECKOUT, "v4.39.3")
+    assert actions.check(pin, ["f"], api) is None
+    assert not any("codeql-bundle" in url for url in calls)
+    older = actions.Pin("github/codeql-action", OLDER, "v4.39.2")
+    finding = actions.check(older, ["f"], api)
+    assert finding and finding["newest"] == "v4.39.3"
+
+
+def test_releases_without_any_version_fall_back_to_the_version_tags():
+    api, _ = _api(
+        {"example/tool": "nightly"},
+        {"example/tool/v1.10.0": ("commit", NEWER)},
+        {"example/tool": ["v1.9.0", "v1.10.0", "nightly"]},
+        listed={"example/tool": [_release("nightly")]},
     )
     finding = actions.check(actions.Pin("example/tool", OLDER, "v1.9.0"), ["f"], api)
     assert finding and finding["newest"] == "v1.10.0"
