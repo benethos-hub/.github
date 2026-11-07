@@ -1,6 +1,6 @@
 # Reports in an issue
 
-[actions/report-issue](../actions/report-issue/action.yml) keeps the result of a scheduled workflow in one open issue, in any repository and for any language. A run with something to report opens the issue or replaces its body. A run with nothing to report closes it.
+[actions/report-issue](../actions/report-issue/action.yml) keeps the result of a scheduled workflow in one open issue, in any repository and for any language. A run with something to report opens the issue or replaces its body. A run with nothing to report closes it. Before that it puts a line at the top of the body that says when and why, so the report beneath it reads as the last one before the close and not as the current state.
 
 ```yaml
 name: Daily check
