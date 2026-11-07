@@ -7,7 +7,7 @@
 | `outdated` | Every package the lockfile pins that has a newer release, how far it may move within the bounds the repository allows, and the newest release beyond them. Every build backend pinned to an exact version. |
 | `audit` | Every known vulnerability of a pinned version, through the same [pip-audit](../actions/python/pip-audit/action.yml) action and the same waivers as the CI. |
 | `images` | Every `FROM` of a Dockerfile and every `image:` of a YAML file with a digit in its tag, the workflows included. A pinned digest that moved for one of the platforms asked for is a rebuild. A tag with a newer tag of the same form, `3.15-slim` beside `3.16-slim` or `v0.16` beside `v0.17`, is a newer release. |
-| `actions` | Every `uses:` pinned to a commit, against the newest release of its action. |
+| `actions` | Every `uses:` pinned to a commit, against the newest release of its action. A latest release whose tag is no version, such as the CodeQL bundle of `github/codeql-action`, counts for nothing, and the highest version among its releases takes its place. |
 | `index` | Off by default. The package as a user installs it today: from the index into a fresh environment, then a check of the repository against it, with the interpreter of that environment. A bound that is not released yet, a build that fails or an installation that does not resolve shows here and nowhere else. Its result addresses the alarm issue. |
 
 Nothing is written to the repository. The upgrade of the lockfile is a dry run inside the runner, and the environment of the `index` job lives in the runner's temporary folder. The issue is public, so the report holds names, versions and the result of a job, and no log.
