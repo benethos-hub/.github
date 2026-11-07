@@ -84,7 +84,7 @@ Named one by one: every vulnerability, image and action, every build backend, ev
 
 The kind of a finding is derived from its versions. A different first number is a major, a different second number a minor, any other difference a patch. A version that looks like a date is `unknown`, so a new `2026.5.4` never reads as a minor. A moved digest is a `rebuild`. The report says under its tables what is measured, the versions, and what is derived, the kind, the scope and the counts.
 
-After the tables, a block `Checks` lists one sentence per job that has one, such as which versions a check passed on, so the issue that names a newer pandas also says that the tests passed on it the same day. Then the prose of the jobs that left some, each under a heading with the name of the job.
+After the tables, a block `Checks` lists one sentence per job that has one, such as which versions a check passed on, so the issue that names a newer pandas also says that the tests passed on it the same day. A passed check starts with ✅. A job of the alarm issue that found something gets ❌ and a pointer to its section. A job that failed or left no result is a line with ❌, a job that could not prove anything one with ⚠️. Then the prose of the jobs that left some, each under a heading with the name of the job.
 
 A job that fails is a line in the report, so a run that proved nothing never closes an open issue. A job that is switched off is not. The rules in full are in [FORMAT.md](../actions/freshness/report/FORMAT.md).
 

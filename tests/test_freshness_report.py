@@ -315,16 +315,68 @@ def test_the_summary_of_every_job_is_listed_under_checks_after_the_tables(tmp_pa
                 " allowed (pandas 3.1.1)"
             ),
         },
-        "Prose.",
     )
     text = _render(tmp_path, "outdated newest")
     checks = (
-        "### Checks\n\n- `newest`: tests and the live run passed on the newest "
+        "### Checks\n\n- ✅ `newest`: tests and the live run passed on the newest "
         "versions allowed (pandas 3.1.1)\n"
     )
     assert checks in text
     assert text.index("### Packages") < text.index("### Checks")
     assert "Checks" not in _render(tmp_path, "outdated newest", issue="alarm")
+
+
+def test_an_alarm_job_that_said_something_is_a_cross_under_checks(tmp_path):
+    _ok(tmp_path, "outdated", _finding())
+    _ok(tmp_path, "index", summary="0.9.0 from the index passes its check")
+    _job(
+        tmp_path,
+        "newest",
+        None,
+        {"result": "ok", "checked": 1, "issue": "alarm"},
+        "The tests failed on `mcp` 2.4.0.",
+    )
+    _job(
+        tmp_path,
+        "smoke",
+        [_finding(name="yfinance")],
+        {"result": "ok", "checked": 1, "issue": "alarm", "summary": "passed before"},
+    )
+    text = _render(tmp_path, "outdated index newest smoke")
+    assert (
+        "### Checks\n\n"
+        "- ✅ `index`: 0.9.0 from the index passes its check\n"
+        "- ❌ `newest`: raised an alarm, see the section `newest`.\n"
+        "- ❌ `smoke`: raised an alarm, see its findings.\n"
+    ) in text
+    assert "mcp` 2.4.0" not in text and "yfinance" not in text
+
+
+def test_a_job_with_a_section_for_the_report_is_no_alarm(tmp_path):
+    _ok(tmp_path, "outdated", _finding())
+    _job(
+        tmp_path,
+        "notes",
+        None,
+        {"result": "ok", "checked": 1, "summary": "read the notes"},
+        "Some prose.",
+    )
+    assert "- ✅ `notes`: read the notes\n" in _render(tmp_path, "outdated notes")
+
+
+@pytest.mark.parametrize(
+    ("status", "line"),
+    [
+        (None, "- ❌ The job `images` left no result"),
+        ({"result": "failed"}, "- ❌ The job `images` failed"),
+        ({"result": "inconclusive"}, "- ⚠️ The job `images` ran but could not prove"),
+    ],
+)
+def test_the_line_of_a_job_without_a_result_carries_its_mark(tmp_path, status, line):
+    _ok(tmp_path, "outdated")
+    if status is not None:
+        _job(tmp_path, "images", None, status)
+    assert line in _render(tmp_path, "outdated images")
 
 
 def test_a_summary_alone_opens_no_issue(tmp_path):

@@ -293,6 +293,18 @@ _WHAT = {
     "inconclusive": "ran but could not prove anything",
 }
 
+# The mark in front of the line of a job. A job that could not prove anything
+# is no failure, so it gets a warning and not a cross.
+_MARK = {"missing": "❌", "failed": "❌", "inconclusive": "⚠️"}
+PASSED = "✅"
+ALARMED = "❌"
+
+
+def _alarming(result: Result) -> bool:
+    """Whether an alarm job said something. Such a job is conclusive, so its
+    state is ok, and its prose or findings are the alarm."""
+    return result.issue == "alarm" and bool(result.section or result.findings)
+
 
 def render(
     results: list[Result],
@@ -342,8 +354,9 @@ def render(
             run = f" See [the run]({run_url})." if run_url else ""
             why = f" It says: {result.summary}" if result.summary else ""
             lines.append(
-                f"- The job {_code(result.job)} {_WHAT[result.state]}, so its "
-                f"part of this report is missing.{run}{why}"
+                f"- {_MARK[result.state]} The job {_code(result.job)} "
+                f"{_WHAT[result.state]}, so its part of this report is "
+                f"missing.{run}{why}"
             )
         lines.append("")
 
@@ -369,12 +382,20 @@ def render(
         lines += _table(header, rows)
         lines.append("")
 
-    # What each job checked, in one sentence, whatever issue it addresses.
-    # It is context for the pins, not a finding, so it never opens the issue.
-    checks = [r for r in results if r.summary and r.state == "ok"]
+    # What each job checked, in one sentence, whatever issue it addresses, and
+    # which alarm job said something. It is context for the pins, not a
+    # finding, so it never opens the issue.
+    checks = [r for r in results if r.state == "ok" and (r.summary or _alarming(r))]
     if checks and issue == "report":
         lines += ["### Checks", ""]
-        lines += [f"- {_code(r.job)}: {r.summary}" for r in checks]
+        for r in checks:
+            if _alarming(r):
+                where = f"the section {_code(r.job)}" if r.section else "its findings"
+                lines.append(
+                    f"- {ALARMED} {_code(r.job)}: raised an alarm, see {where}."
+                )
+            else:
+                lines.append(f"- {PASSED} {_code(r.job)}: {r.summary}")
         lines.append("")
 
     # The prose of a job comes after the tables, under the name of the job.
