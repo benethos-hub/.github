@@ -14,8 +14,10 @@ description: Opens, updates or closes the one issue that carries the report of a
 # local path after the checkout, ./actions/report-issue.
 #
 # An empty report closes the open issue with that title, if there is one.
-# Any other report becomes its body, or the body of a new issue. The job
-# needs issues: write.
+# Before that, a line at the top of its body says when it was closed and
+# why, so the report beneath it reads as the last one before the close and
+# not as the current state. Any other report becomes its body, or the body
+# of a new issue. The job needs issues: write.
 
 inputs:
   title:
@@ -54,6 +56,13 @@ runs:
         if [ -z "$body" ]; then
           echo "$RESOLVED" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ -n "$issue" ]; then
+            # A run that stopped between the two calls left the line already.
+            last=$(gh issue view "$issue" --json body --jq .body)
+            if [[ "$last" == "**Closed on "* ]]; then
+              last=${last#*$'\n\n'}
+            fi
+            closed="**Closed on $(date -u +%Y-%m-%d).** $RESOLVED The report below is the last one before that."
+            gh issue edit "$issue" --body "$closed"$'\n\n'"$last"
             gh issue close "$issue" --comment "$RESOLVED"
           fi
           exit 0

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -22,6 +23,7 @@ case "$*" in
     printf '%s\n' "$*" >> "$GH_LIST_LOG"
     echo "$OPEN_ISSUE"
     ;;
+  "issue view"*) printf '%s\n' "$OPEN_BODY" ;;
   issue*) printf 'gh %s\n' "$*" >> "$GH_LOG" ;;
 esac
 """
@@ -43,6 +45,7 @@ def _run(
     repository: str = "benethos-hub/.github",
     workflow: str = "Brand report",
     workflow_file: str = "brand-report.yml",
+    open_body: str = "",
 ) -> tuple[str, str]:
     (step,) = ACTION["runs"]["steps"]
     bin_dir = tmp_path / "bin"
@@ -66,6 +69,7 @@ def _run(
             f"{repository}/.github/workflows/{workflow_file}@refs/heads/main"
         ),
         "OPEN_ISSUE": open_issue,
+        "OPEN_BODY": open_body,
         "GH_LOG": str(log),
         "GH_LIST_LOG": str(tmp_path / "gh-list.log"),
         "GITHUB_STEP_SUMMARY": str(summary),
@@ -98,12 +102,33 @@ def test_a_report_becomes_the_body_with_a_link_to_the_workflow(
     assert summary == body
 
 
-def test_an_empty_report_closes_the_open_issue(tmp_path):
-    log, summary = _run(tmp_path, "", "2")
+def _closed_line() -> str:
+    day = datetime.now(UTC).strftime("%Y-%m-%d")
+    return (
+        f"**Closed on {day}.** All repositories meet the brand rules. "
+        "The report below is the last one before that."
+    )
+
+
+def test_an_empty_report_marks_the_last_report_and_closes_the_issue(tmp_path):
+    last = f"These repositories ...\n\n{FOOTER}"
+    log, summary = _run(tmp_path, "", "2", open_body=last)
     assert log == (
+        f"gh issue edit 2 --body {_closed_line()}\n\n{last}\n"
         "gh issue close 2 --comment All repositories meet the brand rules.\n"
     )
     assert summary == "All repositories meet the brand rules.\n"
+
+
+def test_a_line_left_by_a_run_that_stopped_is_not_doubled(tmp_path):
+    last = f"These repositories ...\n\n{FOOTER}"
+    earlier = (
+        "**Closed on 2026-11-06.** All repositories meet the brand rules. "
+        "The report below is the last one before that."
+    )
+    log, _ = _run(tmp_path, "", "2", open_body=f"{earlier}\n\n{last}")
+    assert log.startswith(f"gh issue edit 2 --body {_closed_line()}\n\n{last}\n")
+    assert log.count("Closed on") == 1
 
 
 def test_an_empty_report_without_an_open_issue_does_nothing(tmp_path):
