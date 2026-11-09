@@ -4,9 +4,11 @@ name: Download pins report
 # the mcp-publisher of actions/publish/mcp-registry. Every week this checks
 # each pin listed in .github/download-pins.yml against the releases of its
 # upstream (.github/scripts/download_pins.py). A newer release, or a pinned
-# checksum that is not the official one, is reported in a single open issue
-# in this repository, with the lines to paste. The issue is closed once every
-# pin is current.
+# checksum that is not the one in the release's checksums file, is reported
+# in a single open issue in this repository, with the lines to paste. The
+# issue is closed once every pin is current. The check reads github.com
+# without a token, the way the actions download the files, so an IP allow
+# list of an upstream organisation cannot refuse it.
 
 on:
   schedule:
@@ -25,8 +27,6 @@ jobs:
     name: Report outdated download pins
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
