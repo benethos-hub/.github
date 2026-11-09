@@ -176,7 +176,7 @@ def test_the_pin_matches_the_download_pins_entry_with_the_version_in_the_asset()
         "sha256": "TRIVY_SHA256",
         "repository": "aquasecurity/trivy",
         "asset": "trivy_{version}_Linux-64bit.tar.gz",
-        "checksums": "_checksums.txt",
+        "checksums": "trivy_{version}_checksums.txt",
     }
 
 

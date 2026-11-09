@@ -6,8 +6,13 @@ For each, this compares the pin with the newest release and the pinned
 checksum with the one in the checksums file of the pinned release. It prints
 a Markdown report for the issue, or nothing when every pin is current.
 
-CONFIG names the list (default .github/download-pins.yml), GH_TOKEN is used
-for the GitHub API, GITHUB_SERVER_URL and GITHUB_REPOSITORY build the links.
+Everything is read from github.com without a token, the way the actions
+download the files themselves: the newest release from the redirect of
+``releases/latest``, the checksums from ``releases/download``. The GitHub API
+is not used, so an organisation with an IP allow list cannot refuse it.
+
+CONFIG names the list (default .github/download-pins.yml), GITHUB_SERVER_URL
+and GITHUB_REPOSITORY build the links to the pinning files.
 """
 
 from __future__ import annotations
@@ -22,12 +27,10 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import yaml
 
-Fetch = Callable[[str], bytes]
-API = "https://api.github.com"
+GITHUB = "https://github.com"
 
 
 @dataclass(frozen=True)
@@ -39,6 +42,15 @@ class Pin:
     repository: str
     asset: str
     checksums: str
+
+
+@dataclass(frozen=True)
+class Web:
+    """How the script reaches github.com: ``get`` reads a file, ``final``
+    gives the URL a redirect ends on."""
+
+    get: Callable[[str], bytes]
+    final: Callable[[str], str]
 
 
 def load(config: Path) -> list[Pin]:
@@ -64,19 +76,24 @@ def load(config: Path) -> list[Pin]:
     return pins
 
 
-def fetch_url(url: str) -> bytes:
-    """GET ``url``. The token goes to the API only, not to a download host."""
-    headers = {"Accept": "application/vnd.github+json"}
-    token = os.environ.get("GH_TOKEN", "")
-    if url.startswith(API) and token:
-        headers["Authorization"] = f"Bearer {token}"
-    request = urllib.request.Request(url, headers=headers)
+def _open(url: str, method: str) -> tuple[bytes, str]:
+    """The body and the final URL of ``url``, without any token."""
+    request = urllib.request.Request(url, method=method)
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
             body: bytes = response.read()
-            return body
+            final: str = response.url
+            return body, final
     except urllib.error.HTTPError as error:
         raise LookupError(http_error(url, error)) from None
+
+
+def fetch_url(url: str) -> bytes:
+    return _open(url, "GET")[0]
+
+
+def final_url(url: str) -> str:
+    return _open(url, "HEAD")[1]
 
 
 def http_error(url: str, error: urllib.error.HTTPError) -> str:
@@ -107,40 +124,45 @@ def version_key(version: str) -> tuple[int, ...]:
     return tuple(int(part) for part in re.findall(r"\d+", version))
 
 
-def _release(fetch: Fetch, repository: str, which: str) -> dict[str, Any]:
-    release: dict[str, Any] = json.loads(
-        fetch(f"{API}/repos/{repository}/releases/{which}")
-    )
-    return release
+def with_version(name: str, tag: str) -> str:
+    """``name`` for the release tagged ``tag``. {version} stands for the tag
+    without its v."""
+    return name.replace("{version}", tag.removeprefix("v"))
 
 
 def asset_name(pin: Pin, tag: str) -> str:
-    """The asset of ``pin`` in the release tagged ``tag``. {version} stands for
-    the tag without its v."""
-    return pin.asset.replace("{version}", tag.removeprefix("v"))
+    return with_version(pin.asset, tag)
 
 
-def _checksum(fetch: Fetch, release: dict[str, Any], pin: Pin) -> tuple[str, str]:
-    """The official SHA-256 of the asset in ``release``, and the URL of the file
-    that lists it."""
-    asset = asset_name(pin, release["tag_name"])
-    urls = [
-        a["browser_download_url"]
-        for a in release.get("assets", [])
-        if a["name"].endswith(pin.checksums)
-    ]
-    if len(urls) != 1:
-        raise LookupError(
-            f"{release['tag_name']} has no single file ending in {pin.checksums}"
-        )
-    for line in fetch(urls[0]).decode("utf-8").splitlines():
+def release_url(pin: Pin, tag: str) -> str:
+    return f"{GITHUB}/{pin.repository}/releases/tag/{tag}"
+
+
+def latest_tag(web: Web, pin: Pin) -> str:
+    """The tag of the release its maintainers marked as the latest, from the
+    redirect of ``releases/latest``."""
+    url = f"{GITHUB}/{pin.repository}/releases/latest"
+    final = web.final(url)
+    prefix = f"{GITHUB}/{pin.repository}/releases/tag/"
+    if not final.startswith(prefix) or final == prefix:
+        raise LookupError(f"{url} leads to {final}, not to a release")
+    return urllib.parse.unquote(final.removeprefix(prefix))
+
+
+def _checksum(web: Web, pin: Pin, tag: str) -> tuple[str, str]:
+    """The official SHA-256 of the asset in the release tagged ``tag``, and
+    the URL of the file that lists it."""
+    asset = asset_name(pin, tag)
+    sums = with_version(pin.checksums, tag)
+    url = f"{GITHUB}/{pin.repository}/releases/download/{tag}/{sums}"
+    for line in web.get(url).decode("utf-8").splitlines():
         parts = line.split()
         if len(parts) == 2 and parts[1].lstrip("*") == asset:
-            return parts[0], urls[0]
-    raise LookupError(f"{urls[0]} lists no {asset}")
+            return parts[0], url
+    raise LookupError(f"{url} lists no {asset}")
 
 
-def check(pin: Pin, root: Path, fetch: Fetch, base: str) -> str:
+def check(pin: Pin, root: Path, web: Web, base: str) -> str:
     """The section of the report for ``pin``, or an empty string."""
     link = f"[{pin.file}]({base}/blob/main/{pin.file})"
     text = (root / pin.file).read_text("utf-8")
@@ -148,24 +170,22 @@ def check(pin: Pin, root: Path, fetch: Fetch, base: str) -> str:
     if not version or not sha:
         return f"### {pin.name}\n\n{link} has no {pin.version} or no {pin.sha256}.\n"
 
-    official, official_sums = _checksum(
-        fetch, _release(fetch, pin.repository, f"tags/{version}"), pin
-    )
-    latest = _release(fetch, pin.repository, "latest")
+    official, official_sums = _checksum(web, pin, version)
+    latest = latest_tag(web, pin)
     lines: list[str] = []
-    if version_key(latest["tag_name"]) > version_key(version):
-        new_sha, new_sums = _checksum(fetch, latest, pin)
+    if version_key(latest) > version_key(version):
+        new_sha, new_sums = _checksum(web, pin, latest)
         lines += [
             f"{link} pins {version}. "
-            f"[{latest['tag_name']}]({latest['html_url']}) is out. "
+            f"[{latest}]({release_url(pin, latest)}) is out. "
             "To update, set these two lines there:",
             "",
             "```yaml",
-            f"{pin.version}: {latest['tag_name']}",
+            f"{pin.version}: {latest}",
             f"{pin.sha256}: {new_sha}",
             "```",
             "",
-            f"The checksum is the line for `{asset_name(pin, latest['tag_name'])}` "
+            f"The checksum is the line for `{asset_name(pin, latest)}` "
             "in the release's "
             f"[checksums file]({new_sums}).",
         ]
@@ -183,8 +203,8 @@ def check(pin: Pin, root: Path, fetch: Fetch, base: str) -> str:
     return "\n".join([f"### {pin.name}", "", *lines]) + "\n"
 
 
-def report(pins: list[Pin], root: Path, fetch: Fetch, base: str) -> str:
-    sections = [s for s in (check(pin, root, fetch, base) for pin in pins) if s]
+def report(pins: list[Pin], root: Path, web: Web, base: str) -> str:
+    sections = [s for s in (check(pin, root, web, base) for pin in pins) if s]
     if not sections:
         return ""
     return "\n".join(["These pinned downloads need an update:", "", *sections])
@@ -196,7 +216,7 @@ def main() -> int:
     server = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
     base = f"{server}/{os.environ.get('GITHUB_REPOSITORY', '')}"
     try:
-        print(report(load(config), root, fetch_url, base), end="")
+        print(report(load(config), root, Web(fetch_url, final_url), base), end="")
     except (urllib.error.URLError, LookupError, ValueError) as error:
         print(
             f"::error::Could not check the pinned downloads: {error}", file=sys.stderr
