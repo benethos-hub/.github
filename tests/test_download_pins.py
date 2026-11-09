@@ -8,6 +8,7 @@ files it names.
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import sys
 from pathlib import Path
@@ -174,6 +175,56 @@ def test_the_token_goes_to_the_api_only(monkeypatch):
         ("https://api.github.com/repos/example/tool/releases/latest", "Bearer secret"),
         ("https://github.com/example/tool/releases/download/v1/sums.txt", None),
     ]
+
+
+def _refuse(final_url: str, body: bytes):
+    def urlopen(request, timeout):
+        raise download_pins.urllib.error.HTTPError(
+            final_url, 403, "Forbidden", {}, io.BytesIO(body)
+        )
+
+    return urlopen
+
+
+def test_a_refused_api_call_names_its_url_and_the_message(monkeypatch):
+    monkeypatch.setenv("GH_TOKEN", "secret")
+    body = json.dumps({"message": "API rate limit\n exceeded", "url": "x"}).encode()
+    url = "https://api.github.com/repos/example/tool/releases/latest"
+    monkeypatch.setattr(download_pins.urllib.request, "urlopen", _refuse(url, body))
+    with pytest.raises(LookupError) as raised:
+        download_pins.fetch_url(url)
+    assert str(raised.value) == f"{url} answered 403: API rate limit exceeded"
+    assert "secret" not in str(raised.value)
+
+
+def test_a_refused_download_names_only_the_host_of_its_redirect(monkeypatch):
+    """The redirect goes to a signed URL, and the body may echo it."""
+    signed = "https://assets.example.net/x/sums.txt?sig=SIGNED&expires=1"
+    body = b"<Error>sig=SIGNED</Error>"
+    url = "https://github.com/example/tool/releases/download/v1/sums.txt"
+    monkeypatch.setattr(download_pins.urllib.request, "urlopen", _refuse(signed, body))
+    with pytest.raises(LookupError) as raised:
+        download_pins.fetch_url(url)
+    assert str(raised.value) == (
+        f"{url} answered 403 after a redirect to assets.example.net"
+    )
+
+
+def test_a_refused_request_ends_the_script_with_its_url(tmp_path, monkeypatch, capsys):
+    (tmp_path / "tool.yml").write_text("V: v1.0.0\nS: abc\n", "utf-8")
+    (tmp_path / "pins.yml").write_text(
+        "- {name: tool, file: tool.yml, version: V, sha256: S,"
+        " repository: example/tool, asset: tool, checksums: sums.txt}\n",
+        "utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("CONFIG", "pins.yml")
+    url = "https://api.github.com/repos/example/tool/releases/tags/v1.0.0"
+    monkeypatch.setattr(download_pins.urllib.request, "urlopen", _refuse(url, b""))
+    assert download_pins.main() == 1
+    assert capsys.readouterr().err == (
+        f"::error::Could not check the pinned downloads: {url} answered 403\n"
+    )
 
 
 # The real list.

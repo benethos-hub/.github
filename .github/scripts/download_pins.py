@@ -17,6 +17,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -70,9 +71,30 @@ def fetch_url(url: str) -> bytes:
     if url.startswith(API) and token:
         headers["Authorization"] = f"Bearer {token}"
     request = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(request, timeout=30) as response:
-        body: bytes = response.read()
-        return body
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            body: bytes = response.read()
+            return body
+    except urllib.error.HTTPError as error:
+        raise LookupError(http_error(url, error)) from None
+
+
+def http_error(url: str, error: urllib.error.HTTPError) -> str:
+    """What a failed request names in the log: the URL asked for, the status,
+    the host a redirect ended on and the message of a JSON answer. A download
+    is redirected to a signed URL, so of that only the host is named, and a
+    body that is not JSON is left out."""
+    text = f"{url} answered {error.code}"
+    host = urllib.parse.urlsplit(error.url or url).hostname
+    if host and host != urllib.parse.urlsplit(url).hostname:
+        text += f" after a redirect to {host}"
+    try:
+        message = json.loads(error.read()).get("message")
+    except (ValueError, AttributeError, OSError):
+        message = None
+    if isinstance(message, str) and message:
+        text += f": {' '.join(message.split())[:300]}"
+    return text
 
 
 def pinned_value(text: str, key: str) -> str:
