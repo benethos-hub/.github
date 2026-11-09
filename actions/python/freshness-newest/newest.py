@@ -121,9 +121,11 @@ def section(
     if not changes or (tests != "failure" and check != "failure"):
         return ""
     lines = [
-        "The newest versions pyproject.toml allows fail, while the versions in "
-        "`uv.lock` pass. An installation without the lockfile gets these "
-        "versions, so its users may be affected.",
+        (
+            "The newest versions pyproject.toml allows fail, while the versions in "
+            "`uv.lock` pass. An installation without the lockfile gets these "
+            "versions, so its users may be affected."
+        ),
         "",
         f"- Tests: {tests}, `{tests_command}`",
     ]

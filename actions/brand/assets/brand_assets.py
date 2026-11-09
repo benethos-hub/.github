@@ -119,7 +119,8 @@ def _git_last_commit(path: str) -> str:
 
 def _read_local(path: str) -> bytes | None:
     try:
-        data = open(path, "rb").read()
+        with open(path, "rb") as file:
+            data = file.read()
     except FileNotFoundError:
         return None
     return data or None

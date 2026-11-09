@@ -128,8 +128,10 @@ def test_each_image_has_its_own_build_cache():
             "Mailbox, mailbox-mcp: the MCP server.",
             [
                 "org.opencontainers.image.title=benethos-example",
-                "org.opencontainers.image.description="
-                "Mailbox, mailbox-mcp: the MCP server.",
+                (
+                    "org.opencontainers.image.description="
+                    "Mailbox, mailbox-mcp: the MCP server."
+                ),
             ],
         ),
     ],
