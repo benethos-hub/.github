@@ -52,7 +52,7 @@ The example is a Python project. The rule is the same for every language, only t
 
 Each is a path under `https://img.shields.io/`, with `&logoColor=white` added. The version badges keep the colour of shields.io, the Node versions badge would be green without `color=blue`.
 
-This repository has no licence file and publishes nothing. Its first row goes on with the two weekly reports instead, which are status badges as well, and its second row is missing.
+This repository carries the MIT licence like the projects, but supports no language versions of its own and publishes nothing. Its first row goes on after the licence with the two weekly reports instead, which are status badges as well, and its second row is missing.
 
 ## Coverage badge
 

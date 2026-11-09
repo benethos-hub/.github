@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/benethos-hub/.github/actions/workflows/ci.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/benethos-hub/.github/badges/coverage.json&logo=githubactions&logoColor=white)](https://github.com/benethos-hub/.github/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/benethos-hub/.github?logo=opensourceinitiative&logoColor=white)](https://github.com/benethos-hub/.github/blob/main/LICENSE)
 [![Brand report](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/brand-report.yml)
 [![Download pins report](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml/badge.svg)](https://github.com/benethos-hub/.github/actions/workflows/download-pins-report.yml)
 
