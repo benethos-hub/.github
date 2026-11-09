@@ -13,7 +13,7 @@ Two rules follow from that:
 
 ## Checks of this repository
 
-`ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `coverage-badge.yml`, called by local path, the way a project calls them. A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
+`ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `coverage-badge.yml`, called by local path, the way a project calls them. Its `codeql` job calls `codeql.yml` the same way, with the security and the quality queries, and `codeql-weekly.yml` runs that analysis every Monday at 5:00 UTC. The repository therefore runs the advanced setup of code scanning, not the default setup, see [CodeQL](codeql.md). A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
 
 The branch protection of `main` in this repository requires these checks. It binds admins as well, so every change reaches `main` through a pull request and passes these checks first, before any project loads it at `@main`:
 

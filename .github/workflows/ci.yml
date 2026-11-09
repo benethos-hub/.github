@@ -42,6 +42,20 @@ jobs:
     permissions:
       contents: write
 
+  # CodeQL with the security and the quality queries, the analysis every
+  # project runs. GitHub's default setup ran the security queries alone, and
+  # it rejects the upload of a workflow, so this repository runs the advanced
+  # setup (docs/codeql.md). codeql-weekly.yml runs the same analysis once a
+  # week under the same category. Findings go to Security, Code scanning, and
+  # never fail this job.
+  codeql:
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      languages: python,actions
+
   # python-lint.yml checks uv.lock in the root. The actions keep lockfiles of
   # their own, for what they run in the other repositories.
   lockfiles:
