@@ -1,0 +1,26 @@
+name: CodeQL weekly
+
+# The weekly half of the CodeQL analysis of this repository. The codeql job of
+# ci.yml reads every change on the day it is made, with the queries of that
+# day. GitHub adds and sharpens queries over time, and only a run on a
+# schedule reads code nobody changed with them. Both file under the same
+# category, codeql, so each run refreshes the analysis the last one left.
+# codeql.yml is the reusable workflow every project calls, so the schedule
+# lives here, at the same time as the projects' weekly runs (docs/codeql.md).
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  codeql:
+    uses: ./.github/workflows/codeql.yml
+    permissions:
+      contents: read
+      security-events: write
+    with:
+      languages: python,actions
