@@ -138,7 +138,10 @@ def test_main_runs_checkov_and_needs_the_sarif_it_promised(
 def test_checkov_is_locked_next_to_the_action_and_is_no_package():
     project = tomllib.loads((ACTION_DIR / "pyproject.toml").read_text("utf-8"))
     assert project["tool"]["uv"]["package"] is False
-    assert project["project"]["requires-python"] == ">=3.11"
+    assert project["project"]["requires-python"] == ">=3.11.5"
+    assert "python_full_version < '3.11.5'" not in (ACTION_DIR / "uv.lock").read_text(
+        "utf-8"
+    )
     (dependency,) = project["project"]["dependencies"]
     assert dependency.startswith("checkov>=")
     lock = (ACTION_DIR / "uv.lock").read_text("utf-8")
