@@ -5,7 +5,11 @@
 [project]
 name = "benethos-hub-checkov"
 version = "0"
-requires-python = ">=3.11"
+# 3.11.5, not 3.11: soupsieve 4, beneath beautifulsoup4, needs it, and below
+# it the lock kept soupsieve 2.10 with a denial of service in the descendant
+# combinator (GHSA-mmhr-3c5m-f64f, fixed in 4.0). uv run picks a Python that
+# fits, the runners have a newer one.
+requires-python = ">=3.11.5"
 dependencies = [
     "checkov>=3.4.3",
 ]
