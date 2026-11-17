@@ -4,6 +4,7 @@ a stand-in for the GitHub CLI.
 
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -25,6 +26,14 @@ case "$*" in
     ;;
   "issue view"*) printf '%s\n' "$OPEN_BODY" ;;
   issue*) printf 'gh %s\n' "$*" >> "$GH_LOG" ;;
+  "api repos/"*"/releases/latest"*)
+    [ -n "$LATEST_TAG" ] || { echo "HTTP 404" >&2; exit 1; }
+    echo "$LATEST_TAG"
+    ;;
+  "api repos/"*"/compare/"*)
+    printf '%s\n' "$*" >> "$GH_API_LOG"
+    echo "$COMPARED"
+    ;;
 esac
 """
 
@@ -46,6 +55,7 @@ def _run(
     workflow: str = "Brand report",
     workflow_file: str = "brand-report.yml",
     open_body: str = "",
+    run: dict[str, str] | None = None,
 ) -> tuple[str, str]:
     (step,) = ACTION["runs"]["steps"]
     bin_dir = tmp_path / "bin"
@@ -75,7 +85,11 @@ def _run(
         "GITHUB_STEP_SUMMARY": str(summary),
         "GITHUB_SERVER_URL": "https://github.com",
         "GITHUB_REPOSITORY": repository,
-    }
+        "GH_REPO": repository,
+        "GH_API_LOG": str(tmp_path / "gh-api.log"),
+        "LATEST_TAG": "",
+        "COMPARED": "",
+    } | (run or {})
     done = subprocess.run(
         ["bash", str(script)], env=env, capture_output=True, text=True, check=False
     )
@@ -157,6 +171,78 @@ def test_a_quote_in_the_title_stays_out_of_the_filter(tmp_path):
     assert "select(.title == env.TITLE)" in listing
     assert "really" not in listing
     assert log.startswith(f"gh issue create --title {title} --body ")
+
+
+SHA = "3898e98a" + "0" * 32
+BASE = "https://github.com/benethos-hub/example"
+RUN = {"GITHUB_SHA": SHA, "GITHUB_REF_NAME": "main", "GITHUB_RUN_ID": "44045392649"}
+WHEN = r" on \d{4}-\d\d-\d\d at \d\d:\d\d UTC\. "
+
+
+def _checked(release: str) -> str:
+    """The line as a pattern, the time left open."""
+    return (
+        re.escape(f"Checked on commit [`3898e98`]({BASE}/commit/{SHA}) of `main`")
+        + re.escape(release)
+        + re.escape(f", in [run 44045392649]({BASE}/actions/runs/44045392649)")
+        + WHEN
+    )
+
+
+@pytest.mark.parametrize(
+    ("tag", "compared", "release"),
+    [
+        (
+            "v0.9.1",
+            "ahead 2",
+            f", 2 commits after [`v0.9.1`]({BASE}/releases/tag/v0.9.1)",
+        ),
+        (
+            "v0.9.1",
+            "ahead 1",
+            f", 1 commit after [`v0.9.1`]({BASE}/releases/tag/v0.9.1)",
+        ),
+        ("v0.9.1", "identical 0", f", tagged [`v0.9.1`]({BASE}/releases/tag/v0.9.1)"),
+        ("v0.9.1", "behind 0", ""),
+        ("v0.9.1", "diverged 3", ""),
+        ("", "", ""),
+    ],
+)
+def test_the_body_says_which_commit_was_checked(tmp_path, tag, compared, release):
+    run = RUN | {"LATEST_TAG": tag, "COMPARED": compared}
+    log, _ = _run(
+        tmp_path,
+        "A report",
+        "",
+        repository="benethos-hub/example",
+        workflow="Freshness",
+        workflow_file="freshness.yml",
+        run=run,
+    )
+    footer = re.escape("This issue is updated by the [Freshness]")
+    assert re.search("\n\n" + _checked(release) + footer, log), log
+    if tag:
+        calls = (tmp_path / "gh-api.log").read_text()
+        assert f"repos/benethos-hub/example/compare/{tag}...{SHA}" in calls
+
+
+def test_the_closing_line_names_the_commit_and_the_run(tmp_path):
+    last = f"These repositories ...\n\n{FOOTER}"
+    run = RUN | {"LATEST_TAG": "v0.9.1", "COMPARED": "identical 0"}
+    log, _ = _run(
+        tmp_path, "", "2", repository="benethos-hub/example", open_body=last, run=run
+    )
+    closed = (
+        re.escape(
+            _closed_line().removesuffix(
+                " The report below is the last one before that."
+            )
+            + " "
+        )
+        + _checked(f", tagged [`v0.9.1`]({BASE}/releases/tag/v0.9.1)")
+        + re.escape("The report below is the last one before that.\n\n" + last)
+    )
+    assert re.match("gh issue edit 2 --body " + closed, log), log
 
 
 def test_the_step_gets_its_inputs_and_the_calling_workflow():
