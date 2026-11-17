@@ -17,7 +17,9 @@ description: Opens, updates or closes the one issue that carries the report of a
 # Before that, a line at the top of its body says when it was closed and
 # why, so the report beneath it reads as the last one before the close and
 # not as the current state. Any other report becomes its body, or the body
-# of a new issue. The job needs issues: write.
+# of a new issue. Both end with the commit the run checked, its distance from
+# the latest release, the run and the time. The job needs issues: write and
+# contents: read.
 
 inputs:
   title:
@@ -53,6 +55,41 @@ runs:
         issue=$(gh issue list --state open --limit 100 --json number,title \
           --jq '.[] | select(.title == env.TITLE) | .number' | head -n 1)
 
+        # The commit the run checked, how far it is from the latest release,
+        # the run and the time. The API answers with the step's token, no
+        # checkout is needed. A repository without a release, or a commit
+        # behind it, leaves the release out.
+        checked=""
+        sha=${GITHUB_SHA:-}
+        if [ -n "$sha" ]; then
+          base="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          checked="Checked on commit [\`${sha:0:7}\`]($base/commit/$sha)"
+          if [ -n "${GITHUB_REF_NAME:-}" ]; then
+            checked="$checked of \`$GITHUB_REF_NAME\`"
+          fi
+          tag=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name 2>/dev/null || true)
+          if [ -n "$tag" ]; then
+            release="[\`$tag\`]($base/releases/tag/$tag)"
+            compared=$(gh api "repos/$GH_REPO/compare/$tag...$sha" \
+              --jq '"\(.status) \(.ahead_by)"' 2>/dev/null || true)
+            ahead=${compared#* }
+            case "${compared%% *}" in
+              identical) checked="$checked, tagged $release" ;;
+              ahead)
+                if [ "$ahead" = 1 ]; then
+                  checked="$checked, 1 commit after $release"
+                else
+                  checked="$checked, $ahead commits after $release"
+                fi
+                ;;
+            esac
+          fi
+          if [ -n "${GITHUB_RUN_ID:-}" ]; then
+            checked="$checked, in [run $GITHUB_RUN_ID]($base/actions/runs/$GITHUB_RUN_ID)"
+          fi
+          checked="$checked on $(date -u '+%Y-%m-%d at %H:%M UTC')."
+        fi
+
         if [ -z "$body" ]; then
           echo "$RESOLVED" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ -n "$issue" ]; then
@@ -61,7 +98,7 @@ runs:
             if [[ "$last" == "**Closed on "* ]]; then
               last=${last#*$'\n\n'}
             fi
-            closed="**Closed on $(date -u +%Y-%m-%d).** $RESOLVED The report below is the last one before that."
+            closed="**Closed on $(date -u +%Y-%m-%d).** $RESOLVED${checked:+ $checked} The report below is the last one before that."
             gh issue edit "$issue" --body "$closed"$'\n\n'"$last"
             gh issue close "$issue" --comment "$RESOLVED"
           fi
@@ -71,7 +108,7 @@ runs:
         # WORKFLOW_REF is owner/repo/.github/workflows/<file>@<ref>.
         file=${WORKFLOW_REF%@*}
         file=${file##*/}
-        body="$body"$'\n\n'"This issue is updated by the [$WORKFLOW]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/$file) workflow and closed once nothing is left to report."
+        body="$body"$'\n\n'"${checked:+$checked }This issue is updated by the [$WORKFLOW]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/workflows/$file) workflow and closed once nothing is left to report."
         printf '%s\n' "$body" >> "$GITHUB_STEP_SUMMARY"
         if [ -n "$issue" ]; then
           gh issue edit "$issue" --body "$body"
