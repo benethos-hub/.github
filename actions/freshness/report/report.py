@@ -404,9 +404,11 @@ def render(
             header, rows = _package_rows(findings, packages_column)
         elif title == "Transitive packages":
             lines += [
-                "Needed by other packages, not named by the repository itself. "
-                "Each moved by a minor, a patch or an unknown kind, and a "
-                "refresh of the lockfile takes them.",
+                (
+                    "Needed by other packages, not named by the repository "
+                    "itself. Each moved by a minor, a patch or an unknown kind, "
+                    "and a refresh of the lockfile takes them."
+                ),
                 "",
             ]
             header, rows = _transitive_rows(findings, packages_column)
