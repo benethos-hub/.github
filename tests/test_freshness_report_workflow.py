@@ -23,6 +23,7 @@ SHARED = (
     "alarm-resolved",
     "ignore",
     "dev",
+    "transitive",
 )
 
 
@@ -82,6 +83,7 @@ def test_the_report_collects_every_artifact_and_knows_the_expected_jobs():
         "expected": "${{ inputs.expected }} ${{ inputs.extra-jobs }}",
         "ignore": "${{ inputs.ignore }}",
         "dev": "${{ inputs.dev }}",
+        "transitive": "${{ inputs.transitive }}",
         "report": "${{ runner.temp }}/report.md",
         "alarm": "${{ runner.temp }}/alarm.md",
     }

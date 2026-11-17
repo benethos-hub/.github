@@ -42,6 +42,10 @@ inputs:
     description: Show packages that are only needed in development. They are hidden and counted otherwise.
     required: false
     default: "false"
+  transitive:
+    description: List transitive packages that moved by a minor, a patch or an unknown kind below the main tables, where they open the issue as well. false only counts them.
+    required: false
+    default: "true"
   report:
     description: Where to write the Markdown. The folder is created. The file stays empty when there is nothing to report.
     required: true
@@ -76,6 +80,7 @@ runs:
         EXPECTED: ${{ inputs.expected }}
         IGNORE: ${{ inputs.ignore }}
         DEV: ${{ inputs.dev }}
+        TRANSITIVE: ${{ inputs.transitive }}
         REPORT: ${{ inputs.report }}
         ALARM: ${{ inputs.alarm }}
       run: uv run --no-project --python ">=3.11" "$GITHUB_ACTION_PATH/report.py"

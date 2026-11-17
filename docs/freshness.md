@@ -70,6 +70,7 @@ The concurrency group lets one run at a time. A second run waits and starts when
 | `ignore` | Names of pins the repository keeps on purpose, as shell patterns, for example `example/server` for the image of a test server. Matching findings are dropped and counted. |
 | `ignore-vulns` | Vulnerability IDs to waive, as in the CI. |
 | `dev` | Show packages that are only needed in development. They are hidden and counted otherwise. |
+| `transitive` | List transitive packages that moved by a minor, a patch or an unknown kind below the main tables, where they open the issue as well. Default true. false only counts them. |
 | `extra-jobs` | Jobs of the calling workflow that leave an artifact for the report, separated by spaces. See [A job of the repository](#a-job-of-the-repository). |
 | `alarm-title` | The title of a second issue for the jobs whose status names the alarm, the `index` job among them. Empty keeps everything in the one issue. |
 | `alarm-resolved` | The sentence that closes the alarm issue when nothing is alarming any more. Default: `The checks pass again on the newest versions allowed.` |
@@ -80,7 +81,7 @@ The job names are `Which jobs must have a result`, `Outdated packages`, `Known v
 
 ## What the report says
 
-Named one by one: every vulnerability, image and action, every build backend, every direct runtime package and every major of a runtime package. Only counted: transitive runtime packages that moved by a minor, a patch or an unknown kind. There are about as many of those as days, and the issue would never close. Development packages are hidden and counted unless `dev` is set. A repository with more than one package gets a column that names the packages each finding is needed by.
+Named one by one: every vulnerability, image and action, every build backend, every direct runtime package and every major of a runtime package. Listed below them, in a table of their own: transitive runtime packages that moved by a minor, a patch or an unknown kind. They open the issue as well, since Dependabot proposes direct dependencies only, and the issue stays open until a refresh of the lockfile takes them. There are about as many of them as days. A repository that wants them only counted sets `transitive: false`. Development packages are hidden and counted unless `dev` is set. A repository with more than one package gets a column that names the packages each finding is needed by.
 
 The kind of a finding is derived from its versions. A different first number is a major, a different second number a minor, any other difference a patch. A version that looks like a date is `unknown`, so a new `2026.5.4` never reads as a minor. A moved digest is a `rebuild`. The report says under its tables what is measured, the versions, and what is derived, the kind, the scope and the counts.
 
@@ -153,7 +154,7 @@ jobs:
       alarm-title: Newest dependency versions break the server
 ```
 
-`freshness-report.yml` takes `issue-title`, `resolved`, `extra-jobs`, `alarm-title`, `alarm-resolved`, `ignore` and `dev` with the meaning above, and `expected`, the output of the measuring call. The permission to write issues goes to this call, the measuring call needs none. The `if` lets the report run when a job before it failed, which is then a line in the issue. Without it, GitHub skips the report after a failed job and the issue stays as it was. An empty `expected` fails the report before it writes anything: it means the output was lost or that nothing measured, and in both cases the issue has to stay as it was.
+`freshness-report.yml` takes `issue-title`, `resolved`, `extra-jobs`, `alarm-title`, `alarm-resolved`, `ignore`, `dev` and `transitive` with the meaning above, and `expected`, the output of the measuring call. The permission to write issues goes to this call, the measuring call needs none. The `if` lets the report run when a job before it failed, which is then a line in the issue. Without it, GitHub skips the report after a failed job and the issue stays as it was. An empty `expected` fails the report before it writes anything: it means the output was lost or that nothing measured, and in both cases the issue has to stay as it was.
 
 The one call works as well, with the job of the repository first and `needs` on the call. The report and the measuring jobs then wait for that job. Nothing else differs, both forms get the same artifacts, the same expected jobs and the same issue.
 

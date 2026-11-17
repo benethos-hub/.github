@@ -76,6 +76,10 @@ on:
         description: Show packages that are only needed in development. They are hidden and counted otherwise.
         type: boolean
         default: false
+      transitive:
+        description: List transitive packages that moved by a minor, a patch or an unknown kind below the main tables, where they open the issue as well. false only counts them.
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -117,6 +121,7 @@ jobs:
           expected: ${{ inputs.expected }} ${{ inputs.extra-jobs }}
           ignore: ${{ inputs.ignore }}
           dev: ${{ inputs.dev }}
+          transitive: ${{ inputs.transitive }}
           report: ${{ runner.temp }}/report.md
           alarm: ${{ runner.temp }}/alarm.md
 

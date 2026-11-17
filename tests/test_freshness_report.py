@@ -66,9 +66,10 @@ def _render(
     ignore: str = "",
     dev: bool = False,
     issue: str = "report",
+    transitive: bool = True,
 ):
     loaded = report.load_results(results, expected.split())
-    return report.render(loaded, ignore.split(), dev, "", issue)
+    return report.render(loaded, ignore.split(), dev, "", issue, transitive)
 
 
 # --- kind -------------------------------------------------------------------
@@ -107,17 +108,32 @@ def test_a_direct_runtime_package_is_named(tmp_path):
     assert "| `mcp` | 2.3.0 | 2.4.0 | minor | yes | no |" in text
 
 
-def test_a_transitive_minor_alone_only_counts_and_leaves_the_report_empty(tmp_path):
+def _transitive_minors(tmp_path):
     _ok(
         tmp_path,
         "outdated",
         _finding(name="h11", direct=False),
         _finding(name="certifi", current="2026.4.26", newest="2026.5.4", direct=False),
     )
-    assert _render(tmp_path, "outdated") == ""
 
 
-def test_a_transitive_major_is_named_and_the_rest_counted(tmp_path):
+def test_a_transitive_minor_alone_is_listed_below_and_opens_the_issue(tmp_path):
+    _transitive_minors(tmp_path)
+    text = _render(tmp_path, "outdated")
+    assert "### Packages" not in text
+    assert "### Transitive packages\n\nNeeded by other packages, not named" in text
+    assert "| Package | Pinned | Newest | Kind |\n" in text
+    assert "| `certifi` | 2026.4.26 | 2026.5.4 | unknown |\n" in text
+    assert "| `h11` | 2.3.0 | 2.4.0 | minor |\n" in text
+    assert "more transitive" not in text
+
+
+def test_without_transitive_a_transitive_minor_only_counts(tmp_path):
+    _transitive_minors(tmp_path)
+    assert _render(tmp_path, "outdated", transitive=False) == ""
+
+
+def test_a_transitive_major_is_named_and_the_rest_listed_below(tmp_path):
     _ok(
         tmp_path,
         "outdated",
@@ -126,7 +142,20 @@ def test_a_transitive_major_is_named_and_the_rest_counted(tmp_path):
     )
     text = _render(tmp_path, "outdated")
     assert "| `numpy` | 2.4.6 | 3.0.0 | major | no |" in text
-    assert "1 more transitive, each a minor, a patch or an unknown kind." in text
+    assert "| `h11` | 2.3.0 | 2.4.0 | minor |\n" in text
+    assert text.index("### Packages") < text.index("### Transitive packages")
+    assert text.index("### Transitive packages") < text.index("Versions are measured")
+    counted = _render(tmp_path, "outdated", transitive=False)
+    assert "### Transitive packages" not in counted
+    assert "1 more transitive, each a minor, a patch or an unknown kind." in counted
+
+
+def test_a_transitive_development_package_shown_on_request_joins_its_table(tmp_path):
+    _ok(tmp_path, "outdated", _finding(name="iniconfig", scope="dev", direct=False))
+    text = _render(tmp_path, "outdated", dev=True)
+    assert "### Development packages" in text
+    assert "### Transitive packages" not in text
+    assert _render(tmp_path, "outdated") == ""
 
 
 def test_development_packages_are_hidden_and_do_not_open_the_issue(tmp_path):
@@ -608,6 +637,30 @@ def test_the_script_writes_the_report_and_names_each_job(tmp_path):
     assert "| `mcp` |" in text
 
 
+@pytest.mark.parametrize(("value", "listed"), [("", True), ("false", False)])
+def test_the_script_lists_transitive_packages_unless_told_not_to(
+    tmp_path, value, listed
+):
+    _ok(tmp_path, "outdated", _finding(name="h11", direct=False))
+    env = os.environ | {
+        "RESULTS": str(tmp_path),
+        "EXPECTED": "outdated",
+        "REPORT": str(tmp_path / "out" / "report.md"),
+    }
+    env.pop("TRANSITIVE", None)
+    if value:
+        env["TRANSITIVE"] = value
+    subprocess.run(
+        [sys.executable, str(FOLDER / "report.py")],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    text = (tmp_path / "out" / "report.md").read_text("utf-8")
+    assert ("| `h11` |" in text) is listed
+
+
 # --- the action and its format -----------------------------------------------
 
 
@@ -617,10 +670,12 @@ def test_the_action_takes_the_results_and_writes_the_report():
         "expected",
         "ignore",
         "dev",
+        "transitive",
         "report",
         "alarm",
     }
     assert ACTION["inputs"]["alarm"]["default"] == ""
+    assert ACTION["inputs"]["transitive"]["default"] == "true"
     assert ACTION["outputs"]["alarm"]["value"] == "${{ steps.write.outputs.alarm }}"
     uv, run = ACTION["runs"]["steps"]
     assert uv["uses"].startswith("astral-sh/setup-uv@")
@@ -634,9 +689,11 @@ def test_the_action_takes_the_results_and_writes_the_report():
         "EXPECTED",
         "IGNORE",
         "DEV",
+        "TRANSITIVE",
         "REPORT",
         "ALARM",
     }
+    assert run["env"]["TRANSITIVE"] == "${{ inputs.transitive }}"
 
 
 def test_the_format_documents_every_field():
