@@ -527,7 +527,10 @@ def test_the_output_passes_through_the_real_report(tmp_path, monkeypatch):
     text = report.render(loaded, [], False, "", "report")
     assert "| `htmx.org` | 4.0.0 | 4.0.1 | patch |" in text
     assert "`tooling`" not in text
-    assert "`beneath`" not in text
+    assert "### Transitive packages" in text
+    assert "| `beneath` | 1.0.0 | 1.1.0 | minor |" in text
+    counted = report.render(loaded, [], False, "", "report", transitive=False)
+    assert "`beneath`" not in counted
     assert "3 locked packages compared with the npm registry" in text
     assert "1 entry not from it left out" in text
 

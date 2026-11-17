@@ -61,6 +61,7 @@ def test_the_issue_title_is_checked_when_the_report_is_on_and_the_switches_are_o
         assert INPUTS[job]["description"].startswith(f"Run the {job} job")
     assert INPUTS["ecosystem"]["default"] == "uv"
     assert INPUTS["dev"]["default"] is False
+    assert INPUTS["transitive"]["default"] is True
     assert (
         INPUTS["platforms"]["default"]
         == IMAGES_ACTION["inputs"]["platforms"]["default"]

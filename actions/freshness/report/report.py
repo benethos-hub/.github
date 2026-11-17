@@ -3,7 +3,8 @@
 Each measuring job of freshness.yml leaves an artifact freshness-<job> with
 status.json, findings.jsonl and section.md, as FORMAT.md next to this file
 describes. This reads every artifact in RESULTS, drops what the caller's
-IGNORE patterns name, hides development packages unless DEV is true, and
+IGNORE patterns name, hides development packages unless DEV is true, lists
+transitive packages below the main tables unless TRANSITIVE is false, and
 writes REPORT. An empty report means there is nothing to say, and the issue
 closes.
 
@@ -251,6 +252,23 @@ def _package_rows(
     return header, rows
 
 
+def _transitive_rows(
+    findings: list[Finding], packages_column: bool
+) -> tuple[list[str], list[list[str]]]:
+    """Direct and within bounds are always no and yes here, so they are left
+    out."""
+    header = ["Package", "Pinned", "Newest", "Kind"]
+    rows = []
+    for f in sorted(findings, key=lambda f: (f.name, f.current)):
+        row = [_code(f.name), cell(f.current), cell(f.newest), f.kind]
+        if packages_column:
+            row.append(", ".join(_code(p) for p in f.packages))
+        rows.append(row)
+    if packages_column:
+        header.append("Needed by")
+    return header, rows
+
+
 def _pin_rows(findings: list[Finding]) -> list[list[str]]:
     return [
         [_code(f.name), cell(f.current), cell(f.newest), f.kind, _where(f)]
@@ -312,9 +330,13 @@ def render(
     dev: bool,
     run_url: str = "",
     issue: str = "report",
+    transitive: bool = True,
 ) -> str:
     """The Markdown for ``issue``, or an empty string when there is nothing
-    to say. The lines about jobs without a result go to the report only."""
+    to say. The lines about jobs without a result go to the report only.
+    With ``transitive``, a transitive package that moved by a minor, a patch
+    or an unknown kind is listed below the main tables and opens the issue.
+    Without it, it is only counted."""
     without_result = [r for r in results if r.state != "ok" and issue == "report"]
     packages_column = len({p for r in results for p in r.packages}) > 1
     own = [r for r in results if r.issue == issue]
@@ -325,6 +347,7 @@ def render(
     listed: dict[str, list[Finding]] = {c: [] for c in CATEGORIES}
     build: list[Finding] = []
     development: list[Finding] = []
+    below: list[Finding] = []
     for result in own:
         for finding in result.findings:
             if any(fnmatch.fnmatchcase(finding.name, p) for p in ignore):
@@ -332,7 +355,7 @@ def render(
             elif finding.category == "package" and finding.scope == "dev":
                 if not dev:
                     hidden_dev += 1
-                elif _named_one_by_one(finding):
+                elif _named_one_by_one(finding) or transitive:
                     development.append(finding)
                 else:
                     counted += 1
@@ -340,11 +363,13 @@ def render(
                 build.append(finding)
             elif _named_one_by_one(finding):
                 listed[finding.category].append(finding)
+            elif transitive:
+                below.append(finding)
             else:
                 counted += 1
     prose = [r for r in own if r.section]
 
-    tables = any(listed.values()) or build or development
+    tables = any(listed.values()) or build or development or below
     if not (tables or prose or without_result):
         return ""
 
@@ -367,6 +392,7 @@ def render(
         ("Build backends", build),
         ("Packages", listed["package"]),
         ("Development packages", development),
+        ("Transitive packages", below),
     ]
     for title, findings in sections:
         if not findings:
@@ -376,6 +402,14 @@ def render(
             header, rows = _vulnerability_rows(findings, packages_column)
         elif title in ("Packages", "Development packages"):
             header, rows = _package_rows(findings, packages_column)
+        elif title == "Transitive packages":
+            lines += [
+                "Needed by other packages, not named by the repository itself. "
+                "Each moved by a minor, a patch or an unknown kind, and a "
+                "refresh of the lockfile takes them.",
+                "",
+            ]
+            header, rows = _transitive_rows(findings, packages_column)
         else:
             header = ["Name", "Pinned", "Newest", "Kind", "Where"]
             rows = _pin_rows(findings)
@@ -438,14 +472,15 @@ def main() -> int:
     expected = _words(os.environ.get("EXPECTED", ""))
     ignore = _words(os.environ.get("IGNORE", ""))
     dev = os.environ.get("DEV", "false").lower() == "true"
+    transitive = os.environ.get("TRANSITIVE", "true").lower() != "false"
     server = os.environ.get("GITHUB_SERVER_URL", "")
     repository = os.environ.get("GITHUB_REPOSITORY", "")
     run_id = os.environ.get("GITHUB_RUN_ID", "")
     run_url = f"{server}/{repository}/actions/runs/{run_id}" if run_id else ""
     try:
         loaded = load_results(results, expected)
-        text = render(loaded, ignore, dev, run_url)
-        alarm_text = render(loaded, ignore, dev, run_url, "alarm")
+        text = render(loaded, ignore, dev, run_url, "report", transitive)
+        alarm_text = render(loaded, ignore, dev, run_url, "alarm", transitive)
     except (ValueError, OSError) as error:
         print(f"::error::Could not read the findings: {error}", file=sys.stderr)
         return 1
