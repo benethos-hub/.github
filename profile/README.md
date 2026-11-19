@@ -8,6 +8,10 @@ Open-source projects in AI, agents and software architecture. The tools here con
 
 Self-hosted REST API and web UI for IMAP, JMAP, POP3, Microsoft 365 and Outlook.com mailboxes. Includes a Python client and an MCP server, so AI agents can read, sort, draft and send mail within the folders, rights and send limits you grant.
 
+### <img src="https://raw.githubusercontent.com/benethos-hub/mailbox-agents/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [mailbox-agents](https://github.com/benethos-hub/mailbox-agents)
+
+Small self-hosted agents that work on a mailbox continuously, through the REST API of mailbox. Each one answers one narrow question about a message and takes one reversible action, such as sorting invoices or filing mail by sender. The language model gets no tools and runs behind any OpenAI-compatible gateway.
+
 ### <img src="https://raw.githubusercontent.com/benethos-hub/lexware-office-mcp/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [lexware-office-mcp](https://github.com/benethos-hub/lexware-office-mcp)
 
 Unofficial MCP server for the Lexware Office accounting API. Gives AI clients access to contacts, vouchers and invoices. No tool is active until you enable it.
