@@ -64,8 +64,8 @@ runs:
     - name: Install mcp-publisher
       shell: bash
       env:
-        MCP_PUBLISHER_VERSION: v1.8.9
-        MCP_PUBLISHER_SHA256: 4d527ca8f1ced0394c962dc925c2a4a4addef441cbefd62501c875e9481823a8
+        MCP_PUBLISHER_VERSION: v1.8.10
+        MCP_PUBLISHER_SHA256: 32d287ed6fb7dc04eddd2621097784c06a355b2348b35ccc630a1643aa75ff4a
         PUBLISHER_DIR: ${{ runner.temp }}/mcp-publisher
       run: |
         set -euo pipefail
