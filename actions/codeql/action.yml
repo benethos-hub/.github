@@ -144,7 +144,7 @@ runs:
     # An empty input reads as unset to github/codeql-action, so every input
     # can go through as it is.
     - name: Prepare the analysis
-      uses: github/codeql-action/init@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      uses: github/codeql-action/init@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
       with:
         languages: ${{ inputs.languages }}
         queries: ${{ inputs.queries }}
@@ -162,7 +162,7 @@ runs:
     # so the upload is turned off there and the analysis still runs.
     - name: Analyse and upload
       id: analyze
-      uses: github/codeql-action/analyze@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+      uses: github/codeql-action/analyze@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
       with:
         category: ${{ inputs.category }}
         upload: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork && 'never' || inputs.upload }}
