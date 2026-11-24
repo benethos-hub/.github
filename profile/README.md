@@ -6,11 +6,13 @@ Open-source projects in AI, agents and software architecture. The tools here con
 
 ### <img src="https://raw.githubusercontent.com/benethos-hub/mailbox/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [mailbox](https://github.com/benethos-hub/mailbox)
 
-Self-hosted REST API and web UI for IMAP, JMAP, POP3, Microsoft 365 and Outlook.com mailboxes. Includes a Python client and an MCP server, so AI agents can read, sort, draft and send mail within the folders, rights and send limits you grant.
+Self-hosted REST API and web UI for all your mailboxes, whether IMAP, JMAP, POP3, Gmail, Microsoft 365 or Outlook.com. Scripts, AI assistants and small AI agents work with your mail through this one service, each within the accounts, rights, folders and send limits its token grants. Change feed, signed webhooks and an audit included. Five packages:
 
-### <img src="https://raw.githubusercontent.com/benethos-hub/mailbox-agents/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [mailbox-agents](https://github.com/benethos-hub/mailbox-agents)
-
-Small self-hosted agents that work on a mailbox continuously, through the REST API of mailbox. Each one answers one narrow question about a message and takes one reversible action, such as sorting invoices or filing mail by sender. The language model gets no tools and runs behind any OpenAI-compatible gateway.
+- [mailbox-service](https://github.com/benethos-hub/mailbox/tree/main/packages/mailbox-service#readme): the REST API and web UI that hold the connections to all accounts.
+- [mailbox-agents](https://github.com/benethos-hub/mailbox/tree/main/packages/mailbox-agents#readme): small agents that work on a mailbox continuously, one narrow question and one reversible action each.
+- [mailbox-mcp](https://github.com/benethos-hub/mailbox/tree/main/packages/mailbox-mcp#readme): the MCP server that opens your mailboxes to Claude and other AI assistants.
+- [mailbox-client](https://github.com/benethos-hub/mailbox/tree/main/packages/mailbox-client#readme): the Python client of the REST API, async and sync.
+- [mailbox-common](https://github.com/benethos-hub/mailbox/tree/main/packages/mailbox-common#readme): what the service, the MCP server and the agents share.
 
 ### <img src="https://raw.githubusercontent.com/benethos-hub/lexware-office-mcp/main/assets/brand/icon.svg" alt="" height="28" align="absmiddle"> [lexware-office-mcp](https://github.com/benethos-hub/lexware-office-mcp)
 
