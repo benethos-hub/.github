@@ -44,7 +44,7 @@ jobs:
 
 Both file under the same category, so each run refreshes the analysis the last one left and nothing is counted twice. A repository with JavaScript or TypeScript names `python,javascript-typescript,actions`. The calling job grants `security-events: write`, a reusable workflow never gets more than its caller. The check is named `codeql / CodeQL` and is not a required check.
 
-The weekly run starts half an hour after the [freshness run](FRESHNESS.md#calling-it), so that the two do not fall together: freshness at 04:30 UTC, CodeQL at 05:00 UTC. A repository that moves the one moves the other with it.
+The weekly run starts half an hour after the [freshness run](freshness/calling.md#calling-it), so that the two do not fall together: freshness at 04:30 UTC, CodeQL at 05:00 UTC. A repository that moves the one moves the other with it.
 
 | Input | What it does |
 | --- | --- |
