@@ -42,6 +42,7 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 | [Brand assets](docs/brand-assets.md) | The icon and social preview of every repository, the check in the CI and the weekly report |
 | [Reports in an issue](docs/reports.md) | How a scheduled workflow of any repository keeps its result in one issue |
 | [Freshness report](docs/freshness.md) | The daily report of what a repository pins and what is newer: packages, vulnerabilities, images and actions in one issue, with the package as users install it and the checks of the repository |
+| [The MCP tool server_status](docs/mcp-server-status.md) | The status tool every MCP server of the organisation offers: its quick answer, the details part, secrets, tests and documentation |
 | [Repository settings](docs/repository-settings.md) | The settings in GitHub: merging, branch protection, release tags, environments, security, Actions and Dependabot |
 | [Maintaining this repository](docs/maintaining.md) | How a change here reaches the projects, the checks of this repository and its dependencies |
 
