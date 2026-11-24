@@ -18,7 +18,7 @@ name: Dockerfile lint
 # gets more than its caller. The check is named after the calling job,
 # dockerfile-lint / Dockerfile lint, and fails from failure-level on, after
 # the upload. The inputs are those of the action, plus the runner and the
-# time limit. See docs/dockerfile-checks.md.
+# time limit. See docs/DOCKERFILE-CHECKS.md.
 
 on:
   workflow_call:

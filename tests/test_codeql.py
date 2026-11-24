@@ -18,7 +18,7 @@ WORKFLOW = yaml.safe_load(WORKFLOW_PATH.read_text("utf-8"))
 INPUTS = ACTION["inputs"]
 WORKFLOW_INPUTS = WORKFLOW[True]["workflow_call"]["inputs"]
 JOB = WORKFLOW["jobs"]["codeql"]
-PAGE = (ROOT / "docs" / "codeql.md").read_text("utf-8")
+PAGE = (ROOT / "docs" / "CODEQL.md").read_text("utf-8")
 
 INIT_INPUTS = (
     "languages",
@@ -169,10 +169,10 @@ def test_the_documentation_names_every_input_and_both_files():
     assert "../actions/codeql/action.yml" in PAGE
     assert "../.github/workflows/codeql.yml" in PAGE
     assert "code-scanning/default-setup -f state=not-configured" in PAGE
-    assert "(docs/codeql.md)" in (ROOT / "README.md").read_text("utf-8")
-    assert "codeql.md" in (ROOT / "docs" / "repository-settings.md").read_text("utf-8")
-    assert "codeql.yml" in (ROOT / "docs" / "ci.md").read_text("utf-8")
-    assert "codeql.md" in (ROOT / "docs" / "new-repository.md").read_text("utf-8")
+    assert "(docs/CODEQL.md)" in (ROOT / "README.md").read_text("utf-8")
+    assert "CODEQL.md" in (ROOT / "docs" / "REPOSITORY-SETTINGS.md").read_text("utf-8")
+    assert "codeql.yml" in (ROOT / "docs" / "CI.md").read_text("utf-8")
+    assert "CODEQL.md" in (ROOT / "docs" / "NEW-REPOSITORY.md").read_text("utf-8")
     assert "`codeql.yml` calls `codeql`" in (
-        ROOT / "docs" / "maintaining.md"
+        ROOT / "docs" / "MAINTAINING.md"
     ).read_text("utf-8")

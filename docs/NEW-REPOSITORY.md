@@ -1,0 +1,47 @@
+# Setting up a new repository
+
+These steps give a new repository of the organisation everything the
+existing ones have. They follow the order in which each step needs the
+one before it. The example is a Python project managed with uv. A
+project that publishes nothing stops after step 6.
+
+1. **Brand assets.** Add `assets/brand/icon.svg`, `icon.png` and
+   `social-preview.png`, and upload the social preview in the settings.
+   See [Brand assets](BRAND-ASSETS.md).
+2. **CI.** Add `.github/workflows/ci.yml` with the jobs of the example
+   in [CI of a Python project](CI.md). The brand assets have to be there
+   first, otherwise `brand / Brand assets` fails right away. The
+   `codeql` job uploads only once step 6 has switched code scanning to
+   the advanced setup, see [CodeQL](CODEQL.md). A repository with a
+   Dockerfile adds one of the [Dockerfile checks](DOCKERFILE-CHECKS.md)
+   as a job as well.
+3. **Dependabot.** Add `.github/dependabot.yml` with an entry for `uv`,
+   `github-actions` and every Dockerfile folder. See [Repository
+   settings](REPOSITORY-SETTINGS.md#dependabot).
+4. **Freshness.** Add `.github/workflows/freshness.yml` from the example
+   in [Freshness report](FRESHNESS.md), with an issue title of its own.
+   It reports what Dependabot does not see, in one issue.
+5. **Badges.** Open the README with the badge rows from
+   [Badges](BADGES.md). The coverage badge shows up after the first push
+   to `main`.
+6. **Settings.** Once the CI has run on `main`, set the general
+   settings, the branch protection with the check names of the CI, the
+   security settings and the Actions permissions. See [Repository
+   settings](REPOSITORY-SETTINGS.md). From then on, every change reaches
+   `main` through a pull request.
+7. **Publishing.** Add `.github/workflows/publish.yml` from the example
+   in [Publishing a release](RELEASES.md), with the jobs the project
+   needs. Then do the one-time setup there: the pending publisher on
+   PyPI and one environment per package, open to tags `v*` only.
+8. **Release tags.** Add the tag ruleset `Release tags`. See [Repository
+   settings](REPOSITORY-SETTINGS.md#release-tags).
+9. **First trial.** Start `publish.yml` by hand on `main`. The gate
+   checks the CI run, `pypi-trial` builds and checks the packages
+   without uploading, and `ghcr-publish` pushes `edge`. Switch a new
+   container package to public afterwards.
+10. **First release.** Raise the version, merge, and publish a release
+    with the tag `v` and that version. See [Release
+    tags](RELEASES.md#release-tags).
+
+The workflows and actions themselves need no copy. The repository calls
+them here at `main`, and a change here reaches it on its next run.

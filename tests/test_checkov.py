@@ -189,7 +189,7 @@ def test_the_workflow_is_one_job_around_the_action():
 
 
 def test_the_documentation_names_every_input_and_the_files():
-    page = (ROOT / "docs" / "dockerfile-checks.md").read_text("utf-8")
+    page = (ROOT / "docs" / "DOCKERFILE-CHECKS.md").read_text("utf-8")
     assert_documented(
         ACTION,
         page,

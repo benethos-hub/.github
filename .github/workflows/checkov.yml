@@ -16,7 +16,7 @@ name: Checkov
 # gets more than its caller. The check is named after the calling job,
 # checkov / Checkov, and fails from failure-level on, after the upload. The
 # inputs are those of the action, plus the runner and the time limit. See
-# docs/dockerfile-checks.md.
+# docs/DOCKERFILE-CHECKS.md.
 
 on:
   workflow_call:

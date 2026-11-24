@@ -253,10 +253,14 @@ def test_the_audit_adapter_exports_like_the_dependency_audit_and_asks_for_findin
 
 
 def test_the_documentation_names_every_input_and_is_linked():
-    page = (ROOT / "docs" / "freshness.md").read_text("utf-8")
+    docs = ROOT / "docs"
+    page = "\n".join(
+        path.read_text("utf-8")
+        for path in [docs / "FRESHNESS.md", *sorted((docs / "freshness").glob("*.md"))]
+    )
     for name in INPUTS:
         assert f"`{name}`" in page, name
     for job in JOBS.values():
         assert f"`{job['name']}`" in page, job["name"]
-    assert "(docs/freshness.md)" in (ROOT / "README.md").read_text("utf-8")
-    assert "freshness.md" in (ROOT / "docs" / "new-repository.md").read_text("utf-8")
+    assert "(docs/FRESHNESS.md)" in (ROOT / "README.md").read_text("utf-8")
+    assert "FRESHNESS.md" in (ROOT / "docs" / "NEW-REPOSITORY.md").read_text("utf-8")
