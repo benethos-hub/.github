@@ -16,7 +16,7 @@ The rules are written once, in [actions/brand/assets](../actions/brand/assets/ac
 
 `brand.yml` fails when a file is missing, is not an SVG or a PNG, does not have its size, or is older than the last change to `icon.svg`, which means its last commit comes before the last commit of the SVG. The check shows up in pull requests as `brand / Brand assets`. Add all three files before adding the job, otherwise the CI of the repository fails right away.
 
-A failed check alone does not block a merge. It blocks one once the branch protection requires it, see [Repository settings](repository-settings.md#branch-protection).
+A failed check alone does not block a merge. It blocks one once the branch protection requires it, see [Repository settings](REPOSITORY-SETTINGS.md#branch-protection).
 
 ## The weekly report
 

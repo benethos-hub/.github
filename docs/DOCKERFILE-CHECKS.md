@@ -8,9 +8,9 @@ Three scanners read the Dockerfiles of a repository and judge their form, each a
 | Trivy | [trivy-config](../actions/trivy-config/action.yml), [trivy-config.yml](../.github/workflows/trivy-config.yml) | A folder, with every Dockerfile, Kubernetes manifest, Helm chart, Terraform, CloudFormation, Azure ARM and Ansible file in it | Misconfigurations: a root user, a secret in `ENV` judged by the variable's name, an image without a tag, an open port, and the same for the other types |
 | Checkov | [checkov](../actions/checkov/action.yml), [checkov.yml](../.github/workflows/checkov.yml) | A folder, the Dockerfiles by default, other frameworks on request | A user, a health check, `COPY` over `ADD`, an image with a tag, no secret in `ENV`, about 30 checks for Dockerfiles and many more for infrastructure as code |
 
-None of the three reads a compose file. The images a compose file names are a matter of the [freshness report](freshness.md), which reads them for their tags and digests.
+None of the three reads a compose file. The images a compose file names are a matter of the [freshness report](FRESHNESS.md), which reads them for their tags and digests.
 
-The scanners report, the repository decides. Each scanner leaves a SARIF file, and [sarif-report](../actions/sarif-report/action.yml) writes a table of it to the step summary, uploads it to code scanning under the scanner's category, and fails the step only when a finding reaches `failure-level`, whose default is `none`. Whether a finding turns the code scanning check of a pull request red is the protection rule of the repository, Settings, Code security, Code scanning, Protection rules, Check failure, one threshold for every tool, see [Repository settings](repository-settings.md#the-code-scanning-check). `failure-level` is for a repository that wants the scanner's own job red regardless of that rule. The code scanning check exists on a pull request with an upload only. A run on a push or a schedule, and a pull request from a fork, ends green whatever the findings, which stay in the step summary and, once uploaded, in the Security tab. None of the checks is a required check.
+The scanners report, the repository decides. Each scanner leaves a SARIF file, and [sarif-report](../actions/sarif-report/action.yml) writes a table of it to the step summary, uploads it to code scanning under the scanner's category, and fails the step only when a finding reaches `failure-level`, whose default is `none`. Whether a finding turns the code scanning check of a pull request red is the protection rule of the repository, Settings, Code security, Code scanning, Protection rules, Check failure, one threshold for every tool, see [Repository settings](REPOSITORY-SETTINGS.md#the-code-scanning-check). `failure-level` is for a repository that wants the scanner's own job red regardless of that rule. The code scanning check exists on a pull request with an upload only. A run on a push or a schedule, and a pull request from a fork, ends green whatever the findings, which stay in the step summary and, once uploaded, in the Security tab. None of the checks is a required check.
 
 ## Choosing
 
@@ -49,7 +49,7 @@ Each workflow is one job, called from `ci.yml` beside the other jobs:
       directory: containers
 ```
 
-The calling job grants `security-events: write`, a reusable workflow never gets more than its caller. The checks are named `dockerfile-lint / Dockerfile lint`, `trivy-config / Trivy config` and `checkov / Checkov`. A run on a schedule, so that a check the scanner adds later reads code nobody changed, goes into the same workflow of the repository that runs [CodeQL](codeql.md) weekly. Each run files under the scanner's category, so each refreshes the analysis the last one left.
+The calling job grants `security-events: write`, a reusable workflow never gets more than its caller. The checks are named `dockerfile-lint / Dockerfile lint`, `trivy-config / Trivy config` and `checkov / Checkov`. A run on a schedule, so that a check the scanner adds later reads code nobody changed, goes into the same workflow of the repository that runs [CodeQL](CODEQL.md) weekly. Each run files under the scanner's category, so each refreshes the analysis the last one left.
 
 A pull request from a fork has no token that may upload. The upload is left out there, so there is no code scanning check for it, the summary still shows every finding, and `failure-level` alone decides.
 
@@ -84,7 +84,7 @@ The levels in code scanning are the scanner's own, translated to the three SARIF
 | `trusted-registries` | Registries `FROM` may pull from, such as `docker.io ghcr.io`. An image from elsewhere is a finding. Empty trusts every registry. |
 | `config` | The path of a `.hadolint.yaml` in the repository. Its ignore list and trusted registries come on top of the inputs, and it is the place for a rule's level or a label schema. |
 
-hadolint is downloaded pinned by version and checksum in the action, the one place for all repositories. Dependabot cannot see a download, so the [Download pins report](maintaining.md#dependencies) opens an issue once a newer release is out.
+hadolint is downloaded pinned by version and checksum in the action, the one place for all repositories. Dependabot cannot see a download, so the [Download pins report](MAINTAINING.md#dependencies) opens an issue once a newer release is out.
 
 ### trivy-config
 

@@ -13,7 +13,7 @@ Two rules follow from that:
 
 ## Checks of this repository
 
-`ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `coverage-badge.yml`, called by local path, the way a project calls them. Its `codeql` job calls `codeql.yml` the same way, with the security and the quality queries, and `codeql-weekly.yml` runs that analysis every Monday at 5:00 UTC. The repository therefore runs the advanced setup of code scanning, not the default setup, see [CodeQL](codeql.md). A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
+`ci.yml` checks this repository with its own `python-lint.yml`, `python-tests.yml`, `python-dependency-audit.yml` and `coverage-badge.yml`, called by local path, the way a project calls them. Its `codeql` job calls `codeql.yml` the same way, with the security and the quality queries, and `codeql-weekly.yml` runs that analysis every Monday at 5:00 UTC. The repository therefore runs the advanced setup of code scanning, not the default setup, see [CodeQL](CODEQL.md). A job of its own checks the lockfiles of the actions. Ruff, pytest, pytest-cov, PyYAML and Mypy come from `uv.lock`, and their settings from `pyproject.toml`. The coverage covers the scripts the actions and workflows run.
 
 The branch protection of `main` in this repository requires these checks. It binds admins as well, so every change reaches `main` through a pull request and passes these checks first, before any project loads it at `@main`:
 
@@ -22,7 +22,7 @@ The branch protection of `main` in this repository requires these checks. It bin
 - `audit / Dependency audit`
 - `Lockfiles of the actions`
 
-The names come from the calling job and the job name in the called workflow. A change to either, or to the Python versions of `python-tests.yml`, changes the names, and the branch protection has to follow in the same step. Otherwise it waits for a check that never comes. `coverage-badge / Coverage badge` runs on a push only and is not required. The other settings of this repository are those of every repository, see [Repository settings](repository-settings.md).
+The names come from the calling job and the job name in the called workflow. A change to either, or to the Python versions of `python-tests.yml`, changes the names, and the branch protection has to follow in the same step. Otherwise it waits for a check that never comes. `coverage-badge / Coverage badge` runs on a push only and is not required. The other settings of this repository are those of every repository, see [Repository settings](REPOSITORY-SETTINGS.md).
 
 ## uv in the actions
 
@@ -40,4 +40,4 @@ Every action in a workflow or action here is pinned to a commit, with its versio
 
 A tool downloaded directly, pinned by version and checksum like the `mcp-publisher` of `publish/mcp-registry`, the hadolint of `dockerfile-lint` and the Trivy of `trivy-config`, is invisible to Dependabot. It gets an entry in [.github/download-pins.yml](../.github/download-pins.yml) instead. `download-pins-report.yml` checks every entry each Monday against the releases of its upstream and lists a newer release, with the version and checksum to paste, in the issue [Pinned downloads need an update](https://github.com/benethos-hub/.github/issues?q=is%3Aissue+%22Pinned+downloads+need+an+update%22).
 
-Both weekly reports keep their issue through [actions/report-issue](reports.md): one open issue per report, updated on every run and closed once nothing is left to report.
+Both weekly reports keep their issue through [actions/report-issue](REPORTS.md): one open issue per report, updated on every run and closed once nothing is left to report.

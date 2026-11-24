@@ -20,7 +20,7 @@ name: CodeQL
 # fail it, whether a finding fails the code scanning check of a pull request
 # is a setting of the repository. The default setup of code scanning rejects
 # the upload of a language it analyses itself, the repository leaves it first,
-# see docs/codeql.md. The inputs are those of the action, which passes them
+# see docs/CODEQL.md. The inputs are those of the action, which passes them
 # through to github/codeql-action, plus the runner and the time limit. The
 # organisation's own actions called at main pass actions/unpinned-tag through
 # a model pack the action writes, see trusted-owners.

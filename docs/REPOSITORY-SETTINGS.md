@@ -32,7 +32,7 @@ Settings, Branches, a classic branch protection rule for `main`:
 
 With required checks that bind admins, nothing reaches `main` without a pull request. A check has to have run once in the repository before it can be selected in the settings. The API takes it right away.
 
-The required checks are the names [CI of a Python project](ci.md#check-names) explains. They differ by repository:
+The required checks are the names [CI of a Python project](CI.md#check-names) explains. They differ by repository:
 
 | Repository | Required checks |
 | --- | --- |
@@ -43,7 +43,7 @@ The required checks are the names [CI of a Python project](ci.md#check-names) ex
 
 A changed job name or Python version changes the check names. The branch protection has to follow in the same step, otherwise it waits for a check that never comes.
 
-Not required in any repository: `codeql / CodeQL`, the scanners of [Dockerfile checks](dockerfile-checks.md) and the code scanning checks their uploads add to a pull request, see [CodeQL](codeql.md). Their findings are read in the Security tab and fixed or dismissed there, a merge never waits for them.
+Not required in any repository: `codeql / CodeQL`, the scanners of [Dockerfile checks](DOCKERFILE-CHECKS.md) and the code scanning checks their uploads add to a pull request, see [CodeQL](CODEQL.md). Their findings are read in the Security tab and fixed or dismissed there, a merge never waits for them.
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/branches/main/protection --input - <<'EOF'
@@ -99,7 +99,7 @@ EOF
 
 Settings, Environments, one environment per package on PyPI, named as in the job of `publish.yml`, for example `pypi-benethos-example`. Under Deployment branches and tags, choose Selected branches and tags and add the tag rule `v*`.
 
-The upload jobs run on a release only, whose ref is the tag. The rule makes sure that nothing else can deploy to the environment, not even a manual run on `main`. `pypi-trial` has no environment and is not affected. The one-time setup of PyPI itself is in [Publishing a release](releases.md#one-time-setup).
+The upload jobs run on a release only, whose ref is the tag. The rule makes sure that nothing else can deploy to the environment, not even a manual run on `main`. `pypi-trial` has no environment and is not affected. The one-time setup of PyPI itself is in [Publishing a release](RELEASES.md#one-time-setup).
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/environments/<environment> --input - <<'EOF'
@@ -115,7 +115,7 @@ Settings, Advanced Security:
 
 - Dependency graph on. Dependabot finds vulnerable packages through it.
 - Dependabot alerts, malware alerts and Dependabot security updates on.
-- CodeQL analysis. The default setup needs no file in the repository and runs the security queries. A repository that runs [codeql.yml](codeql.md) for the quality queries as well switches to the advanced setup instead, since the default setup rejects its upload. Neither is a required check.
+- CodeQL analysis. The default setup needs no file in the repository and runs the security queries. A repository that runs [codeql.yml](CODEQL.md) for the quality queries as well switches to the advanced setup instead, since the default setup rejects its upload. Neither is a required check.
 - Secret scanning and push protection on.
 - Private vulnerability reporting on. The [security policy](../SECURITY.md) asks for reports through it, and the button only appears when it is on.
 
@@ -144,7 +144,7 @@ The graph reads the lockfiles and the actions, not the base images of a Dockerfi
 
 Code scanning adds a check `Code scanning results / <tool>` to every pull request that uploads findings, one per tool: CodeQL, hadolint, Trivy or Checkov. Whether a finding turns it red is one threshold for every tool, on the settings page only: Settings, Code security, Code scanning, Protection rules, Check failure. It has two halves. Security alerts are the findings that carry a security severity, which the CodeQL security queries and Trivy set. Other alerts are the rest, judged by their level, which is every finding of hadolint, of Checkov's Dockerfile checks and of the CodeQL quality queries.
 
-Set Security alerts to High or higher and Other alerts to Errors and warnings. GitHub's own default is High or higher and Errors, which lets a hadolint warning through. Do not make the check a required check, a finding is read in the Security tab and fixed or dismissed there, the merge does not wait for it. The scanners' own jobs fail on no finding unless a repository sets `failure-level`, see [Dockerfile checks](dockerfile-checks.md) and [CodeQL](codeql.md).
+Set Security alerts to High or higher and Other alerts to Errors and warnings. GitHub's own default is High or higher and Errors, which lets a hadolint warning through. Do not make the check a required check, a finding is read in the Security tab and fixed or dismissed there, the merge does not wait for it. The scanners' own jobs fail on no finding unless a repository sets `failure-level`, see [Dockerfile checks](DOCKERFILE-CHECKS.md) and [CodeQL](CODEQL.md).
 
 A security update can fail when another package holds the vulnerable version back. The Dependabot run then ends in red with `security_update_not_possible`, which is no defect here. Report it to the project that holds the version. If the vulnerable code cannot be reached here, dismiss the alert with the reason in its comment, so that a new alert stands out.
 

@@ -33,18 +33,18 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 
 | Page | What it covers |
 | --- | --- |
-| [Setting up a new repository](docs/new-repository.md) | The steps that give a new repository everything the existing ones have, in order |
-| [CI of a Python project](docs/ci.md) | The `ci.yml` of a project, the reusable workflows and the names of their checks |
-| [CodeQL](docs/codeql.md) | The CodeQL analysis with the security and the quality queries, as a job of the CI and on a schedule, and the setting a repository changes for it |
-| [Dockerfile checks](docs/dockerfile-checks.md) | hadolint, Trivy and Checkov over the Dockerfiles of a repository, each as a job of the CI with its findings in code scanning, and the shared SARIF report any scanner can use |
-| [Badges](docs/badges.md) | The badge rows of every README, their colours and logos, and the coverage badge |
-| [Publishing a release](docs/releases.md) | The `publish.yml` of a project, the publishing actions, the release gate, release tags, trial runs and the one-time setup |
-| [Brand assets](docs/brand-assets.md) | The icon and social preview of every repository, the check in the CI and the weekly report |
-| [Reports in an issue](docs/reports.md) | How a scheduled workflow of any repository keeps its result in one issue |
-| [Freshness report](docs/freshness.md) | The daily report of what a repository pins and what is newer: packages, vulnerabilities, images and actions in one issue, with the package as users install it and the checks of the repository |
-| [The MCP tool server_status](docs/mcp-server-status.md) | The status tool every MCP server of the organisation offers: its quick answer, the details part, secrets, tests and documentation |
-| [Repository settings](docs/repository-settings.md) | The settings in GitHub: merging, branch protection, release tags, environments, security, Actions and Dependabot |
-| [Maintaining this repository](docs/maintaining.md) | How a change here reaches the projects, the checks of this repository and its dependencies |
+| [Setting up a new repository](docs/NEW-REPOSITORY.md) | The steps that give a new repository everything the existing ones have, in order |
+| [CI of a Python project](docs/CI.md) | The `ci.yml` of a project, the reusable workflows and the names of their checks |
+| [CodeQL](docs/CODEQL.md) | The CodeQL analysis with the security and the quality queries, as a job of the CI and on a schedule, and the setting a repository changes for it |
+| [Dockerfile checks](docs/DOCKERFILE-CHECKS.md) | hadolint, Trivy and Checkov over the Dockerfiles of a repository, each as a job of the CI with its findings in code scanning, and the shared SARIF report any scanner can use |
+| [Badges](docs/BADGES.md) | The badge rows of every README, their colours and logos, and the coverage badge |
+| [Publishing a release](docs/RELEASES.md) | The `publish.yml` of a project, the publishing actions, the release gate, release tags, trial runs and the one-time setup |
+| [Brand assets](docs/BRAND-ASSETS.md) | The icon and social preview of every repository, the check in the CI and the weekly report |
+| [Reports in an issue](docs/REPORTS.md) | How a scheduled workflow of any repository keeps its result in one issue |
+| [Freshness report](docs/FRESHNESS.md) | The daily report of what a repository pins and what is newer: packages, vulnerabilities, images and actions in one issue, with the package as users install it and the checks of the repository |
+| [The MCP tool server_status](docs/MCP-SERVER-STATUS.md) | The status tool every MCP server of the organisation offers: its quick answer, the details part, secrets, tests and documentation |
+| [Repository settings](docs/REPOSITORY-SETTINGS.md) | The settings in GitHub: merging, branch protection, release tags, environments, security, Actions and Dependabot |
+| [Maintaining this repository](docs/MAINTAINING.md) | How a change here reaches the projects, the checks of this repository and its dependencies |
 
 ## Organisation files
 
@@ -56,4 +56,4 @@ GitHub applies these files to every repository of the organisation that has no f
 | [SECURITY.md](SECURITY.md) | The security policy. A repository only needs its own if it has something specific to say, for example what counts as a vulnerability in that project. |
 | [profile/README.md](profile/README.md) | The organisation profile shown on github.com/benethos-hub |
 
-The security policy asks for private reports under Security, Report a vulnerability. That button only appears when private vulnerability reporting is enabled in the security settings of the repository. Every repository has it on, see [Repository settings](docs/repository-settings.md#security).
+The security policy asks for private reports under Security, Report a vulnerability. That button only appears when private vulnerability reporting is enabled in the security settings of the repository. Every repository has it on, see [Repository settings](docs/REPOSITORY-SETTINGS.md#security).

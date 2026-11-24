@@ -44,7 +44,7 @@ jobs:
 
 Both file under the same category, so each run refreshes the analysis the last one left and nothing is counted twice. A repository with JavaScript or TypeScript names `python,javascript-typescript,actions`. The calling job grants `security-events: write`, a reusable workflow never gets more than its caller. The check is named `codeql / CodeQL` and is not a required check.
 
-The weekly run starts half an hour after the [freshness run](freshness.md#calling-it), so that the two do not fall together: freshness at 04:30 UTC, CodeQL at 05:00 UTC. A repository that moves the one moves the other with it.
+The weekly run starts half an hour after the [freshness run](FRESHNESS.md#calling-it), so that the two do not fall together: freshness at 04:30 UTC, CodeQL at 05:00 UTC. A repository that moves the one moves the other with it.
 
 | Input | What it does |
 | --- | --- |
@@ -67,7 +67,7 @@ The weekly run starts half an hour after the [freshness run](freshness.md#callin
 
 Every input but `trusted-owners` and the last three goes through to [github/codeql-action](https://github.com/github/codeql-action) unchanged, its documentation has the detail.
 
-The organisation's actions and workflows are called at `main`, see [Maintaining this repository](maintaining.md), and the query `actions/unpinned-tag` reports every such call unless it trusts the owner. The action therefore writes a CodeQL model pack with the trusted owners into `.github/codeql/extensions/trusted-owners/` of the checkout before the analysis, two files that CodeQL finds there by itself. Nothing is committed, a repository needs no file of its own, and the call stays as above. The pack is written only when `actions` is among the languages. The action leaves two outputs, `sarif` with the folder of the SARIF files and `sarif-id` of the upload, for a job that keeps the results as an artifact as well.
+The organisation's actions and workflows are called at `main`, see [Maintaining this repository](MAINTAINING.md), and the query `actions/unpinned-tag` reports every such call unless it trusts the owner. The action therefore writes a CodeQL model pack with the trusted owners into `.github/codeql/extensions/trusted-owners/` of the checkout before the analysis, two files that CodeQL finds there by itself. Nothing is committed, a repository needs no file of its own, and the call stays as above. The pack is written only when `actions` is among the languages. The action leaves two outputs, `sarif` with the folder of the SARIF files and `sarif-id` of the upload, for a job that keeps the results as an artifact as well.
 
 ## Leaving the default setup
 
@@ -88,7 +88,7 @@ The way back is the same setting. Switching the default setup on again stops the
 
 The quality queries find something in most repositories on their first run. Each alert names the rule and the place. An alert that is right is fixed. One that does not apply is dismissed in the Security tab with the reason, so that a new alert stands out. A rule that never applies to a repository goes into its CodeQL configuration file as a `query-filters` entry with the reason beside it, and `config-file` names the file.
 
-The analysis reports, the repository decides. `codeql / CodeQL` fails on no finding, and there is no input to make it. Whether a finding turns the code scanning check of a pull request red is the protection rule of the repository, Settings, Code security, Code scanning, Protection rules, Check failure, one threshold for every tool that uploads, see [Repository settings](repository-settings.md#the-code-scanning-check). The security queries carry a security severity and count as security alerts there, the quality queries carry none and count as other alerts by their level. Neither that check nor `codeql / CodeQL` is a required check in the branch protection of any repository, a merge never waits for a finding.
+The analysis reports, the repository decides. `codeql / CodeQL` fails on no finding, and there is no input to make it. Whether a finding turns the code scanning check of a pull request red is the protection rule of the repository, Settings, Code security, Code scanning, Protection rules, Check failure, one threshold for every tool that uploads, see [Repository settings](REPOSITORY-SETTINGS.md#the-code-scanning-check). The security queries carry a security severity and count as security alerts there, the quality queries carry none and count as other alerts by their level. Neither that check nor `codeql / CodeQL` is a required check in the branch protection of any repository, a merge never waits for a finding.
 
 ## A job of the repository
 

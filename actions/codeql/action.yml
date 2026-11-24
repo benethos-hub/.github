@@ -24,7 +24,7 @@ description: Analyses the checkout with CodeQL, the security and the quality que
 # repository. A pull request from a fork has no token that may upload, so the
 # analysis then runs without the upload. The default setup of code scanning
 # rejects the upload of a language it analyses itself, the repository leaves
-# it first, see docs/codeql.md. Most repositories call this through the
+# it first, see docs/CODEQL.md. Most repositories call this through the
 # reusable workflow codeql.yml, which adds the job around it.
 #
 # The query actions/unpinned-tag reports a call of an action at a tag or a

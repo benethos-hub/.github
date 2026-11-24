@@ -43,4 +43,4 @@ The check writes nothing to the file when all is well, and only the report when 
 
 The action adds a line to the body that says what was checked and links to the calling workflow: the commit the run checked, with its branch, the latest release when the commit is that release or after it, as "tagged `v0.9.1`" or "2 commits after `v0.9.1`", the run and the time in UTC. The line that closes an issue names the commit and the run as well. The release comes from the API with the same token, which needs `contents: read`, and is left out for a repository without one. The action looks at the newest 100 open issues. A changed title opens a new issue and leaves the old one open.
 
-`brand-report.yml` and `download-pins-report.yml` of this repository use it as well, by local path after the checkout, and so does the [freshness report](freshness.md) of every repository.
+`brand-report.yml` and `download-pins-report.yml` of this repository use it as well, by local path after the checkout, and so does the [freshness report](FRESHNESS.md) of every repository.

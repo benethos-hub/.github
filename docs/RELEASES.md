@@ -116,7 +116,7 @@ A release tag is `v` followed by the version exactly as the version file of the 
 
 A Python project writes its versions as PEP 440 does and tags `v1.2.3`, `v1.0.0rc1` or `v1.2.3.post1`, never `v1.0.0-rc.1`. A project in another language tags in its own format, for example `v1.0.0-rc.1` for semver. Only `publish/ghcr` reads the version itself, to derive the image tags. Its input `version-scheme` is `pep440` by default and `semver` for other projects. A pre-release gets its exact version as image tag, no `1.2` and no `latest`.
 
-A published tag cannot be deleted or moved, see [Repository settings](repository-settings.md#release-tags). A failed release is fixed with a new version, which PyPI asks for anyway.
+A published tag cannot be deleted or moved, see [Repository settings](REPOSITORY-SETTINGS.md#release-tags). A failed release is fixed with a new version, which PyPI asks for anyway.
 
 ## Trial runs
 
@@ -127,6 +127,6 @@ The PyPI trial runs in a job of its own, `pypi-trial` in the example, without th
 ## One-time setup
 
 - PyPI: a pending publisher per project, with the owner, the repository, the workflow file name `publish.yml` and the environment named in the job. PyPI takes a pending publisher for one project only, hence one environment per package.
-- GitHub: that environment under Settings, Environments, open to tags `v*` only, see [Repository settings](repository-settings.md#environments).
+- GitHub: that environment under Settings, Environments, open to tags `v*` only, see [Repository settings](REPOSITORY-SETTINGS.md#environments).
 - ghcr.io: a new package is private even in a public repository. After the first push, switch it to public under the organisation's Packages.
 - MCP Registry: nothing. The registry grants `io.github.benethos-hub/*` to the OIDC token of the workflow.

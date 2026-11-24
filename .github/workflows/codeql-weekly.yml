@@ -6,7 +6,7 @@ name: CodeQL weekly
 # schedule reads code nobody changed with them. Both file under the same
 # category, codeql, so each run refreshes the analysis the last one left.
 # codeql.yml is the reusable workflow every project calls, so the schedule
-# lives here, at the same time as the projects' weekly runs (docs/codeql.md).
+# lives here, at the same time as the projects' weekly runs (docs/CODEQL.md).
 
 on:
   schedule:
