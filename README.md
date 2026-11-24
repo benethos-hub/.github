@@ -13,7 +13,13 @@ Organisation defaults for benethos-hub, and the CI and release process its repos
 
 The repositories call the workflows and actions here at `main`. A project needs no copy of any of it, and a rule changed here applies everywhere on the next run.
 
-## Contents
+**Contents**
+
+- [What it holds](#what-it-holds)
+- [Documentation](#documentation)
+- [Organisation files](#organisation-files)
+
+## What it holds
 
 | Path | What it holds |
 | --- | --- |
@@ -31,20 +37,19 @@ Workflows have to live directly in `.github/workflows`, because GitHub ignores s
 
 ## Documentation
 
-| Page | What it covers |
-| --- | --- |
-| [Setting up a new repository](docs/NEW-REPOSITORY.md) | The steps that give a new repository everything the existing ones have, in order |
-| [CI of a Python project](docs/CI.md) | The `ci.yml` of a project, the reusable workflows and the names of their checks |
-| [CodeQL](docs/CODEQL.md) | The CodeQL analysis with the security and the quality queries, as a job of the CI and on a schedule, and the setting a repository changes for it |
-| [Dockerfile checks](docs/DOCKERFILE-CHECKS.md) | hadolint, Trivy and Checkov over the Dockerfiles of a repository, each as a job of the CI with its findings in code scanning, and the shared SARIF report any scanner can use |
-| [Badges](docs/BADGES.md) | The badge rows of every README, their colours and logos, and the coverage badge |
-| [Publishing a release](docs/RELEASES.md) | The `publish.yml` of a project, the publishing actions, the release gate, release tags, trial runs and the one-time setup |
-| [Brand assets](docs/BRAND-ASSETS.md) | The icon and social preview of every repository, the check in the CI and the weekly report |
-| [Reports in an issue](docs/REPORTS.md) | How a scheduled workflow of any repository keeps its result in one issue |
-| [Freshness report](docs/FRESHNESS.md) | The daily report of what a repository pins and what is newer: packages, vulnerabilities, images and actions in one issue, with the package as users install it and the checks of the repository |
-| [The MCP tool server_status](docs/MCP-SERVER-STATUS.md) | The status tool every MCP server of the organisation offers: its quick answer, the details part, secrets, tests and documentation |
-| [Repository settings](docs/REPOSITORY-SETTINGS.md) | The settings in GitHub: merging, branch protection, release tags, environments, security, Actions and Dependabot |
-| [Maintaining this repository](docs/MAINTAINING.md) | How a change here reaches the projects, the checks of this repository and its dependencies |
+- [docs/README.md](docs/README.md): every document, by topic
+- [docs/NEW-REPOSITORY.md](docs/NEW-REPOSITORY.md): the steps that give a new repository everything the existing ones have, in order
+- [docs/REPOSITORY-SETTINGS.md](docs/REPOSITORY-SETTINGS.md): the settings in GitHub, from merging to Dependabot
+- [docs/CI.md](docs/CI.md): the `ci.yml` of a Python project, the reusable workflows and the names of their checks
+- [docs/CODEQL.md](docs/CODEQL.md): the CodeQL analysis as a job of the CI and on a schedule
+- [docs/DOCKERFILE-CHECKS.md](docs/DOCKERFILE-CHECKS.md): hadolint, Trivy and Checkov over the Dockerfiles
+- [docs/BADGES.md](docs/BADGES.md): the badge rows of every README and the coverage badge
+- [docs/BRAND-ASSETS.md](docs/BRAND-ASSETS.md): the icon and social preview of every repository
+- [docs/RELEASES.md](docs/RELEASES.md): the `publish.yml` of a project, the release gate and release tags
+- [docs/REPORTS.md](docs/REPORTS.md): how a scheduled workflow keeps its result in one issue
+- [docs/FRESHNESS.md](docs/FRESHNESS.md): the daily report of what a repository pins and what is newer
+- [docs/MCP-SERVER-STATUS.md](docs/MCP-SERVER-STATUS.md): the status tool every MCP server of the organisation offers
+- [docs/MAINTAINING.md](docs/MAINTAINING.md): how a change here reaches the projects, the checks and dependencies of this repository
 
 ## Organisation files
 
