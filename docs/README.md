@@ -1,6 +1,9 @@
 # Documents
 
-The documents of the organisation repository. Each page covers one topic of the shared process and how a repository adopts it. A page with more than one part keeps the parts in a folder of its own, named like the page.
+The documents of the organisation repository. Each page covers one topic
+of the shared process and how a repository adopts it. A page with more
+than one part keeps the parts in a folder of its own, named like the
+page.
 
 **Contents**
 

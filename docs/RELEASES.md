@@ -1,6 +1,10 @@
 # Publishing a release
 
-A release is published from the `publish.yml` of a project on the event `release`. Every upload is done by an action here. They are composite actions and not reusable workflows on purpose: PyPI's Trusted Publishing and the MCP Registry identify the workflow of the job that uploads, so that job has to stay in the project.
+A release is published from the `publish.yml` of a project on the event
+`release`. Every upload is done by an action here. They are composite
+actions and not reusable workflows on purpose: PyPI's Trusted Publishing
+and the MCP Registry identify the workflow of the job that uploads, so
+that job has to stay in the project.
 
 ```yaml
 on:
@@ -104,29 +108,73 @@ jobs:
 
 ## The release gate
 
-A version on PyPI cannot be replaced. `python-release-ci-passed.yml` therefore lets a release through only when the push of the release commit to the default branch ran `ci.yml` and that run succeeded. It waits up to 30 minutes for a run still in progress. A commit that never reached the default branch has no such run, and the gate stops the release after five minutes. The calling job grants `actions: read`, because a reusable workflow never gets more rights than its caller.
+A version on PyPI cannot be replaced. `python-release-ci-passed.yml`
+therefore lets a release through only when the push of the release
+commit to the default branch ran `ci.yml` and that run succeeded. It
+waits up to 30 minutes for a run still in progress. A commit that never
+reached the default branch has no such run, and the gate stops the
+release after five minutes. The calling job grants `actions: read`,
+because a reusable workflow never gets more rights than its caller.
 
-The calling job runs only for a release or on the default branch, through `if: github.event_name == 'release' || github.ref == 'refs/heads/main'`. A manual run on another branch then skips the gate and every job after it, instead of failing after five minutes although nothing broke. The condition stays in the calling job and not in the reusable workflow, because GitHub does not rate a calling job whose called jobs were all skipped reliably for `needs`.
+The calling job runs only for a release or on the default branch,
+through
+`if: github.event_name == 'release' || github.ref == 'refs/heads/main'`.
+A manual run on another branch then skips the gate and every job after
+it, instead of failing after five minutes although nothing broke. The
+condition stays in the calling job and not in the reusable workflow,
+because GitHub does not rate a calling job whose called jobs were all
+skipped reliably for `needs`.
 
-With `audit: true`, the packages in `uv.lock` are audited once more, for a vulnerability that became known between the merge and the release. The inputs `workflow`, `branch` and `wait-minutes` change which CI workflow and branch count and how long the gate waits.
+With `audit: true`, the packages in `uv.lock` are audited once more, for
+a vulnerability that became known between the merge and the release. The
+inputs `workflow`, `branch` and `wait-minutes` change which CI workflow
+and branch count and how long the gate waits.
 
 ## Release tags
 
-A release tag is `v` followed by the version exactly as the version file of the project writes it. Every action compares the two as text, so the rule holds for any language, and a tag in another spelling stops the release before anything is published.
+A release tag is `v` followed by the version exactly as the version file
+of the project writes it. Every action compares the two as text, so the
+rule holds for any language, and a tag in another spelling stops the
+release before anything is published.
 
-A Python project writes its versions as PEP 440 does and tags `v1.2.3`, `v1.0.0rc1` or `v1.2.3.post1`, never `v1.0.0-rc.1`. A project in another language tags in its own format, for example `v1.0.0-rc.1` for semver. Only `publish/ghcr` reads the version itself, to derive the image tags. Its input `version-scheme` is `pep440` by default and `semver` for other projects. A pre-release gets its exact version as image tag, no `1.2` and no `latest`.
+A Python project writes its versions as PEP 440 does and tags `v1.2.3`,
+`v1.0.0rc1` or `v1.2.3.post1`, never `v1.0.0-rc.1`. A project in another
+language tags in its own format, for example `v1.0.0-rc.1` for semver.
+Only `publish/ghcr` reads the version itself, to derive the image tags.
+Its input `version-scheme` is `pep440` by default and `semver` for other
+projects. A pre-release gets its exact version as image tag, no `1.2`
+and no `latest`.
 
-A published tag cannot be deleted or moved, see [Repository settings](REPOSITORY-SETTINGS.md#release-tags). A failed release is fixed with a new version, which PyPI asks for anyway.
+A published tag cannot be deleted or moved, see [Repository
+settings](REPOSITORY-SETTINGS.md#release-tags). A failed release is
+fixed with a new version, which PyPI asks for anyway.
 
 ## Trial runs
 
-A manual run of `publish.yml` tries the image half: `publish/ghcr` builds and pushes `edge`, from the default branch only, since `edge` is public. `publish/pypi` with `dry-run: true` builds and checks everything but the version and asks PyPI whether it would take the files, without uploading and without credentials. If the version is on PyPI already, it warns without failing, since a trial usually runs before the version is raised.
+A manual run of `publish.yml` tries the image half: `publish/ghcr`
+builds and pushes `edge`, from the default branch only, since `edge` is
+public. `publish/pypi` with `dry-run: true` builds and checks everything
+but the version and asks PyPI whether it would take the files, without
+uploading and without credentials. If the version is on PyPI already, it
+warns without failing, since a trial usually runs before the version is
+raised.
 
-The PyPI trial runs in a job of its own, `pypi-trial` in the example, without the environment and without `id-token: write`. Run in the upload job instead, every manual run would show up as a deployment of the PyPI environment and get an OIDC token it does not need. The upload job keeps `if: github.event_name == 'release'`, so it never runs by hand.
+The PyPI trial runs in a job of its own, `pypi-trial` in the example,
+without the environment and without `id-token: write`. Run in the upload
+job instead, every manual run would show up as a deployment of the PyPI
+environment and get an OIDC token it does not need. The upload job keeps
+`if: github.event_name == 'release'`, so it never runs by hand.
 
 ## One-time setup
 
-- PyPI: a pending publisher per project, with the owner, the repository, the workflow file name `publish.yml` and the environment named in the job. PyPI takes a pending publisher for one project only, hence one environment per package.
-- GitHub: that environment under Settings, Environments, open to tags `v*` only, see [Repository settings](REPOSITORY-SETTINGS.md#environments).
-- ghcr.io: a new package is private even in a public repository. After the first push, switch it to public under the organisation's Packages.
-- MCP Registry: nothing. The registry grants `io.github.benethos-hub/*` to the OIDC token of the workflow.
+- PyPI: a pending publisher per project, with the owner, the repository,
+  the workflow file name `publish.yml` and the environment named in the
+  job. PyPI takes a pending publisher for one project only, hence one
+  environment per package.
+- GitHub: that environment under Settings, Environments, open to tags
+  `v*` only, see [Repository
+  settings](REPOSITORY-SETTINGS.md#environments).
+- ghcr.io: a new package is private even in a public repository. After
+  the first push, switch it to public under the organisation's Packages.
+- MCP Registry: nothing. The registry grants `io.github.benethos-hub/*`
+  to the OIDC token of the workflow.

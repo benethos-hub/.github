@@ -4,7 +4,8 @@ Part of [FRESHNESS.md](../FRESHNESS.md).
 
 ## Calling it
 
-The schedule, the run after a release, the concurrency group and the permission to write issues belong to the calling repository:
+The schedule, the run after a release, the concurrency group and the
+permission to write issues belong to the calling repository:
 
 ```yaml
 name: Freshness
@@ -33,11 +34,24 @@ jobs:
       issue-title: Pinned versions have newer releases
 ```
 
-The `workflow_run` trigger runs it once more when the publishing workflow has finished, named as its `name:` reads. The `index` job installs the package from the index, so its answer changes at that moment and at no other, and a release that does not install or does not start shows in the alarm issue within minutes instead of at the next schedule. The index can show a fresh version a minute late, then the run measures the version before once and the schedule corrects it. A publishing run that failed leaves the index as it was, so the run after it repeats the day before. A repository without a publishing workflow leaves the trigger out.
+The `workflow_run` trigger runs it once more when the publishing
+workflow has finished, named as its `name:` reads. The `index` job
+installs the package from the index, so its answer changes at that
+moment and at no other, and a release that does not install or does not
+start shows in the alarm issue within minutes instead of at the next
+schedule. The index can show a fresh version a minute late, then the run
+measures the version before once and the schedule corrects it. A
+publishing run that failed leaves the index as it was, so the run after
+it repeats the day before. A repository without a publishing workflow
+leaves the trigger out.
 
-The weekly [CodeQL run](../CODEQL.md#calling-it) starts half an hour later, at 05:00 UTC, so that the two do not fall together.
+The weekly [CodeQL run](../CODEQL.md#calling-it) starts half an hour
+later, at 05:00 UTC, so that the two do not fall together.
 
-The concurrency group lets one run at a time. A second run waits and starts when the first has finished, a third replaces the one waiting, and the running one is never cancelled, so no report reads the artifacts of another run and no two runs write the issue at once.
+The concurrency group lets one run at a time. A second run waits and
+starts when the first has finished, a third replaces the one waiting,
+and the running one is never cancelled, so no report reads the artifacts
+of another run and no two runs write the issue at once.
 
 | Input | What it does |
 | --- | --- |
@@ -63,19 +77,44 @@ The concurrency group lets one run at a time. A second run waits and starts when
 | `alarm-title` | The title of a second issue for the jobs whose status names the alarm, the `index` job among them. Empty keeps everything in the one issue. |
 | `alarm-resolved` | The sentence that closes the alarm issue when nothing is alarming any more. Default: `The checks pass again on the newest versions allowed.` |
 
-The call has one output, `expected`: the measuring jobs of the call that must have left an artifact, separated by spaces and with the suffix per project and per package, such as `outdated audit images actions index-example-mcp`. It is for a call of `freshness-report.yml` by the repository and nothing else needs it.
+The call has one output, `expected`: the measuring jobs of the call that
+must have left an artifact, separated by spaces and with the suffix per
+project and per package, such as
+`outdated audit images actions index-example-mcp`. It is for a call of
+`freshness-report.yml` by the repository and nothing else needs it.
 
-The job names are `Which jobs must have a result`, `Outdated packages`, `Known vulnerabilities`, `Container images`, `Pinned actions`, `Installed from the index` and `Freshness report`. The second and third carry the folder and the sixth the package in parentheses, as GitHub names a run of a matrix, so the root shows as `Outdated packages (.)`. The report appears beneath the job that calls it. None of them is a required check, the workflow runs on a schedule.
+The job names are `Which jobs must have a result`, `Outdated packages`,
+`Known vulnerabilities`, `Container images`, `Pinned actions`,
+`Installed from the index` and `Freshness report`. The second and third
+carry the folder and the sixth the package in parentheses, as GitHub
+names a run of a matrix, so the root shows as `Outdated packages (.)`.
+The report appears beneath the job that calls it. None of them is a
+required check, the workflow runs on a schedule.
 
 ## Workspaces
 
-In a uv workspace the roots of the graph are the members in `manifest.members` of the lockfile. The members themselves are never a finding. `within_bounds` is measured for the resolution of the whole workspace. A single package installed on its own with `uvx` sees only its own bounds and can resolve differently. Build backends are read from every `pyproject.toml`, not only the root.
+In a uv workspace the roots of the graph are the members in
+`manifest.members` of the lockfile. The members themselves are never a
+finding. `within_bounds` is measured for the resolution of the whole
+workspace. A single package installed on its own with `uvx` sees only
+its own bounds and can resolve differently. Build backends are read from
+every `pyproject.toml`, not only the root.
 
 ## Several projects in one repository
 
-A uv workspace is one project: one `uv.lock`, several packages. The `outdated` and `audit` jobs read all of it, the report names the packages a finding is needed by, and the `index` job runs once per published package when `index-packages` names them. A library without a console script shows its installed version as the default check, and `index-check` can tell the packages apart through `FRESHNESS_PACKAGE`.
+A uv workspace is one project: one `uv.lock`, several packages. The
+`outdated` and `audit` jobs read all of it, the report names the
+packages a finding is needed by, and the `index` job runs once per
+published package when `index-packages` names them. A library without a
+console script shows its installed version as the default check, and
+`index-check` can tell the packages apart through `FRESHNESS_PACKAGE`.
 
-A repository with several independent lockfiles names their folders in `projects`. The `outdated` and `audit` jobs run once per folder, each with its own artifact, and the report shows the folder in `where`, as `tools/audit/uv.lock`. A folder beneath a project with a lockfile of its own belongs to its own run, so its build backend is counted once. The `images` and `actions` jobs read the whole repository either way.
+A repository with several independent lockfiles names their folders in
+`projects`. The `outdated` and `audit` jobs run once per folder, each
+with its own artifact, and the report shows the folder in `where`, as
+`tools/audit/uv.lock`. A folder beneath a project with a lockfile of its
+own belongs to its own run, so its build backend is counted once. The
+`images` and `actions` jobs read the whole repository either way.
 
 ```yaml
     with:
@@ -85,4 +124,7 @@ A repository with several independent lockfiles names their folders in `projects
       index-packages: '["example-mcp", "example-service"]'
 ```
 
-Each run leaves its own artifact, `freshness-outdated-tools-audit` or `freshness-index-example-mcp`, and the report expects each of them. The root and the one project keep the plain names, so nothing changes for a repository that names neither.
+Each run leaves its own artifact, `freshness-outdated-tools-audit` or
+`freshness-index-example-mcp`, and the report expects each of them. The
+root and the one project keep the plain names, so nothing changes for a
+repository that names neither.

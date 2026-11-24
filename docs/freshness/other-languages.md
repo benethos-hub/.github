@@ -4,7 +4,12 @@ Part of [FRESHNESS.md](../FRESHNESS.md).
 
 ## Another language
 
-The jobs `images`, `actions` and the report know no language. The jobs `outdated`, `audit` and `index` run one step per ecosystem, guarded by `if: inputs.ecosystem == 'uv'`, and fail with a word for an ecosystem without a step. A second language adds an adapter action that writes the files [FORMAT.md](../../actions/freshness/report/FORMAT.md) describes, and one such step per job. The report needs no change.
+The jobs `images`, `actions` and the report know no language. The jobs
+`outdated`, `audit` and `index` run one step per ecosystem, guarded by
+`if: inputs.ecosystem == 'uv'`, and fail with a word for an ecosystem
+without a step. A second language adds an adapter action that writes the
+files [FORMAT.md](../../actions/freshness/report/FORMAT.md) describes,
+and one such step per job. The report needs no change.
 
 The actions behind the jobs, each usable on its own:
 
@@ -20,4 +25,6 @@ The actions behind the jobs, each usable on its own:
 | [freshness/actions](../../actions/freshness/actions/action.yml) | `uses:` lines and the GitHub API |
 | [freshness/report](../../actions/freshness/report/action.yml) | Only the files per job |
 
-The registry of Docker Hub counts anonymous reads against the address of the runner, which is shared. A run asks it for one or two manifests, which has been enough so far.
+The registry of Docker Hub counts anonymous reads against the address of
+the runner, which is shared. A run asks it for one or two manifests,
+which has been enough so far.

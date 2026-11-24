@@ -1,14 +1,20 @@
 # Repository settings
 
-Every repository of the organisation, this one included, has the settings on this page. They live in GitHub, not in the repository, so a new repository needs them set by hand once. Each section names the place in the settings and the call of the GitHub CLI that sets the same, with `<repo>` for the repository.
+Every repository of the organisation, this one included, has the
+settings on this page. They live in GitHub, not in the repository, so a
+new repository needs them set by hand once. Each section names the place
+in the settings and the call of the GitHub CLI that sets the same, with
+`<repo>` for the repository.
 
-The organisation is on GitHub Free, which has no organisation rulesets. Every rule is therefore set per repository.
+The organisation is on GitHub Free, which has no organisation rulesets.
+Every rule is therefore set per repository.
 
 ## General
 
 Settings, General:
 
-- Pull requests: allow squash merging and rebase merging, not merge commits, so the history of `main` stays linear.
+- Pull requests: allow squash merging and rebase merging, not merge
+  commits, so the history of `main` stays linear.
 - Automatically delete head branches.
 - Wiki off. The documentation lives in the repository.
 
@@ -23,16 +29,22 @@ EOF
 
 Settings, Branches, a classic branch protection rule for `main`:
 
-- Require status checks to pass, with the checks of the CI as required checks. The branch does not have to be up to date.
+- Require status checks to pass, with the checks of the CI as required
+  checks. The branch does not have to be up to date.
 - Require conversation resolution.
 - Require linear history.
-- Do not allow bypassing the above settings, so the rules bind admins as well.
+- Do not allow bypassing the above settings, so the rules bind admins as
+  well.
 - No force pushes and no deletion.
-- No required review. The organisation has one maintainer, who cannot approve their own pull request.
+- No required review. The organisation has one maintainer, who cannot
+  approve their own pull request.
 
-With required checks that bind admins, nothing reaches `main` without a pull request. A check has to have run once in the repository before it can be selected in the settings. The API takes it right away.
+With required checks that bind admins, nothing reaches `main` without a
+pull request. A check has to have run once in the repository before it
+can be selected in the settings. The API takes it right away.
 
-The required checks are the names [CI of a Python project](CI.md#check-names) explains. They differ by repository:
+The required checks are the names [CI of a Python
+project](CI.md#check-names) explains. They differ by repository:
 
 | Repository | Required checks |
 | --- | --- |
@@ -41,9 +53,15 @@ The required checks are the names [CI of a Python project](CI.md#check-names) ex
 | With a container image | the above, plus the jobs of its own CI that build the image, in the projects `docker` and `fresh-install` |
 | This repository | `lint / lint`, `test / Python 3.11` to `test / Python 3.15`, `audit / Dependency audit`, `Lockfiles of the actions` |
 
-A changed job name or Python version changes the check names. The branch protection has to follow in the same step, otherwise it waits for a check that never comes.
+A changed job name or Python version changes the check names. The branch
+protection has to follow in the same step, otherwise it waits for a
+check that never comes.
 
-Not required in any repository: `codeql / CodeQL`, the scanners of [Dockerfile checks](DOCKERFILE-CHECKS.md) and the code scanning checks their uploads add to a pull request, see [CodeQL](CODEQL.md). Their findings are read in the Security tab and fixed or dismissed there, a merge never waits for them.
+Not required in any repository: `codeql / CodeQL`, the scanners of
+[Dockerfile checks](DOCKERFILE-CHECKS.md) and the code scanning checks
+their uploads add to a pull request, see [CodeQL](CODEQL.md). Their
+findings are read in the Security tab and fixed or dismissed there, a
+merge never waits for them.
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/branches/main/protection --input - <<'EOF'
@@ -70,17 +88,21 @@ gh api -X PUT repos/benethos-hub/<repo>/branches/main/protection --input - <<'EO
 EOF
 ```
 
-`15368` is GitHub Actions, so a check of the same name from another app does not count.
+`15368` is GitHub Actions, so a check of the same name from another app
+does not count.
 
 ## Release tags
 
-Settings, Rules, Rulesets, a tag ruleset named `Release tags` in every repository that publishes releases:
+Settings, Rules, Rulesets, a tag ruleset named `Release tags` in every
+repository that publishes releases:
 
 - Enforcement status Active, with an empty bypass list.
 - Target the tags `refs/tags/v*`.
 - Restrict updates and restrict deletions.
 
-A release creates its tag, which the ruleset allows. Afterwards the tag can neither be moved to another commit nor deleted, so a published version always points to the commit it was built from.
+A release creates its tag, which the ruleset allows. Afterwards the tag
+can neither be moved to another commit nor deleted, so a published
+version always points to the commit it was built from.
 
 ```sh
 gh api -X POST repos/benethos-hub/<repo>/rulesets --input - <<'EOF'
@@ -97,9 +119,16 @@ EOF
 
 ## Environments
 
-Settings, Environments, one environment per package on PyPI, named as in the job of `publish.yml`, for example `pypi-benethos-example`. Under Deployment branches and tags, choose Selected branches and tags and add the tag rule `v*`.
+Settings, Environments, one environment per package on PyPI, named as in
+the job of `publish.yml`, for example `pypi-benethos-example`. Under
+Deployment branches and tags, choose Selected branches and tags and add
+the tag rule `v*`.
 
-The upload jobs run on a release only, whose ref is the tag. The rule makes sure that nothing else can deploy to the environment, not even a manual run on `main`. `pypi-trial` has no environment and is not affected. The one-time setup of PyPI itself is in [Publishing a release](RELEASES.md#one-time-setup).
+The upload jobs run on a release only, whose ref is the tag. The rule
+makes sure that nothing else can deploy to the environment, not even a
+manual run on `main`. `pypi-trial` has no environment and is not
+affected. The one-time setup of PyPI itself is in [Publishing a
+release](RELEASES.md#one-time-setup).
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/environments/<environment> --input - <<'EOF'
@@ -115,11 +144,18 @@ Settings, Advanced Security:
 
 - Dependency graph on. Dependabot finds vulnerable packages through it.
 - Dependabot alerts, malware alerts and Dependabot security updates on.
-- CodeQL analysis. The default setup needs no file in the repository and runs the security queries. A repository that runs [codeql.yml](CODEQL.md) for the quality queries as well switches to the advanced setup instead, since the default setup rejects its upload. Neither is a required check.
+- CodeQL analysis. The default setup needs no file in the repository and
+  runs the security queries. A repository that runs
+  [codeql.yml](CODEQL.md) for the quality queries as well switches to
+  the advanced setup instead, since the default setup rejects its
+  upload. Neither is a required check.
 - Secret scanning and push protection on.
-- Private vulnerability reporting on. The [security policy](../SECURITY.md) asks for reports through it, and the button only appears when it is on.
+- Private vulnerability reporting on. The [security
+  policy](../SECURITY.md) asks for reports through it, and the button
+  only appears when it is on.
 
-The dependency graph and malware alerts are switched on this page, the rest also through these calls:
+The dependency graph and malware alerts are switched on this page, the
+rest also through these calls:
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/vulnerability-alerts
@@ -132,25 +168,52 @@ gh api -X PATCH repos/benethos-hub/<repo> --input - <<'EOF'
 EOF
 ```
 
-Check the dependency graph on its own. It can be off while the calls for alerts and security updates report success, and then no alert ever comes. This call answers 404 as long as it is off:
+Check the dependency graph on its own. It can be off while the calls for
+alerts and security updates report success, and then no alert ever
+comes. This call answers 404 as long as it is off:
 
 ```sh
 gh api repos/benethos-hub/<repo>/dependency-graph/sbom --jq '.sbom.packages | length'
 ```
 
-The graph reads the lockfiles and the actions, not the base images of a Dockerfile. Those stay with the `docker` entry of [Dependabot](#dependabot).
+The graph reads the lockfiles and the actions, not the base images of a
+Dockerfile. Those stay with the `docker` entry of
+[Dependabot](#dependabot).
 
 ### The code scanning check
 
-Code scanning adds a check `Code scanning results / <tool>` to every pull request that uploads findings, one per tool: CodeQL, hadolint, Trivy or Checkov. Whether a finding turns it red is one threshold for every tool, on the settings page only: Settings, Code security, Code scanning, Protection rules, Check failure. It has two halves. Security alerts are the findings that carry a security severity, which the CodeQL security queries and Trivy set. Other alerts are the rest, judged by their level, which is every finding of hadolint, of Checkov's Dockerfile checks and of the CodeQL quality queries.
+Code scanning adds a check `Code scanning results / <tool>` to every
+pull request that uploads findings, one per tool: CodeQL, hadolint,
+Trivy or Checkov. Whether a finding turns it red is one threshold for
+every tool, on the settings page only: Settings, Code security, Code
+scanning, Protection rules, Check failure. It has two halves. Security
+alerts are the findings that carry a security severity, which the CodeQL
+security queries and Trivy set. Other alerts are the rest, judged by
+their level, which is every finding of hadolint, of Checkov's Dockerfile
+checks and of the CodeQL quality queries.
 
-Set Security alerts to High or higher and Other alerts to Errors and warnings. GitHub's own default is High or higher and Errors, which lets a hadolint warning through. Do not make the check a required check, a finding is read in the Security tab and fixed or dismissed there, the merge does not wait for it. The scanners' own jobs fail on no finding unless a repository sets `failure-level`, see [Dockerfile checks](DOCKERFILE-CHECKS.md) and [CodeQL](CODEQL.md).
+Set Security alerts to High or higher and Other alerts to Errors and
+warnings. GitHub's own default is High or higher and Errors, which lets
+a hadolint warning through. Do not make the check a required check, a
+finding is read in the Security tab and fixed or dismissed there, the
+merge does not wait for it. The scanners' own jobs fail on no finding
+unless a repository sets `failure-level`, see [Dockerfile
+checks](DOCKERFILE-CHECKS.md) and [CodeQL](CODEQL.md).
 
-A security update can fail when another package holds the vulnerable version back. The Dependabot run then ends in red with `security_update_not_possible`, which is no defect here. Report it to the project that holds the version. If the vulnerable code cannot be reached here, dismiss the alert with the reason in its comment, so that a new alert stands out.
+A security update can fail when another package holds the vulnerable
+version back. The Dependabot run then ends in red with
+`security_update_not_possible`, which is no defect here. Report it to
+the project that holds the version. If the vulnerable code cannot be
+reached here, dismiss the alert with the reason in its comment, so that
+a new alert stands out.
 
 ## Actions
 
-Settings, Actions, General, Workflow permissions: read repository contents and packages, and do not allow GitHub Actions to create or approve pull requests. Every job asks for what it needs beyond that in its own `permissions:`. Every repository has these settings today. Check them in a new one.
+Settings, Actions, General, Workflow permissions: read repository
+contents and packages, and do not allow GitHub Actions to create or
+approve pull requests. Every job asks for what it needs beyond that in
+its own `permissions:`. Every repository has these settings today. Check
+them in a new one.
 
 ```sh
 gh api -X PUT repos/benethos-hub/<repo>/actions/permissions/workflow \
@@ -159,7 +222,11 @@ gh api -X PUT repos/benethos-hub/<repo>/actions/permissions/workflow \
 
 ## Dependabot
 
-Every repository has a `.github/dependabot.yml` with one entry per ecosystem it uses: `uv` for `uv.lock`, `github-actions` for the pinned actions, and `docker` for each folder with a Dockerfile. Each entry runs weekly and groups minor and patch updates into one pull request, so a major update comes on its own:
+Every repository has a `.github/dependabot.yml` with one entry per
+ecosystem it uses: `uv` for `uv.lock`, `github-actions` for the pinned
+actions, and `docker` for each folder with a Dockerfile. Each entry runs
+weekly and groups minor and patch updates into one pull request, so a
+major update comes on its own:
 
 ```yaml
     groups:
@@ -168,12 +235,29 @@ Every repository has a `.github/dependabot.yml` with one entry per ecosystem it 
         update-types: ["minor", "patch"]
 ```
 
-Every `uv` entry also sets `versioning-strategy: increase-if-necessary`, so a release the range in `pyproject.toml` allows changes `uv.lock` only. Left to itself, Dependabot can raise the lower bound as well, which reaches everyone who installs the package although nothing asks for it. The lower bounds stay what `lowest-versions` tests, and that job says when one has become too low.
+Every `uv` entry also sets `versioning-strategy: increase-if-necessary`,
+so a release the range in `pyproject.toml` allows changes `uv.lock`
+only. Left to itself, Dependabot can raise the lower bound as well,
+which reaches everyone who installs the package although nothing asks
+for it. The lower bounds stay what `lowest-versions` tests, and that job
+says when one has become too low.
 
-The standard for `open-pull-requests-limit` is 5, and 10 is the most an entry sets. This repository sets 10.
+The standard for `open-pull-requests-limit` is 5, and 10 is the most an
+entry sets. This repository sets 10.
 
-This repository runs every entry daily. The repositories call its workflows and actions at `main`, so an update here reaches all of them on the same day, and only the Dependabot of this repository keeps those pins current.
+This repository runs every entry daily. The repositories call its
+workflows and actions at `main`, so an update here reaches all of them
+on the same day, and only the Dependabot of this repository keeps those
+pins current.
 
-Dependabot takes daily as Monday to Friday, and it proposes a release only once it is three days old. It waits that long without being told. This repository writes the wait down as `cooldown` with `default-days: 3`, so the file shows what happens.
+Dependabot takes daily as Monday to Friday, and it proposes a release
+only once it is three days old. It waits that long without being told.
+This repository writes the wait down as `cooldown` with
+`default-days: 3`, so the file shows what happens.
 
-A package whose updates need a review of their own, such as the `mcp` SDK in the MCP servers, is left out of the group through `exclude-patterns`, so each of its updates is a pull request of its own. The `dependabot.yml` of [lexware-office-mcp](https://github.com/benethos-hub/lexware-office-mcp/blob/main/.github/dependabot.yml) shows all three entries with the reason for each.
+A package whose updates need a review of their own, such as the `mcp`
+SDK in the MCP servers, is left out of the group through
+`exclude-patterns`, so each of its updates is a pull request of its own.
+The `dependabot.yml` of
+[lexware-office-mcp](https://github.com/benethos-hub/lexware-office-mcp/blob/main/.github/dependabot.yml)
+shows all three entries with the reason for each.

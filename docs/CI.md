@@ -1,6 +1,7 @@
 # CI of a Python project
 
-A Python project managed with uv calls these workflows from its `ci.yml`:
+A Python project managed with uv calls these workflows from its
+`ci.yml`:
 
 ```yaml
 on:
@@ -66,10 +67,28 @@ jobs:
 
 ## Check names
 
-The checks are named after the calling job and the job inside the workflow: `lint / lint`, `test / Python 3.15`, `lowest-versions / Python 3.11`, `audit / Dependency audit`, `brand / Brand assets` and `codeql / CodeQL`. The first five are the names the branch protection requires, see [Repository settings](REPOSITORY-SETTINGS.md#branch-protection). `codeql / CodeQL`, `dockerfile-lint / Dockerfile lint`, `trivy-config / Trivy config` and `checkov / Checkov` are not required checks in any repository, and neither is the code scanning check their uploads add to a pull request. Its findings are read in the Security tab, a merge never waits for them. A project names its Python versions in `with:` even where they equal the defaults, so that a changed default here never moves its tests without a word.
+The checks are named after the calling job and the job inside the
+workflow: `lint / lint`, `test / Python 3.15`,
+`lowest-versions / Python 3.11`, `audit / Dependency audit`,
+`brand / Brand assets` and `codeql / CodeQL`. The first five are the
+names the branch protection requires, see [Repository
+settings](REPOSITORY-SETTINGS.md#branch-protection). `codeql / CodeQL`,
+`dockerfile-lint / Dockerfile lint`, `trivy-config / Trivy config` and
+`checkov / Checkov` are not required checks in any repository, and
+neither is the code scanning check their uploads add to a pull request.
+Its findings are read in the Security tab, a merge never waits for them.
+A project names its Python versions in `with:` even where they equal the
+defaults, so that a changed default here never moves its tests without a
+word.
 
-Coverage is measured on one version only, because it slows the older ones down noticeably. A required check on `test / Python 3.15` is what makes the floor block a merge.
+Coverage is measured on one version only, because it slows the older
+ones down noticeably. A required check on `test / Python 3.15` is what
+makes the floor block a merge.
 
 ## Several packages
 
-A repository with several packages, such as a uv workspace, calls `python-lowest-versions.yml` once per package, each with its own `editable` and `pytest-args` and a job name of its own, for example `lowest-mcp` or `lowest-client`. Each call caches under a key of its own, so the calls can run side by side.
+A repository with several packages, such as a uv workspace, calls
+`python-lowest-versions.yml` once per package, each with its own
+`editable` and `pytest-args` and a job name of its own, for example
+`lowest-mcp` or `lowest-client`. Each call caches under a key of its
+own, so the calls can run side by side.

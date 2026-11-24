@@ -4,7 +4,15 @@ Part of [FRESHNESS.md](../FRESHNESS.md).
 
 ## A job of the repository
 
-A repository adds a check of its own without a change here. A job of the calling workflow leaves an artifact `freshness-<job>` with the files of [FORMAT.md](../../actions/freshness/report/FORMAT.md): `status.json`, and `findings.jsonl` or `section.md` or both. The report learns of the job through `extra-jobs`, so a job that dies before its upload is a line in the issue and not a silent gap. The job runs beside the measuring jobs: `freshness.yml` is called with `report: false` and only measures, and `freshness-report.yml` is called after both, with the output `expected` of the measuring call.
+A repository adds a check of its own without a change here. A job of the
+calling workflow leaves an artifact `freshness-<job>` with the files of
+[FORMAT.md](../../actions/freshness/report/FORMAT.md): `status.json`,
+and `findings.jsonl` or `section.md` or both. The report learns of the
+job through `extra-jobs`, so a job that dies before its upload is a line
+in the issue and not a silent gap. The job runs beside the measuring
+jobs: `freshness.yml` is called with `report: false` and only measures,
+and `freshness-report.yml` is called after both, with the output
+`expected` of the measuring call.
 
 ```yaml
 jobs:
@@ -39,9 +47,21 @@ jobs:
       alarm-title: Newest dependency versions break the server
 ```
 
-`freshness-report.yml` takes `issue-title`, `resolved`, `extra-jobs`, `alarm-title`, `alarm-resolved`, `ignore`, `dev` and `transitive` with the meaning they have in [the call](calling.md#calling-it), and `expected`, the output of the measuring call. The permission to write issues goes to this call, the measuring call needs none. The `if` lets the report run when a job before it failed, which is then a line in the issue. Without it, GitHub skips the report after a failed job and the issue stays as it was. An empty `expected` fails the report before it writes anything: it means the output was lost or that nothing measured, and in both cases the issue has to stay as it was.
+`freshness-report.yml` takes `issue-title`, `resolved`, `extra-jobs`,
+`alarm-title`, `alarm-resolved`, `ignore`, `dev` and `transitive` with
+the meaning they have in [the call](calling.md#calling-it), and
+`expected`, the output of the measuring call. The permission to write
+issues goes to this call, the measuring call needs none. The `if` lets
+the report run when a job before it failed, which is then a line in the
+issue. Without it, GitHub skips the report after a failed job and the
+issue stays as it was. An empty `expected` fails the report before it
+writes anything: it means the output was lost or that nothing measured,
+and in both cases the issue has to stay as it was.
 
-The one call works as well, with the job of the repository first and `needs` on the call. The report and the measuring jobs then wait for that job. Nothing else differs, both forms get the same artifacts, the same expected jobs and the same issue.
+The one call works as well, with the job of the repository first and
+`needs` on the call. The report and the measuring jobs then wait for
+that job. Nothing else differs, both forms get the same artifacts, the
+same expected jobs and the same issue.
 
 ```yaml
   freshness:
@@ -57,9 +77,26 @@ The one call works as well, with the job of the repository first and `needs` on 
       alarm-title: Newest dependency versions break the server
 ```
 
-A job says in one sentence what it checked through `summary` in its status, such as which versions its tests passed on, and the report lists it under `Checks`. A job that says something alarming, such as tests that fail on the newest versions allowed, sets `"issue": "alarm"` in its status. Its findings and its section then go to the second issue named by `alarm-title`, and the pins report stays what it is. The alarm issue is touched only when every job was conclusive. A job that ran but could not prove anything, after a rate limit, say, sets `"result": "inconclusive"`: that is a line in the pins report, and the alarm issue is left as it was. Without `alarm-title` everything goes to the one issue.
+A job says in one sentence what it checked through `summary` in its
+status, such as which versions its tests passed on, and the report lists
+it under `Checks`. A job that says something alarming, such as tests
+that fail on the newest versions allowed, sets `"issue": "alarm"` in its
+status. Its findings and its section then go to the second issue named
+by `alarm-title`, and the pins report stays what it is. The alarm issue
+is touched only when every job was conclusive. A job that ran but could
+not prove anything, after a rate limit, say, sets
+`"result": "inconclusive"`: that is a line in the pins report, and the
+alarm issue is left as it was. Without `alarm-title` everything goes to
+the one issue.
 
-For a uv project the job is ready made: [python/freshness-newest](../../actions/python/freshness-newest/action.yml) upgrades the lockfile inside the runner, runs the tests and an optional check on the newest versions allowed, after the same check on the locked ones, and leaves the artifact with `issue: alarm`, a summary of what passed and what moved, and a section when a step failed. A failure of the check on the locked versions, a rate limit or a failure without a move is inconclusive.
+For a uv project the job is ready made:
+[python/freshness-newest](../../actions/python/freshness-newest/action.yml)
+upgrades the lockfile inside the runner, runs the tests and an optional
+check on the newest versions allowed, after the same check on the locked
+ones, and leaves the artifact with `issue: alarm`, a summary of what
+passed and what moved, and a section when a step failed. A failure of
+the check on the locked versions, a rate limit or a failure without a
+move is inconclusive.
 
 ```yaml
   newest:
